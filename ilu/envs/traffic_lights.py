@@ -16,7 +16,7 @@ from gym.spaces.tuple_space import Tuple
 from flow.core import rewards
 from flow.envs.green_wave_env import TrafficLightGridEnv, ADDITIONAL_ENV_PARAMS
 
-NUM_ITERATIONS = 5
+
 ADDITIONAL_QL_PARAMS = {
         'epsilon': 5e-2,
         'alpha': 5e-2,

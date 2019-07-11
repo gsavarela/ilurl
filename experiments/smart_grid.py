@@ -164,7 +164,7 @@ def grid_example(render=None, use_inflows=False):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=0.1, render=True, print_warnings=False)
+    sim_params = SumoParams(sim_step=0.1, render=False, print_warnings=False)
 
     if render is not None:
         sim_params.render = render
