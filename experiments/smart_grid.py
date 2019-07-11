@@ -15,7 +15,7 @@ from ilu.envs.traffic_lights import TrafficLightQLGridEnv, ADDITIONAL_QL_ENV_PAR
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
-NUM_ITERATIONS = 1
+NUM_ITERATIONS = 5
 
 
 def gen_edges(col_num, row_num):

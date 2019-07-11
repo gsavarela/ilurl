@@ -126,8 +126,10 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         """Applies Q-Learning using an epsilon greedy policy"""
         S = self._tuplefy(S)[0]
 
+
         # direction are the current values for traffic lights
         actions_values = list(self.Q[S].items())
+        actions_values = self._tuple_filter(actions_values)
 
         if rand() <= self.epsilon:
             # Take a random action
@@ -177,6 +179,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
 
         self.q_update(S, A, R, self.get_state())
 
+
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
         return rewards.average_velocity(self, fail=False)
@@ -201,4 +204,43 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
                 arg = tuple(int(f) for f in arg)
             ret.append(arg)
         return tuple(ret)
+
+    def _tuple_toggle(self, tpl:tuple) -> tuple:
+        """Negates the sign of the binary-tuple"""
+        return tuple([int(not(bin(b))) for b in tpl])
+
+    def _tuple_apply_mask(self, tpl:tuple, msk:tuple):
+        """Negates the sign of the binary-tuple"""
+        return tuple([t * m for t, m in zip(tpl, msk)])
+
+    def _tuple_filter(self, list_of_tuples :list) -> list:
+        """filters a list of tuples based on a mask"""
+        # mask = tuple(
+        #     np.bitwise_and(
+        #         self.last_change.astype(bool),
+        #         self.last_change <= self.min_switch_time
+        #     ).flatten()
+        #     .astype(int)
+        # )
+        mask = tuple(
+            np.bitwise_or(
+                np.bitwise_not(self.last_change.astype(bool)),
+                np.bitwise_not(self.last_change < self.min_switch_time)
+            ).flatten()
+            .astype(int)
+        )
+
+        ret = []
+        for action, value in list_of_tuples:
+            filt = False
+            for a, m in zip(action, mask):
+                if m == 0 and a == 1:
+                    filt = True
+                    break
+            if not filt:
+                ret.append((action, value))
+        return ret
+
+
+
 
