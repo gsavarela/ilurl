@@ -5,8 +5,11 @@
 '''
 __author__ = "Guilherme Varela"
 
-import numpy as np
+from collections import defaultdict
 from itertools import product as prod
+
+import numpy as np
+
 from numpy.random import rand, choice
 
 from gym.spaces.discrete import Discrete
@@ -177,7 +180,10 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         # place q-learning here
         R = self.compute_reward(rl_actions)
 
-        self.q_update(S, A, R, self.get_state())
+        Sprime = self.get_state()
+        self.q_update(S, A, R, Sprime)
+        self._log(S, A, R, Sprime)
+
 
 
     def compute_reward(self, rl_actions, **kwargs):
@@ -215,13 +221,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
 
     def _tuple_filter(self, list_of_tuples :list) -> list:
         """filters a list of tuples based on a mask"""
-        # mask = tuple(
-        #     np.bitwise_and(
-        #         self.last_change.astype(bool),
-        #         self.last_change <= self.min_switch_time
-        #     ).flatten()
-        #     .astype(int)
-        # )
         mask = tuple(
             np.bitwise_or(
                 np.bitwise_not(self.last_change.astype(bool)),
@@ -240,6 +239,19 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
             if not filt:
                 ret.append((action, value))
         return ret
+
+    def _log(self, S, A, R, Sprime):
+        if not hasattr(self, 'dump'):
+            self.dump = defaultdict(list)
+
+        self.dump['t'].append(self.step_counter)
+        self.dump['S'].append(str(tuple(S.flatten().astype(int))))
+        self.dump['A'].append(str(tuple(A)))
+        self.dump['R'].append(R)
+        self.dump['Sprime'].append(str(tuple(Sprime.flatten().astype(int))))
+
+
+
 
 
 

@@ -14,8 +14,8 @@ from ilu.envs.traffic_lights import TrafficLightQLGridEnv, ADDITIONAL_QL_ENV_PAR
 
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
-HORIZON = 1500
-NUM_ITERATIONS = 5
+HORIZON = 50000
+NUM_ITERATIONS = 1
 
 
 def gen_edges(col_num, row_num):
@@ -164,7 +164,7 @@ def grid_example(render=None, use_inflows=False):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=0.1, render=False, print_warnings=False)
+    sim_params = SumoParams(sim_step=1, render=False, print_warnings=False)
 
     if render is not None:
         sim_params.render = render
@@ -261,11 +261,19 @@ if __name__ == "__main__":
         rl_actions=env.eps_greedy
     )
     dump_filename = \
-        "{0}.dump".format(env.scenario.name)
+        "{0}.stats.dump".format(env.scenario.name)
 
     dump_path = "{}{}".format(EMISSION_PATH, dump_filename)
 
     data['velocities'] = {i: list(v) for i, v in enumerate(data['velocities'])}
     with open(dump_path, 'w') as fp:
         json.dump(data, fp)
+
+    dump_filename = \
+        "{0}.ql.dump".format(env.scenario.name)
+
+    dump_path = "{}{}".format(EMISSION_PATH, dump_filename)
+
+    with open(dump_path, 'w') as fp:
+        json.dump(env.dump, fp)
 
