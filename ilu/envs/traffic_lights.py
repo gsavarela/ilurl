@@ -34,6 +34,23 @@ ADDITIONAL_QL_ENV_PARAMS = {
 class TrafficLightQLGridEnv(TrafficLightGridEnv):
     """Environment used to train traffic lights.
 
+    This is a single TFLQLAgent controlling a variable number of
+    traffic lights (TFL) with binary features defined as such:
+
+    1. One TFLQLAgent controlling k = 1, 2, ..., K TFL
+    2. The actions for the agent is for each of the
+       K-TFL is to:
+        2.1 0 - keep state.
+        2.2 1 - switch.
+        2.3 For each switch action the TFL must be open at
+            least for min_switch_time.
+
+    4. The state Sk for each of the K-TFL can be represented by
+       a tuple such that Sk = (vk, nk) where:
+        4.1 vk is the mean speed.
+        4.2 nk is the total number of vehicles.
+
+
     Required from env_params:
 
     * switch_time: minimum time a light must be constant before
@@ -94,36 +111,8 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
                                                     simulator=simulator)
 
         # Q learning stuff
-        r = self.num_traffic_lights
-        self.Q = {
-            tuple(state):
-                {
-                    tuple(action): 0 for action in prod([0, 1], repeat=r)
-                }
-            for state in prod([0, 1], repeat=r)
-        }
-
-    @property
-    def action_space(self):
-        """See class definition."""
-        return Discrete(2 ** self.num_traffic_lights)
-
-    @property
-    def observation_space(self):
-        """See class definition."""
-        speed = Box(
-            low=0,
-            high=1,
-            shape=(self.initial_vehicles.num_vehicles,),
-            dtype=np.float32)
-
-        traffic_lights = Box(
-            low=0.,
-            high=1,
-            shape=(2 * self.rows * self.cols,),
-            dtype=np.float32)
-
-        return Tuple((speed, traffic_lights))
+        self.num_features = 2 # every state is composed of 5 features
+        self._init_q()
 
     def eps_greedy(self, S):
         """Applies Q-Learning using an epsilon greedy policy"""
@@ -156,9 +145,20 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         Qstar = max(self.Q[Sprime].items(), key=lambda x: x[1])[1]
         self.Q[S][A] += self.alpha * (R + self.gamma * Qstar - self.Q[S][A])
 
-    def get_state(self):
-        """See class definition."""
-        return self.direction
+    def _init_q(self):
+        rs = self.num_features * self.num_traffic_lights
+        ra = self.num_traffic_lights
+
+
+        self.Q = {
+            tuple(s):
+                {
+                    tuple(a): 0
+                    for a in prod([0, 1], repeat=ra)
+                }
+            for s in prod([0, 1], repeat=rs)
+        }
+
 
     def _apply_rl_actions(self, rl_actions):
         """Q-Learning
@@ -185,6 +185,9 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         self._log(S, A, R, Sprime)
 
 
+    def get_state(self):
+        state = super(TrafficLightQLGridEnv, self).get_state()
+        return state
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
