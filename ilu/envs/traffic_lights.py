@@ -35,21 +35,34 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
     """Environment used to train traffic lights.
 
     This is a single TFLQLAgent controlling a variable number of
-    traffic lights (TFL) with binary features defined as such:
+    traffic lights (TFL) with discrete features defined as such:
 
     1. One TFLQLAgent controlling k = 1, 2, ..., K TFL
+
     2. The actions for the agent is for each of the
        K-TFL is to:
         2.1 0 - keep state.
         2.2 1 - switch.
         2.3 For each switch action the TFL must be open at
             least for min_switch_time.
+        2.4 A switch action might no be taken while a traffic
+            light is on yellow state.
+
+
+    3. Each k-TFL can only observe it's subjacent edges -
+        meaning the state is described by the cars locally
+        available on the neighborhood of K-TFL.
 
     4. The state Sk for each of the K-TFL can be represented by
        a tuple such that Sk = (vk, nk) where:
-        4.1 vk is the mean speed.
-        4.2 nk is the total number of vehicles.
+        4.1 vk is the mean speed over all adjacent edges.
+        4.2 nk is the total number of all adjacent edges.
 
+    5. The state S is a set describes all the possible configurations
+        such that S = (S1, S2 ..., SK) for ease of implementation
+        the S representation is flattened such that:
+
+            S = (v1, n1, v2, n2  ..vK, nK)
 
     Required from env_params:
 
@@ -110,13 +123,18 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
                                                     scenario,
                                                     simulator=simulator)
 
+        # neighbouring maps neightborhood edges
+        self._init_traffic_light_to_edges()
+
         # Q learning stuff
-        self.num_features = 2 # every state is composed of 5 features
-        self._init_q()
+        self.num_features = 2   # every state is composed of 2 features (velocity, number)
+        self.feature_depth = 3  # every feature is composed of 3 dimensions (low, medium, high)
+        self.action_depth = 2   # keep on current state or skip to the next
+        self._init_Q()
 
     def eps_greedy(self, S):
         """Applies Q-Learning using an epsilon greedy policy"""
-        S = self._tuplefy(S)[0]
+        S = tuple(S)
 
 
         # direction are the current values for traffic lights
@@ -145,18 +163,50 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         Qstar = max(self.Q[Sprime].items(), key=lambda x: x[1])[1]
         self.Q[S][A] += self.alpha * (R + self.gamma * Qstar - self.Q[S][A])
 
-    def _init_q(self):
+    def _init_traffic_light_to_edges(self):
+        # map traffic light to edges
+        self.traffic_light_to_edges = defaultdict(list)
+        for n in range(self.num_traffic_lights):
+            i = int(n / self.grid_array["col_num"])  # row counter
+            j = n - i * self.grid_array["col_num"]   # column counter
+
+            for s in ('left', 'right'):
+                self.traffic_light_to_edges[n].append("{}{}_{}".format(s, i, j))
+
+            for jj in range(j, j + 2):
+                for s in ('bottom', 'top'):
+                    self.traffic_light_to_edges[n].append("{}{}_{}".format(s, i, jj))
+
+            for s in ('left', 'right'):
+                self.traffic_light_to_edges[n].append("{}{}_{}".format(s, i + 1, j))
+
+    def _init_Q(self):
+        # map traffic light to edges
+        self.traffic_light_to_edges = defaultdict(list)
+        for n in range(self.num_traffic_lights):
+            i = int(n / self.grid_array["col_num"])  # row counter
+            j = n - i * self.grid_array["col_num"]   # column counter
+
+            for s in ('left', 'right'):
+                self.traffic_light_to_edges[n].append("{}{}_{}".format(s, i, j))
+
+            for jj in range(j, j + 2):
+                for s in ('bottom', 'top'):
+                    self.traffic_light_to_edges[n].append("{}{}_{}".format(s, i, jj))
+
+            for s in ('left', 'right'):
+                self.traffic_light_to_edges[n].append("{}{}_{}".format(s, i + 1, j))
+
         rs = self.num_features * self.num_traffic_lights
         ra = self.num_traffic_lights
-
 
         self.Q = {
             tuple(s):
                 {
                     tuple(a): 0
-                    for a in prod([0, 1], repeat=ra)
+                    for a in prod(range(self.action_depth), repeat=ra)
                 }
-            for s in prod([0, 1], repeat=rs)
+            for s in prod(range(self.feature_depth), repeat=rs)
         }
 
 
@@ -186,8 +236,45 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
 
 
     def get_state(self):
-        state = super(TrafficLightQLGridEnv, self).get_state()
-        return state
+        speed_in_edge = [
+            (self.k.vehicle.get_speed(veh_id),
+             self.k.vehicle.get_edge(veh_id))
+            for veh_id in self.k.vehicle.get_ids()
+        ]
+
+        speed = [0] * self.num_traffic_lights
+        counts = [0] * self.num_traffic_lights
+
+        for i, edges in enumerate(self.traffic_light_to_edges.values()):
+            for s, e in speed_in_edge:
+                if e in edges:
+                    if counts[i] == 0:
+                        speed[i] = s
+                        counts[i] = 1
+                    else:
+                        speed[i] = (speed[i] * counts[i] + s) / (counts[i] + 1)
+                        counts[i] += 1
+
+        max_speed = self.k.scenario.max_speed()
+        for i, v in enumerate(speed):
+            if v >= .66 * max_speed:
+                speed[i] = 2
+            elif v <= .33 * max_speed:
+                speed[i] = 0
+            else:
+                speed[i] = 1
+
+        max_count = len(speed_in_edge)
+        for i, c in enumerate(counts):
+            if c >= .66 * (max_count / self.num_traffic_lights):
+                counts[i] = 2
+            elif c <= .33 * (max_count / self.num_traffic_lights):
+                counts[i] = 0
+            else:
+                counts[i] = 1
+
+
+        return tuple(x for sc in zip(speed, counts) for x in sc)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
@@ -210,7 +297,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         ret = []
         for arg in args:
             if not isinstance(arg, tuple):
-                arg = tuple(int(f) for f in arg)
+                arg = tuple(int(f) for f in arg[0])
             ret.append(arg)
         return tuple(ret)
 
@@ -248,10 +335,10 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
             self.dump = defaultdict(list)
 
         self.dump['t'].append(self.step_counter)
-        self.dump['S'].append(str(tuple(S.flatten().astype(int))))
-        self.dump['A'].append(str(tuple(A)))
+        self.dump['S'].append(str(S))
+        self.dump['A'].append(str(A))
         self.dump['R'].append(R)
-        self.dump['Sprime'].append(str(tuple(Sprime.flatten().astype(int))))
+        self.dump['Sprime'].append(str(Sprime))
 
 
 

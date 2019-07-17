@@ -14,7 +14,7 @@ from ilu.envs.traffic_lights import TrafficLightQLGridEnv, ADDITIONAL_QL_ENV_PAR
 
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
-HORIZON = 50000
+HORIZON = 1500
 NUM_ITERATIONS = 1
 
 
@@ -164,7 +164,7 @@ def grid_example(render=None, use_inflows=False):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=1, render=False, print_warnings=False)
+    sim_params = SumoParams(sim_step=0.1, render=False, print_warnings=False)
 
     if render is not None:
         sim_params.render = render
