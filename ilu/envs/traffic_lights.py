@@ -132,10 +132,12 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         self.action_depth = 2   # keep on current state or skip to the next
         self._init_Q()
 
-    def eps_greedy(self, S):
-        """Applies Q-Learning using an epsilon greedy policy"""
-        S = tuple(S)
+    def rl_actions(self, state):
+        return self._eps_greedy(state)
 
+    def _eps_greedy(self, S):
+        """Takes a single action using an epsilon greedy policy"""
+        S = tuple(S)
 
         # direction are the current values for traffic lights
         actions_values = list(self.Q[S].items())
@@ -157,10 +159,8 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
     def q_update(self, S, A, R, Sprime):
         """Applies Q-Learning using an epsilon greedy policy"""
 
-        S, A, Sprime = self._tuplefy(S, A, Sprime)
-
         # compute Q* = max{Q(S',a), a}
-        Qstar = max(self.Q[Sprime].items(), key=lambda x: x[1])[1]
+        Qstar = max(self.Q[Sprime].values())
         self.Q[S][A] += self.alpha * (R + self.gamma * Qstar - self.Q[S][A])
 
     def _init_traffic_light_to_edges(self):
@@ -209,7 +209,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
             for s in prod(range(self.feature_depth), repeat=rs)
         }
 
-
     def _apply_rl_actions(self, rl_actions):
         """Q-Learning
 
@@ -218,12 +217,14 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         light.
 
         """
+        if rl_actions is None:
+            rl_actions = self.rl_actions(self.get_state())
 
         # check if the action space is discrete
         S, A = self.get_state(), rl_actions
 
         #  _apply_rl_actions -- actions have to be on integer format
-        idx = self._integerfy(rl_actions)
+        idx = self._action_to_index(rl_actions)
 
         super(TrafficLightQLGridEnv, self)._apply_rl_actions(idx)
 
@@ -273,14 +274,13 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
             else:
                 counts[i] = 1
 
-
         return tuple(x for sc in zip(speed, counts) for x in sc)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
         return rewards.average_velocity(self, fail=False)
 
-    def _integerfy(self, action: tuple):
+    def _action_to_index(self, action: tuple):
         """"Converts an action in tuple form to an integer"""
         # defines a generator on the reverse of the action
         # the super class defines actions oposite as ours
@@ -292,33 +292,20 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
 
         return sum([po2(k, n) for n, k in gen_act])
 
-    def _tuplefy(self, *args):
-        """"Converts a numpy.ndarray to tuple"""
-        ret = []
-        for arg in args:
-            if not isinstance(arg, tuple):
-                arg = tuple(int(f) for f in arg[0])
-            ret.append(arg)
-        return tuple(ret)
-
-    def _tuple_toggle(self, tpl:tuple) -> tuple:
-        """Negates the sign of the binary-tuple"""
-        return tuple([int(not(bin(b))) for b in tpl])
-
     def _tuple_apply_mask(self, tpl:tuple, msk:tuple):
         """Negates the sign of the binary-tuple"""
         return tuple([t * m for t, m in zip(tpl, msk)])
 
     def _tuple_filter(self, list_of_tuples :list) -> list:
         """filters a list of tuples based on a mask"""
-        mask = tuple(
-            np.bitwise_or(
-                np.bitwise_not(self.last_change.astype(bool)),
-                np.bitwise_not(self.last_change < self.min_switch_time)
-            ).flatten()
-            .astype(int)
-        )
-
+        #mask = tuple(
+        #    np.bitwise_or(
+        #        np.bitwise_not(self.last_change.astype(bool)),
+        #        np.bitwise_not(self.last_change < self.min_switch_time)
+        #    ).flatten()
+        #    .astype(int)
+        #)
+        mask = np.bitwise_not(self.currently_yellow.astype(bool))
         ret = []
         for action, value in list_of_tuples:
             filt = False

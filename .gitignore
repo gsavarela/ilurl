@@ -5,6 +5,9 @@
 #ILU's dump
 *.dump
 
+# VIM's swp file
+*.swp
+
 # Pycharm project
 .idea/*
 

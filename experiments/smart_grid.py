@@ -3,18 +3,17 @@ import json
 
 from flow.controllers import GridRouter
 from flow.core.experiment import Experiment
-from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams
-from flow.core.params import VehicleParams
-from flow.core.params import TrafficLightParams
-from flow.core.params import SumoCarFollowingParams
-from flow.core.params import InFlows
-
+from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
+                              SumoCarFollowingParams, SumoParams,
+                              TrafficLightParams, VehicleParams)
 from flow.scenarios.grid import SimpleGridScenario
-from ilu.envs.traffic_lights import TrafficLightQLGridEnv, ADDITIONAL_QL_ENV_PARAMS
 
+from ilu.envs.traffic_lights import (ADDITIONAL_QL_ENV_PARAMS,
+                                     TrafficLightQLGridEnv)
 
-EMISSION_PATH = '/Users/gsavarela/sumo_data/'
-HORIZON = 1500
+EMISSION_PATH = '/home/gsavarela/sumo_data/'
+# HORIZON = 1500
+HORIZON = 300
 NUM_ITERATIONS = 1
 
 
@@ -164,7 +163,7 @@ def grid_example(render=None, use_inflows=False):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=0.1, render=False, print_warnings=False)
+    sim_params = SumoParams(sim_step=0.5, render=False, print_warnings=False)
 
     if render is not None:
         sim_params.render = render
@@ -258,7 +257,7 @@ if __name__ == "__main__":
     data = exp.run(
         NUM_ITERATIONS,
         HORIZON,
-        rl_actions=env.eps_greedy
+        rl_actions=env.rl_actions
     )
     dump_filename = \
         "{0}.stats.dump".format(env.scenario.name)
@@ -276,4 +275,3 @@ if __name__ == "__main__":
 
     with open(dump_path, 'w') as fp:
         json.dump(env.dump, fp)
-
