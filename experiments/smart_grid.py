@@ -181,7 +181,7 @@ def grid_example(render=None, use_inflows=False):
     additional_env_params = ADDITIONAL_QL_ENV_PARAMS.copy()
     additional_env_params.update({
         # minimum switch time for each traffic light (in seconds)
-        "switch_time": 15.0,
+        "switch_time": 3.0,
         # whether the traffic lights should be actuated by sumo or RL
         # options are "controlled" and "actuated"
         "tl_type": "controlled",
@@ -191,32 +191,6 @@ def grid_example(render=None, use_inflows=False):
 
     env_params = EnvParams(horizon=HORIZON,
                            additional_params=additional_env_params)
-
-    # tl_logic = TrafficLightParams(baseline=False)
-    # phases = [{
-    #     "duration": "31",
-    #     "minDur": "8",
-    #     "maxDur": "45",
-    #     "state": "GrGrGrGrGrGr"
-    # }, {
-    #     "duration": "6",
-    #     "minDur": "3",
-    #     "maxDur": "6",
-    #     "state": "yryryryryryr"
-    # }, {
-    #     "duration": "31",
-    #     "minDur": "8",
-    #     "maxDur": "45",
-    #     "state": "rGrGrGrGrGrG"
-    # }, {
-    #     "duration": "6",
-    #     "minDur": "3",
-    #     "maxDur": "6",
-    #     "state": "ryryryryryry"
-    # }]
-    # tl_logic.add("center0", phases=phases, programID=1)
-    # tl_logic.add("center1", phases=phases, programID=1)
-    # tl_logic.add("center2", phases=phases, programID=1, tls_type="actuated")
 
     additional_net_params = {
         "grid_array": grid_array,
