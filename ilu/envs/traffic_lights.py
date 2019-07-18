@@ -311,47 +311,55 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
 
 
     def get_state(self):
-        speed_in_edge = [
+        """See class definition."""
+
+        # query api and get the speeds and edges for each vehicle
+        speeds_edges_list = [
             (self.k.vehicle.get_speed(veh_id),
              self.k.vehicle.get_edge(veh_id))
             for veh_id in self.k.vehicle.get_ids()
         ]
 
-
-        speed = [0] * self.num_traffic_lights
-        counts = [0] * self.num_traffic_lights
+        # group by edges
+        edges_dict = dict()
+        for edge, edge_group in groupby(speeds_edges_list, key=lambda x: x[1]):
+            edge_speeds_list = [s for s, _ in edge_group]
+            edges_dict[edge] = (
+                sum(edge_speeds_list),
+                len(edge_speeds_list)
+            )
 
         # aggregate
-        for i, edges in self.traffic_light_to_edges.items():
-            for s, e in speed_in_edge:
-                if e in edges:
-                    if counts[i] == 0:
-                        speed[i] = s
-                        counts[i] = 1
-                    else:
-                        speed[i] = (speed[i] * counts[i] + s) / (counts[i] + 1)
-                        counts[i] += 1
+        data_dict = dict()
+        for i, edges_list in self.traffic_light_to_edges.items():
+            speed_tuple, count_tuple = zip(*[
+                speed_tuple
+                for edge_id, speed_tuple in edges_dict.items() if edge_id in edges_list
+            ])
+            data_dict[i] = (sum(speed_tuple) / sum(count_tuple), sum(count_tuple))
 
         # categorize
+        ret = []
         max_speed = self.k.scenario.max_speed()
-        for i, v in enumerate(speed):
-            if v >= .66 * max_speed:
-                speed[i] = 2
-            elif v <= .25 * max_speed:
-                speed[i] = 0
+        max_count = len(speeds_edges_list)
+        for s, c in data_dict.values():
+            if s >= .66 * max_speed:
+                s = 2
+            elif s <= .25 * max_speed:
+                s = 0
             else:
-                speed[i] = 1
+                s = 1
+            ret.append(s)
 
-        max_count = len(speed_in_edge)
-        for i, c in enumerate(counts):
             if c >= .66 * max_count:
-                counts[i] = 2
+                c = 2
             elif c <= .15 * max_count:
-                counts[i] = 0
+                c = 0
             else:
-                counts[i] = 1
+                c = 1
+            ret.append(c)
 
-        return tuple(x for sc in zip(speed, counts) for x in sc)
+        return tuple(ret)
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
