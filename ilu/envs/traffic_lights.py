@@ -343,8 +343,10 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
     def _log(self, S, A, R, Sprime):
         if not hasattr(self, 'dump'):
             self.dump = defaultdict(list)
-
-        self.dump['t'].append(self.step_counter)
+            t = 0
+        else:
+            t = self.dump['t'][-1] + self.step_counter * self.sim_step
+        self.dump['t'].append(t)
         self.dump['S'].append(str(S))
         self.dump['A'].append(str(A))
         self.dump['R'].append(R)
