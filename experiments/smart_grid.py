@@ -13,7 +13,7 @@ from ilu.envs.traffic_lights import (ADDITIONAL_QL_ENV_PARAMS,
 
 EMISSION_PATH = '/home/gsavarela/sumo_data/'
 # HORIZON = 1500
-HORIZON = 300
+HORIZON = 5000
 NUM_ITERATIONS = 1
 
 

@@ -21,9 +21,16 @@ from flow.envs.green_wave_env import TrafficLightGridEnv, ADDITIONAL_ENV_PARAMS
 
 
 ADDITIONAL_QL_PARAMS = {
+        # epsilon is the chance to adopt a random action instead of
+        # a greedy action ( SEE Sutton & Barto 2018 2ND edition )
         'epsilon': 5e-2,
+        # alpha is the learning rate the weight given to new knowledge
         'alpha': 5e-2,
-        'gamma': 0.999
+        # gamma is the discount rate for value function
+        'gamma': 0.999,
+        # min_duration_time is the time a given traffic light has to stay
+        # at the same configuration: min_duration_time >= min_switch_time
+        'min_duration_time': 10
 }
 ADDITIONAL_QL_ENV_PARAMS = {
     **ADDITIONAL_ENV_PARAMS,
@@ -109,28 +116,41 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
     """
     def __init__(self,  env_params, sim_params, scenario, simulator='traci'):
 
-        for p, val in ADDITIONAL_QL_PARAMS.items():
-            if p not in env_params.additional_params:
-                raise KeyError(
-                    'Environment parameter "{}" not supplied'.format(p))
-            else:
-                # dynamicaly set attributes for Q-learning attributes alpha,
-                # gamma, epsilon
-                setattr(self, p, val)
 
         super(TrafficLightQLGridEnv, self).__init__(env_params,
                                                     sim_params,
                                                     scenario,
                                                     simulator=simulator)
 
-        # neighbouring maps neightborhood edges
-        self._init_traffic_light_to_edges()
+        for p, val in ADDITIONAL_QL_PARAMS.items():
+            if p not in env_params.additional_params:
+                raise KeyError(
+                    'Environment parameter "{}" not supplied'.format(p))
+            else:
+                # dynamicaly set attributes for Q-learning attributes 
+                setattr(self, p, val)
+
+        # Check constrains on minumu duration
+        if self.min_duration_time > self.min_switch_time:
+            raise ValueError(
+                'Minimun duration time must be greater than minimum switch time')
+
+        # duration measures the amount of time the current
+        # configuration has been going on
+        self.duration = [0] * self.num_traffic_lights
+
+        # keeps the internal value of sim step
+        self.sim_step = sim_params.sim_step
 
         # Q learning stuff
         self.num_features = 2   # every state is composed of 2 features (velocity, number)
         self.feature_depth = 3  # every feature is composed of 3 dimensions (low, medium, high)
         self.action_depth = 2   # keep on current state or skip to the next
         self._init_Q()
+        self.default_action = tuple([0] * self.num_traffic_lights)
+
+        # neighbouring maps neightborhood edges
+        self._init_traffic_light_to_edges()
 
     def rl_actions(self, state):
         return self._eps_greedy(state)
@@ -141,7 +161,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
 
         # direction are the current values for traffic lights
         actions_values = list(self.Q[S].items())
-        actions_values = self._tuple_filter(actions_values)
+        actions_values = self._action_value_filter(actions_values)
 
         if rand() <= self.epsilon:
             # Take a random action
@@ -231,6 +251,12 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         # place q-learning here
         R = self.compute_reward(rl_actions)
 
+        for i, a in enumerate(A):
+            if a == 1:
+                self.duration[i] = 0.0
+            else:
+                self.duration[i] += self.sim_step
+
         Sprime = self.get_state()
         self.q_update(S, A, R, Sprime)
         self._log(S, A, R, Sprime)
@@ -287,35 +313,32 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         gen_act = enumerate(action[::-1])
 
         # defines PowerOf2
-        def po2(k, n):
-            return int(k * pow(2, n))
+        def po2(k, pwr):
+            return int(k * pow(2, pwr))
 
         return sum([po2(k, n) for n, k in gen_act])
 
-    def _tuple_apply_mask(self, tpl:tuple, msk:tuple):
-        """Negates the sign of the binary-tuple"""
-        return tuple([t * m for t, m in zip(tpl, msk)])
-
-    def _tuple_filter(self, list_of_tuples :list) -> list:
+    def _action_value_filter(self, actions_values: list) -> list:
         """filters a list of tuples based on a mask"""
-        #mask = tuple(
-        #    np.bitwise_or(
-        #        np.bitwise_not(self.last_change.astype(bool)),
-        #        np.bitwise_not(self.last_change < self.min_switch_time)
-        #    ).flatten()
-        #    .astype(int)
-        #)
-        mask = np.bitwise_not(self.currently_yellow.astype(bool))
-        ret = []
-        for action, value in list_of_tuples:
-            filt = False
-            for a, m in zip(action, mask):
-                if m == 0 and a == 1:
-                    filt = True
-                    break
-            if not filt:
-                ret.append((action, value))
+
+        # avaliates duration: 1 lets the pattern to pass otherwise
+        filter_mask = [
+            1 if d <= self.min_duration_time else 0 for d in self.duration
+        ]
+
+        ffn = lambda x: self._apply_mask_actions(x, filter_mask)
+
+        ret = [
+            (action, value)
+            for action, value in actions_values if ffn(action)
+        ]
+
         return ret
+
+    def _apply_mask_actions(self, action, filter_mask):
+        return not any([
+            a * m for a, m in zip(action, filter_mask)
+        ])
 
     def _log(self, S, A, R, Sprime):
         if not hasattr(self, 'dump'):
