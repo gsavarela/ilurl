@@ -408,10 +408,4 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
         self.dump['A'].append(str(A))
         self.dump['R'].append(R)
         self.dump['Sprime'].append(str(Sprime))
-
-
-
-
-
-
-
+        

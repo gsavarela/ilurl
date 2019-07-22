@@ -13,8 +13,8 @@ from ilu.envs.traffic_lights import (ADDITIONAL_QL_ENV_PARAMS,
 
 EMISSION_PATH = '/home/gsavarela/sumo_data/'
 # HORIZON = 1500
-HORIZON = 5000
-NUM_ITERATIONS = 1
+HORIZON = 50000
+NUM_ITERATIONS = 1000
 
 
 def gen_edges(col_num, row_num):
@@ -163,7 +163,7 @@ def grid_example(render=None, use_inflows=False):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=0.5, render=False, print_warnings=False)
+    sim_params = SumoParams(sim_step=1, render=False, print_warnings=False)
 
     if render is not None:
         sim_params.render = render
@@ -247,5 +247,12 @@ if __name__ == "__main__":
 
     dump_path = "{}{}".format(EMISSION_PATH, dump_filename)
 
+    env.dump['Q'] ={
+            str(state) :{
+                            str(action): value
+                            for action, value in action_values.items()
+            }
+            for  state, action_values in env.Q.items()
+    }
     with open(dump_path, 'w') as fp:
         json.dump(env.dump, fp)
