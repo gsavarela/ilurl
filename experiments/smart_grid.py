@@ -219,29 +219,14 @@ def grid_example(render=None, use_inflows=False):
 
 if __name__ == "__main__":
     # import the experiment variable
+    # import os
     exp, env = grid_example()
-
+    # de-serialize data
+    # UNCOMMENT to serialize
+    # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())
+    # env = TrafficLightQLGridEnv.load(pickle_path)
     # run for a set number of rollouts / time steps
-    data = exp.run(NUM_ITERATIONS, HORIZON, rl_actions=env.rl_actions)
-    dump_filename = \
-        "{0}.stats.dump".format(env.scenario.name)
-
-    dump_path = "{}{}".format(EMISSION_PATH, dump_filename)
-
-    data['velocities'] = {i: list(v) for i, v in enumerate(data['velocities'])}
-    with open(dump_path, 'w') as fp:
-        json.dump(data, fp)
-
-    dump_filename = \
-        "{0}.ql.dump".format(env.scenario.name)
-
-    dump_path = "{}{}".format(EMISSION_PATH, dump_filename)
-
-    env.dump['Q'] = {
-        str(state):
-        {str(action): value
-         for action, value in action_values.items()}
-        for state, action_values in env.Q.items()
-    }
-    with open(dump_path, 'w') as fp:
-        json.dump(env.dump, fp)
+    exp.run(NUM_ITERATIONS, HORIZON, rl_actions=env.rl_actions)
+    #serialize data
+    #UNCOMMENT to serialize
+    #env.dump(os.getcwd())

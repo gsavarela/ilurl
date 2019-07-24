@@ -5,9 +5,7 @@
 '''
 __author__ = "Guilherme Varela"
 
-import pdb
 from collections import defaultdict
-from itertools import groupby
 from itertools import product as prod
 
 import numpy as np
@@ -15,6 +13,7 @@ from numpy.random import choice, rand
 
 from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
+from ilu.utils.serialize import Serializer
 
 ADDITIONAL_QL_PARAMS = {
     # epsilon is the chance to adopt a random action instead of
@@ -35,7 +34,7 @@ ADDITIONAL_QL_PARAMS = {
 ADDITIONAL_QL_ENV_PARAMS = {**ADDITIONAL_ENV_PARAMS, **ADDITIONAL_QL_PARAMS}
 
 
-class TrafficLightQLGridEnv(TrafficLightGridEnv):
+class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
     """Environment used to train traffic lights.
 
     This is a single TFLQLAgent controlling a variable number of
@@ -327,7 +326,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
 
         Sprime = self.get_state()
         self.q_update(S, A, R, Sprime)
-        self._log(S, A, R, Sprime)
 
     def get_state(self):
         """See class definition."""
@@ -436,13 +434,3 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv):
 
     def _apply_mask_actions(self, action, filter_mask):
         return not any([a * m for a, m in zip(action, filter_mask)])
-
-    def _log(self, S, A, R, Sprime):
-        if not hasattr(self, 'dump'):
-            self.dump = defaultdict(list)
-
-        self.dump['t'].append(self.step_counter * self.sim_step)
-        self.dump['S'].append(str(S))
-        self.dump['A'].append(str(A))
-        self.dump['R'].append(R)
-        self.dump['Sprime'].append(str(Sprime))

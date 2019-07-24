@@ -10,14 +10,16 @@ cloudpickle==0.5.3
 colorama==0.4.1
 coverage==4.5.3
 cycler==0.10.0
+dill==0.3.0
 docutils==0.14
 filelock==3.0.12
 flatbuffers==1.11
--e git+https://github.com/flow-project/flow.git@e9d970f5e717e8ecc23326c53a4d1cb986d81095#egg=flow
+-e git+https://github.com/flow-project/flow.git@f7c9797c93d7442a9c18ccd3e53dd5e315d78452#egg=flow
 funcsigs==1.0.2
 future==0.17.1
 gym==0.10.5
 idna==2.8
+-e git+https://gitlab.com/guilhermevarela/ilu.git@4972af0cb427bdeb87b2f02013f4511fe3c10aa0#egg=ilu
 imagesize==1.1.0
 importlib-metadata==0.18
 imutils==0.5.1
