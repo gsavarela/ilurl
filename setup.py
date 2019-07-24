@@ -5,10 +5,11 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ilu",
-    version="0.2.0",
+    version="0.2.1",
     author="Guilherme Varela",
     author_email="guilhermevarela@hotmail.com",
-    description="iLU: Integrative Learning from Urban Data and Situational Context for City Mobility for City Mobility Optimization",
+    description=
+    "iLU: Integrative Learning from Urban Data and Situational Context for City Mobility for City Mobility Optimization",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://gitlab.com/guilhermevarela/ilu",

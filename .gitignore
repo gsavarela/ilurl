@@ -1,12 +1,13 @@
+#Macos nonsensical files
+*.DS_Store
+
 #Flow's emission files
 *emission.xml
 *emission.csv
 
-#ILU's dump
-*.dump
-
 # VIM's swp file
 *.swp
+*.swo
 
 # Pycharm project
 .idea/*

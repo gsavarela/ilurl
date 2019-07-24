@@ -7,14 +7,12 @@ from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
 from flow.scenarios.grid import SimpleGridScenario
-
 from ilu.envs.traffic_lights import (ADDITIONAL_QL_ENV_PARAMS,
                                      TrafficLightQLGridEnv)
 
-EMISSION_PATH = '/home/gsavarela/sumo_data/'
-# HORIZON = 1500
-HORIZON = 50000
-NUM_ITERATIONS = 1000
+EMISSION_PATH = '/Users/gsavarela/sumo_data/'
+HORIZON = 1500
+NUM_ITERATIONS = 1
 
 
 def gen_edges(col_num, row_num):
@@ -67,23 +65,22 @@ def get_flow_params(col_num, row_num, additional_net_params):
     flow.core.params.NetParams
         network-specific parameters used to generate the scenario
     """
-    initial = InitialConfig(
-        spacing='custom', lanes_distribution=float('inf'), shuffle=True)
+    initial = InitialConfig(spacing='custom',
+                            lanes_distribution=float('inf'),
+                            shuffle=True)
 
     inflow = InFlows()
     outer_edges = gen_edges(col_num, row_num)
     for i in range(len(outer_edges)):
-        inflow.add(
-            veh_type='human',
-            edge=outer_edges[i],
-            probability=0.25,
-            departLane='free',
-            departSpeed=20)
+        inflow.add(veh_type='human',
+                   edge=outer_edges[i],
+                   probability=0.25,
+                   departLane='free',
+                   departSpeed=20)
 
-    net = NetParams(
-        inflows=inflow,
-        no_internal_links=False,
-        additional_params=additional_net_params)
+    net = NetParams(inflows=inflow,
+                    no_internal_links=False,
+                    additional_params=additional_net_params)
 
     return initial, net
 
@@ -111,10 +108,9 @@ def get_non_flow_params(enter_speed, add_net_params):
         network-specific parameters used to generate the scenario
     """
     additional_init_params = {'enter_speed': enter_speed}
-    initial = InitialConfig(
-        spacing='custom', additional_params=additional_init_params)
-    net = NetParams(
-        no_internal_links=False, additional_params=add_net_params)
+    initial = InitialConfig(spacing='custom',
+                            additional_params=additional_init_params)
+    net = NetParams(no_internal_links=False, additional_params=add_net_params)
 
     return initial, net
 
@@ -206,8 +202,7 @@ def grid_example(render=None, use_inflows=False):
             additional_net_params=additional_net_params)
     else:
         initial_config, net_params = get_non_flow_params(
-            enter_speed=v_enter,
-            add_net_params=additional_net_params)
+            enter_speed=v_enter, add_net_params=additional_net_params)
 
     scenario = SimpleGridScenario(
         name="smart-grid",
@@ -222,17 +217,12 @@ def grid_example(render=None, use_inflows=False):
     return Experiment(env), env
 
 
-
 if __name__ == "__main__":
     # import the experiment variable
     exp, env = grid_example()
 
     # run for a set number of rollouts / time steps
-    data = exp.run(
-        NUM_ITERATIONS,
-        HORIZON,
-        rl_actions=env.rl_actions
-    )
+    data = exp.run(NUM_ITERATIONS, HORIZON, rl_actions=env.rl_actions)
     dump_filename = \
         "{0}.stats.dump".format(env.scenario.name)
 
@@ -247,12 +237,11 @@ if __name__ == "__main__":
 
     dump_path = "{}{}".format(EMISSION_PATH, dump_filename)
 
-    env.dump['Q'] ={
-            str(state) :{
-                            str(action): value
-                            for action, value in action_values.items()
-            }
-            for  state, action_values in env.Q.items()
+    env.dump['Q'] = {
+        str(state):
+        {str(action): value
+         for action, value in action_values.items()}
+        for state, action_values in env.Q.items()
     }
     with open(dump_path, 'w') as fp:
         json.dump(env.dump, fp)
