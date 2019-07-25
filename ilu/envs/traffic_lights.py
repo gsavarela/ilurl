@@ -4,15 +4,11 @@
     Extends the flow's green wave environmenets
 '''
 __author__ = "Guilherme Varela"
-import pdb
 from collections import defaultdict
-from itertools import product as prod
-
-import numpy as np
-from numpy.random import choice, rand
 
 from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
+from ilu.ql.choice import choice_eps_greedy, choice_optimistic
 from ilu.ql.define import dpq_tls
 from ilu.utils.serialize import Serializer
 
@@ -170,72 +166,9 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         actions_values = self._action_value_filter(actions_values)
 
         if self.epsilon is None:
-            return self._optimistic_choice(actions_values)
+            return choice_optimistic(actions_values)
         else:
-            return self._eps_greedy_choice(actions_values)
-
-    def _eps_greedy_choice(self, actions_values):
-        """Takes a single action using an epsilon greedy policy.
-
-            See Chapter 2 of [1]
-
-        References
-        ----------
-        [1] Sutton et Barto, Reinforcement Learning 2nd Ed 2018
-
-        Parameters
-        ----------
-        actions_values : list of nested tuples
-            each element of the list is a tuple containing
-            action : tuple[self.num_traffic_lights]
-            value : q estimate for the state and action
-
-        Returns
-        -------
-        float
-            discounted value for state and action pair
-        """
-        if rand() <= self.epsilon:
-            # Take a random action
-            idx = choice(len(actions_values))
-            action_value = actions_values[idx]
-
-        else:
-            # greedy action
-            action_value = max(actions_values, key=lambda x: x[1])
-
-        # Take action A observe R and S'
-        A = action_value[0]
-        return A
-
-    def _optimistic_choice(self, actions_values):
-        """Takes a single action using an optimistic values policy.
-
-            See section 2.6 of [1]
-
-        References
-        ----------
-        [1] Sutton et Barto, Reinforcement Learning 2nd Ed 2018
-
-        Parameters
-        ----------
-        actions_values : list of nested tuples
-            each element of the list is a tuple containing
-            action : tuple[self.num_traffic_lights]
-            value : q estimate for the state and action
-
-        Returns
-        -------
-        float
-            discounted value for state and action pair
-        """
-
-        # direction are the current values for traffic lights
-        action_value = max(actions_values, key=lambda x: x[1])
-
-        # Take action A observe R and S'
-        A = action_value[0]
-        return A
+            return choice_eps_greedy(actions_values, self.epsilon)
 
     def q_update(self, S, A, R, Sprime):
         """Applies Q-Learning using an epsilon greedy policy"""
