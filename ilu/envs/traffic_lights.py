@@ -4,6 +4,7 @@
     Extends the flow's green wave environmenets
 '''
 __author__ = "Guilherme Varela"
+import pdb
 from collections import defaultdict
 from itertools import product as prod
 
@@ -12,6 +13,7 @@ from numpy.random import choice, rand
 
 from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
+from ilu.ql.define import dpq_tls
 from ilu.utils.serialize import Serializer
 
 ADDITIONAL_QL_PARAMS = {
@@ -154,7 +156,11 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         self.action_depth = 2
         # neighbouring maps neightborhood edges
         self._init_traffic_light_to_edges()
-        self._init_Q(max_speed=self.k.scenario.max_speed())
+        self.Q = dpq_tls(self.num_features * self.num_traffic_lights,
+                         self.feature_depth,
+                         self.num_traffic_lights,
+                         self.action_depth,
+                         initial_value=self.k.scenario.max_speed())
 
     def rl_actions(self, state):
         S = tuple(state)
@@ -274,23 +280,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 edge_ids.append('left{}_{}'.format(i, j))
 
             self.traffic_light_to_edges[n] = edge_ids
-
-    def _init_Q(self, max_speed=None):
-
-        if max_speed is None:
-            Q0 = 0
-        else:
-            Q0 = max_speed
-
-        rs = self.num_features * self.num_traffic_lights
-        ra = self.num_traffic_lights
-
-        self.Q = {
-            tuple(s):
-            {tuple(a): Q0
-             for a in prod(range(self.action_depth), repeat=ra)}
-            for s in prod(range(self.feature_depth), repeat=rs)
-        }
 
     def _apply_rl_actions(self, rl_actions):
         """Q-Learning
