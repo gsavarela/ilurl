@@ -1,6 +1,4 @@
 """Grid example."""
-import json
-
 from flow.controllers import GridRouter
 from flow.core.experiment import Experiment
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
@@ -115,7 +113,7 @@ def get_non_flow_params(enter_speed, add_net_params):
     return initial, net
 
 
-def grid_example(render=None, use_inflows=False):
+def grid_example(render=None, use_inflows=False, additional_env_params=None):
     """
     Perform a simulation of vehicles on a grid.
 
@@ -174,7 +172,9 @@ def grid_example(render=None, use_inflows=False):
         ),
         num_vehicles=tot_cars)
 
-    additional_env_params = ADDITIONAL_QL_ENV_PARAMS.copy()
+    if additional_env_params is None:
+        additional_env_params = ADDITIONAL_QL_ENV_PARAMS.copy()
+
     additional_env_params.update({
         # minimum switch time for each traffic light (in seconds)
         "switch_time": 3.0,

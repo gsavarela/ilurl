@@ -4,7 +4,6 @@
     Extends the flow's green wave environmenets
 '''
 __author__ = "Guilherme Varela"
-
 from collections import defaultdict
 from itertools import product as prod
 
@@ -123,12 +122,13 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                                                     scenario,
                                                     simulator=simulator)
 
-        for p, val in ADDITIONAL_QL_PARAMS.items():
+        for p in ADDITIONAL_QL_PARAMS:
             if p not in env_params.additional_params:
                 raise KeyError(
                     'Environment parameter "{}" not supplied'.format(p))
             else:
                 # dynamicaly set attributes for Q-learning attributes
+                val = env_params.additional_params[p]
                 setattr(self, p, val)
 
         # Check constrains on minimum duration
