@@ -34,7 +34,8 @@ class Serializer(object):
         if filename is None:
             filename = convert(self.__class__.__name__)
 
-        if filename.split('.') != 'pickle':
+        ext = filename.split('.')[-1]
+        if ext != 'pickle':
             filename += '.pickle'
 
         if file_dir[-1] != '/':

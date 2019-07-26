@@ -1,10 +1,11 @@
 """Grid example."""
 from flow.controllers import GridRouter
-from flow.core.experiment import Experiment
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
 from flow.scenarios.grid import SimpleGridScenario
+# from flow.core.experiment import Experiment
+from ilu.core.experiment import Experiment
 from ilu.envs.traffic_lights import (ADDITIONAL_QL_ENV_PARAMS,
                                      TrafficLightQLGridEnv)
 
@@ -108,7 +109,7 @@ def get_non_flow_params(enter_speed, add_net_params):
     additional_init_params = {'enter_speed': enter_speed}
     initial = InitialConfig(spacing='custom',
                             additional_params=additional_init_params)
-    net = NetParams(no_internal_links=False, additional_params=add_net_params)
+    net = NetParams(additional_params=add_net_params)
 
     return initial, net
 
@@ -157,7 +158,7 @@ def grid_example(render=None, use_inflows=False, additional_env_params=None):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=1, render=False, print_warnings=False)
+    sim_params = SumoParams(sim_step=0.1, render=False, print_warnings=False)
 
     if render is not None:
         sim_params.render = render
@@ -226,7 +227,7 @@ if __name__ == "__main__":
     # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())
     # env = TrafficLightQLGridEnv.load(pickle_path)
     # run for a set number of rollouts / time steps
-    exp.run(NUM_ITERATIONS, HORIZON, rl_actions=env.rl_actions)
+    exp.run(5 , HORIZON, rl_actions=env.rl_actions, save_interval=1)
     #serialize data
     #UNCOMMENT to serialize
     #env.dump(os.getcwd())

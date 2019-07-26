@@ -10,6 +10,7 @@ from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
 from ilu.ql.choice import choice_eps_greedy, choice_optimistic
 from ilu.ql.define import dpq_tls
+from ilu.ql.update import dpq_update
 from ilu.utils.serialize import Serializer
 
 ADDITIONAL_QL_PARAMS = {
@@ -170,13 +171,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         else:
             return choice_eps_greedy(actions_values, self.epsilon)
 
-    def q_update(self, S, A, R, Sprime):
-        """Applies Q-Learning using an epsilon greedy policy"""
-
-        # compute Q* = max{Q(S',a), a}
-        Qstar = max(self.Q[Sprime].values())
-        self.Q[S][A] += self.alpha * (R + self.gamma * Qstar - self.Q[S][A])
-
     def _init_traffic_light_to_edges(self):
         """Returns edges attached to the node center#{node_id}
 
@@ -230,7 +224,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             rl_actions = self.rl_actions(self.get_state())
 
         # check if the action space is discrete
-        S, A = self.get_state(), rl_actions
+        state, action = self.get_state(), rl_actions
 
         #  _apply_rl_actions -- actions have to be on integer format
         idx = self._action_to_index(rl_actions)
@@ -238,16 +232,16 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         super(TrafficLightQLGridEnv, self)._apply_rl_actions(idx)
 
         # place q-learning here
-        R = self.compute_reward(rl_actions)
+        reward = self.compute_reward(rl_actions)
 
-        for i, a in enumerate(A):
+        for i, a in enumerate(action):
             if a == 1:
                 self.duration[i] = 0.0
             else:
                 self.duration[i] += self.sim_step
 
-        Sprime = self.get_state()
-        self.q_update(S, A, R, Sprime)
+        next_state = self.get_state()
+        dpq_update(self.Q, state, action, reward, next_state, self.gamma, self.alpha)
 
     def get_state(self):
         """See class definition."""
