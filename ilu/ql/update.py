@@ -4,8 +4,8 @@ __author__ = "Guilherme Varela"
 __date__ = "2019-07-25"
 
 
-def dpq_update(q, state, action,
-               reward, next_state, gamma, alpha):
+def dpq_update(gamma, alpha, q,
+               state, action, reward, next_state):
     """Applies Q-Learning"""
 
     # compute Q* = max{Q(S',a), a}

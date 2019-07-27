@@ -227,7 +227,7 @@ if __name__ == "__main__":
     # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())
     # env = TrafficLightQLGridEnv.load(pickle_path)
     # run for a set number of rollouts / time steps
-    exp.run(5 , HORIZON, rl_actions=env.rl_actions, save_interval=1)
+    exp.run(5 , HORIZON, rl_actions=env.rl_actions, save_interval=None)
     #serialize data
     #UNCOMMENT to serialize
     #env.dump(os.getcwd())

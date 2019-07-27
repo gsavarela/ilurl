@@ -11,6 +11,7 @@ from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
 from ilu.ql.choice import choice_eps_greedy, choice_optimistic
 from ilu.ql.define import dpq_tls
 from ilu.ql.update import dpq_update
+from ilu.ql.reward import reward_fixed_apply
 from ilu.utils.serialize import Serializer
 
 ADDITIONAL_QL_PARAMS = {
@@ -27,7 +28,9 @@ ADDITIONAL_QL_PARAMS = {
     'min_duration_time': 10,
     # use only incoming edges to account for observation states
     # None means use both incoming and outgoing
-    'filter_incoming_edges': None
+    'filter_incoming_edges': None,
+    'p': 0.5,
+    'q': 1.0,
 }
 ADDITIONAL_QL_ENV_PARAMS = {**ADDITIONAL_ENV_PARAMS, **ADDITIONAL_QL_PARAMS}
 
@@ -241,7 +244,8 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 self.duration[i] += self.sim_step
 
         next_state = self.get_state()
-        dpq_update(self.Q, state, action, reward, next_state, self.gamma, self.alpha)
+        dpq_update(self.gamma, self.alpha, self.Q,
+                   state, action, reward, next_state)
 
     def get_state(self):
         """See class definition."""
@@ -319,7 +323,8 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition."""
-        return rewards.average_velocity(self, fail=False)
+        # return rewards.average_velocity(self, fail=False)
+        return reward_fixed_apply(self)
 
     def _action_to_index(self, action: tuple):
         """"Converts an action in tuple form to an integer"""
