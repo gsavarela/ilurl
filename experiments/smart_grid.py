@@ -10,7 +10,7 @@ from ilu.envs.traffic_lights import (ADDITIONAL_QL_ENV_PARAMS,
                                      TrafficLightQLGridEnv)
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
-HORIZON = 1500
+HORIZON = 50000
 NUM_ITERATIONS = 1
 
 
@@ -221,13 +221,15 @@ def grid_example(render=None, use_inflows=False, additional_env_params=None):
 if __name__ == "__main__":
     # import the experiment variable
     # import os
+    import pdb
     exp, env = grid_example()
     # de-serialize data
     # UNCOMMENT to serialize
     # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())
     # env = TrafficLightQLGridEnv.load(pickle_path)
     # run for a set number of rollouts / time steps
-    exp.run(5 , HORIZON, rl_actions=env.rl_actions, save_interval=None)
+    exp.run(1, HORIZON, rl_actions=env.rl_actions, save_interval=None)
+    pdb.set_trace()
     #serialize data
     #UNCOMMENT to serialize
     #env.dump(os.getcwd())
