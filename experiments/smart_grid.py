@@ -4,14 +4,13 @@ from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
 from flow.scenarios.grid import SimpleGridScenario
-# from flow.core.experiment import Experiment
 from ilu.core.experiment import Experiment
-from ilu.envs.traffic_lights import (ADDITIONAL_QL_ENV_PARAMS,
+from ilu.envs.agents import (ADDITIONAL_QL_ENV_PARAMS,
                                      TrafficLightQLGridEnv)
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
-NUM_ITERATIONS = 1
+NUM_ITERATIONS = 500
 
 
 def gen_edges(col_num, row_num):
@@ -158,7 +157,9 @@ def grid_example(render=None, use_inflows=False, additional_env_params=None):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=0.1, render=False, print_warnings=False)
+    sim_params = SumoParams(sim_step=0.5, render=False,
+                            print_warnings=False,
+                            emission_path=EMISSION_PATH)
 
     if render is not None:
         sim_params.render = render
@@ -178,12 +179,15 @@ def grid_example(render=None, use_inflows=False, additional_env_params=None):
 
     additional_env_params.update({
         # minimum switch time for each traffic light (in seconds)
-        "switch_time": 3.0,
+        "switch_time": 5.0,
         # whether the traffic lights should be actuated by sumo or RL
         # options are "controlled" and "actuated"
         "tl_type": "controlled",
         # determines whether the action space is meant to be discrete or continuous
-        "discrete": True
+        "discrete": True,
+        "cost_medium": 0.5,
+        "cost_low": 0.75,
+        "epsilon": 0.05
     })
 
     env_params = EnvParams(horizon=HORIZON,
@@ -220,14 +224,20 @@ def grid_example(render=None, use_inflows=False, additional_env_params=None):
 
 if __name__ == "__main__":
     # import the experiment variable
-    # import os
+    import os
     exp, env = grid_example()
     # de-serialize data
     # UNCOMMENT to serialize
     # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())
     # env = TrafficLightQLGridEnv.load(pickle_path)
     # run for a set number of rollouts / time steps
-    exp.run(5 , HORIZON, rl_actions=env.rl_actions, save_interval=None)
+    info_dict = exp.run(NUM_ITERATIONS,
+                        HORIZON,
+                        rl_actions=env.rl_actions,
+                        convert_to_csv=False,
+                        save_interval=None)
     #serialize data
     #UNCOMMENT to serialize
-    #env.dump(os.getcwd())
+    env.dump(os.getcwd())
+    # import pdb
+    # pdb.set_trace()

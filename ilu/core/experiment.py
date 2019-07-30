@@ -12,6 +12,7 @@
    """
 
 import datetime
+import json
 import logging
 import os
 import tempfile
@@ -77,13 +78,13 @@ class Experiment:
         logging.info("Initializing environment.")
 
     def run(
-self,
- num_runs,
- num_steps,
- rl_actions=None,
- convert_to_csv=False,
- save_interval=None,
-):
+            self,
+            num_runs,
+            num_steps,
+            rl_actions=None,
+            convert_to_csv=False,
+            save_interval=None,
+    ):
         """Run the given scenario for a set number of runs and steps per run.
 
         Parameters
@@ -125,6 +126,7 @@ self,
 
         info_dict = {}
         if rl_actions is None:
+
             def rl_actions(*_):
                 return None
 
@@ -169,21 +171,19 @@ self,
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
             print("Round {0}, return: {1}".format(i, ret))
 
-
         if save_interval is not None:
             os.remove('{}/env.pickle'.format(dump_dir))
             os.rmdir(dump_dir)
 
         info_dict["returns"] = rets
-        info_dict["velocities"] = vels
+        info_dict["velocities"] = list(vels[0])
         info_dict["mean_returns"] = mean_rets
         info_dict["per_step_returns"] = ret_lists
-        info_dict["mean_outflows"] = np.mean(outflows)
-
-        print("Average, std return: {}, {}".format(
-            np.mean(rets), np.std(rets)))
-        print("Average, std speed: {}, {}".format(
-            np.mean(mean_vels), np.std(mean_vels)))
+        info_dict["mean_outflows"] = np.mean(outflows).astype(float)
+        print("Average, std return: {}, {}".format(np.mean(rets),
+                                                   np.std(rets)))
+        print("Average, std speed: {}, {}".format(np.mean(mean_vels),
+                                                  np.std(mean_vels)))
         self.env.terminate()
 
         if convert_to_csv:
@@ -198,5 +198,25 @@ self,
 
             # convert the emission file into a csv
             emission_to_csv(emission_path)
+
+        if self.env.sim_params.emission_path is not None:
+            # collect the location of the emission file
+            dir_path = self.env.sim_params.emission_path
+
+            if getattr(self.env, 'log'):
+                log_filename = \
+                "{0}-log.json".format(self.env.scenario.name)
+
+                log_path = os.path.join(dir_path, log_filename)
+
+                with open(log_path, 'w') as fj:
+                    json.dump(self.env.log, fj)
+
+            info_filename = \
+                "{0}-info.json".format(self.env.scenario.name)
+
+            info_path = os.path.join(dir_path, info_filename)
+            with open(info_path, 'w') as fj:
+                json.dump(info_dict, fj)
 
         return info_dict

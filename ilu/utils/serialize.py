@@ -32,7 +32,12 @@ class Serializer(object):
         '''Serializes thru pickle'''
 
         if filename is None:
-            filename = convert(self.__class__.__name__)
+            try:
+                # gets scenario name in case
+                # implements environment
+                filename = self.scenario.name
+            except Exception:
+                filename = convert(self.__class__.__name__)
 
         ext = filename.split('.')[-1]
         if ext != 'pickle':

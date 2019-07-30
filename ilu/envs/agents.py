@@ -10,8 +10,9 @@ from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
 from ilu.ql.choice import choice_eps_greedy, choice_optimistic
 from ilu.ql.define import dpq_tls
-from ilu.ql.update import dpq_update
 from ilu.ql.reward import reward_fixed_apply
+from ilu.ql.update import dpq_update
+from ilu.utils.decorators import logger
 from ilu.utils.serialize import Serializer
 
 ADDITIONAL_QL_PARAMS = {
@@ -29,8 +30,8 @@ ADDITIONAL_QL_PARAMS = {
     # use only incoming edges to account for observation states
     # None means use both incoming and outgoing
     'filter_incoming_edges': None,
-    'p': 0.5,
-    'q': 1.0,
+    'cost_medium': 0.5,
+    'cost_low': 1.0,
 }
 ADDITIONAL_QL_ENV_PARAMS = {**ADDITIONAL_ENV_PARAMS, **ADDITIONAL_QL_PARAMS}
 
@@ -162,17 +163,19 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                          self.action_depth,
                          initial_value=self.k.scenario.max_speed())
 
-    def rl_actions(self, state):
-        S = tuple(state)
+    def rl_actions(self, state, compute=True):
+        if compute:
+            S = tuple(state)
 
-        # direction are the current values for traffic lights
-        actions_values = list(self.Q[S].items())
-        actions_values = self._action_value_filter(actions_values)
+            # direction are the current values for traffic lights
+            actions_values = list(self.Q[S].items())
+            actions_values = self._action_value_filter(actions_values)
 
-        if self.epsilon is None:
-            return choice_optimistic(actions_values)
-        else:
-            return choice_eps_greedy(actions_values, self.epsilon)
+            if self.epsilon is None:
+                self.action = choice_optimistic(actions_values)
+            else:
+                self.action = choice_eps_greedy(actions_values, self.epsilon)
+        return self.action
 
     def _init_traffic_light_to_edges(self):
         """Returns edges attached to the node center#{node_id}
@@ -211,6 +214,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
             self.traffic_light_to_edges[n] = edge_ids
 
+    @logger
     def _apply_rl_actions(self, rl_actions):
         """Q-Learning
 
@@ -244,8 +248,8 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 self.duration[i] += self.sim_step
 
         next_state = self.get_state()
-        dpq_update(self.gamma, self.alpha, self.Q,
-                   state, action, reward, next_state)
+        dpq_update(self.gamma, self.alpha, self.Q, state, action, reward,
+                   next_state)
 
     def get_state(self):
         """See class definition."""
@@ -261,13 +265,18 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             speed_list = [
                 self.k.vehicle.get_speed(veh_id) for veh_id in vehicle_list
             ]
-            cum_list.append(
-                (sum(speed_list) / len(speed_list), len(speed_list)))
+            if any(speed_list):
+                cum_list.append(
+                    (sum(speed_list) / len(speed_list), len(speed_list)))
+            else:
+                # all vehicles were routed
+                cum_list.append((999, 0))
         # categorize
         ret = []
         max_speed = self.k.scenario.max_speed()
         max_count = sum([c for _, c in cum_list])
         for s, c in cum_list:
+
             if s >= .66 * max_speed:
                 s = 2
             elif s <= .25 * max_speed:
@@ -276,9 +285,9 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 s = 1
             ret.append(s)
 
-            if c >= .66 * max_count:
+            if c >= 8:
                 c = 2
-            elif c <= .15 * max_count:
+            elif c <= 2:
                 c = 0
             else:
                 c = 1
