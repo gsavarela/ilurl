@@ -10,7 +10,7 @@ from ilu.envs.agents import (ADDITIONAL_QL_ENV_PARAMS,
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
-NUM_ITERATIONS = 500
+NUM_ITERATIONS = 1
 
 
 def gen_edges(col_num, row_num):
@@ -157,7 +157,7 @@ def grid_example(render=None, use_inflows=False, additional_env_params=None):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=0.5, render=False,
+    sim_params = SumoParams(sim_step=0.5, render=True,
                             print_warnings=False,
                             emission_path=EMISSION_PATH)
 
