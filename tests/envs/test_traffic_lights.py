@@ -1,8 +1,8 @@
 import unittest
 
 from experiments.smart_grid import grid_example
-from ilu.envs.traffic_lights import TrafficLightQLGridEnv
-from ilu.envs.traffic_lights import ADDITIONAL_QL_PARAMS
+from ilu.envs.agents import TrafficLightQLGridEnv
+from ilu.envs.agents import ADDITIONAL_QL_PARAMS
 
 
 class TestGetState(unittest.TestCase):
