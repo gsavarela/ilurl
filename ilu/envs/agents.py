@@ -24,9 +24,10 @@ ADDITIONAL_QL_PARAMS = {
     'alpha': 5e-2,
     # gamma is the discount rate for value function
     'gamma': 0.999,
-    # min_duration_time is the time a given traffic light has to stay
-    # at the same configuration: min_duration_time >= min_switch_time
-    'min_duration_time': 10,
+    # phase_time is the time a given traffic light has to stay
+    # at the same configuration: phase_time >= switch_time
+    'phase_time': 40,
+    'switch_time': 5,
     # use only incoming edges to account for observation states
     # None means use both incoming and outgoing
     'filter_incoming_edges': None,
@@ -46,10 +47,10 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
     2. The actions for the agent is for each of the
        K-TFL is to:
-        2.1 0 - keep state.
-        2.2 1 - switch.
+        2.1 0 - short green (10s Green, 5s Yellow, 25s Red)
+        2.2 1 - long green (25s Green, 5s Yellow, 10s Red)
         2.3 For each switch action the TFL must be open at
-            least for min_switch_time.
+            least for switch_time.
         2.4 A switch action might no be taken while a traffic
             light is on yellow state.
 
@@ -74,36 +75,40 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
     ENV
     ---
 
-    * switch_time: minimum time a light must be constant before
-      it switches (in seconds). Earlier RL commands are ignored.
-    * tl_type: whether the traffic lights should be actuated by sumo or RL,
-      options are respectively "actuated" and "controlled"
-    * discrete: determines whether the action space is meant to be discrete or
-      continuous
+    * switch_time: minimum time a light must be constant before it
+                    switches (in seconds). Earlier RL commands are
+                    ignored.
+    * tl_type: whether the traffic lights should be actuated by sumo or
+                RL, options are respectively "actuated" and "controlled"
+    * discrete: determines whether the action space is meant to be
+                discrete or continuous.
 
     Q-Learning
     ----------
-    * epsilon: [1]  small positive number representing the change of the agent
-               taking a random action.
-    * alpha: [1]  positive number between 0 and 1 representing the update rate.
-    * gamma: [1]  positive number between 0 and 1 representing the discount
-             rate for the rewards.
+    * epsilon: [1]  small positive number representing the change of
+                the agent taking a random action.
+    * alpha: [1]  positive number between 0 and 1 representing the
+                 update rate.
+    * gamma: [1]  positive number between 0 and 1 representing the
+                discount rate for the rewards.
 
    References:
     [1] Sutton et Barto, Reinforcement Learning 2nd Ed 2018
 
     States
-        An observation is the vehicle data, taken at each intersecting edge for
-        the k-th traffic light. Futhermore, the traffic light accesses only the
-        vehicles on the range of half an edge length. Currently only the number
-        of vehicles and their speed are being evaluated and ordered into 3
-        categories: 0 ("low"), 1 ("medium"), 2 ("high").
+        An observation is the vehicle data, taken at each intersecting
+        edge for the k-th traffic light. Futhermore, the traffic light
+        accesses only the vehicles on the range of half an edge length.
+        Currently only the number of vehicles and their speed are being
+        evaluated and ordered into 3 categories:
+
+                        0 ("low"), 1 ("medium"), 2 ("high").
 
     Actions
-        The action space consist of a list of float variables ranging from 0-1
-        specifying whether a traffic light is supposed to switch or not. The
-        actions are sent to the traffic light in the grid from left to right
-        and then top to bottom.
+        The action space consist of a list of float variables ranging
+        from 0-1 specifying whether a traffic light is supposed to
+        switch or not. The actions are sent to the traffic light in the
+        grid from left to right and then top to bottom.
 
     Rewards
         The reward is the negative per vehicle delay minus a penalty for
@@ -113,9 +118,9 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         A rollout is terminated once the time horizon is reached.
 
     Additional
-        Vehicles are rerouted to the start of their original routes once they
-        reach the end of the network in order to ensure a constant number of
-        vehicles.
+        Vehicles are rerouted to the start of their original routes
+        once they reach the end of the network in order to ensure a
+        constant number of vehicles.
     """
 
     def __init__(self, env_params, sim_params, scenario, simulator='traci'):
@@ -135,13 +140,13 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 setattr(self, p, val)
 
         # Check constrains on minimum duration
-        if self.min_switch_time > self.min_duration_time:
+        if self.switch_time > self.phase_time:
             raise ValueError('''Minimum duration time must be
                 greater than minimum switch time''')
 
         # duration measures the amount of time the current
         # configuration has been going on
-        self.duration = [0] * self.num_traffic_lights
+        self.duration = 0
 
         # keeps the internal value of sim step
         self.sim_step = sim_params.sim_step
@@ -162,19 +167,26 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                          self.num_traffic_lights,
                          self.action_depth,
                          initial_value=self.k.scenario.max_speed())
+        self.action = None
 
     def rl_actions(self, state, compute=True):
         if compute:
             S = tuple(state)
 
             # direction are the current values for traffic lights
-            actions_values = list(self.Q[S].items())
-            actions_values = self._action_value_filter(actions_values)
+            actions_dict = self.Q[S]
+            actions_list = self._actions_filter(list(actions_dict.keys()))
 
+            actions_values = [(a, v) for a, v in actions_dict.items()
+                              if a in actions_list]
             if self.epsilon is None:
-                self.action = choice_optimistic(actions_values)
+                action = choice_optimistic(actions_values)
             else:
-                self.action = choice_eps_greedy(actions_values, self.epsilon)
+                action = choice_eps_greedy(actions_values, self.epsilon)
+
+            if self.action is None or self.duration == 0.0:
+                self.action = action
+            return action
         return self.action
 
     def _init_traffic_light_to_edges(self):
@@ -241,12 +253,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         # place q-learning here
         reward = self.compute_reward(rl_actions)
 
-        for i, a in enumerate(action):
-            if a == 1:
-                self.duration[i] = 0.0
-            else:
-                self.duration[i] += self.sim_step
-
+        self.duration = (self.duration + self.sim_step) % self.phase_time
         next_state = self.get_state()
         dpq_update(self.gamma, self.alpha, self.Q, state, action, reward,
                    next_state)
@@ -259,41 +266,48 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         #       nk is the count of vehicles on observable edges
         #       from k-th traffic light
         # for k =0..num_traffic_lights-1
-        cum_list = []
+        speed_count_list = []
         for n in range(self.num_traffic_lights):
             vehicle_list = self._get_observable_state_by(n)
             speed_list = [
                 self.k.vehicle.get_speed(veh_id) for veh_id in vehicle_list
             ]
             if any(speed_list):
-                cum_list.append(
+                speed_count_list.append(
                     (sum(speed_list) / len(speed_list), len(speed_list)))
             else:
                 # all vehicles were routed
-                cum_list.append((999, 0))
+                speed_count_list.append((999, 0))
+
         # categorize
+        s_max = self.k.scenario.max_speed()
+        c_list = [c for _, c in speed_count_list]
+        c_max = sum(c_list) / len(c_list)
+
         ret = []
-        max_speed = self.k.scenario.max_speed()
-        max_count = sum([c for _, c in cum_list])
-        for s, c in cum_list:
-
-            if s >= .66 * max_speed:
-                s = 2
-            elif s <= .25 * max_speed:
-                s = 0
-            else:
-                s = 1
-            ret.append(s)
-
-            if c >= 8:
-                c = 2
-            elif c <= 2:
-                c = 0
-            else:
-                c = 1
-            ret.append(c)
+        for s, c in speed_count_list:
+            ret.append(self._categorize_speed(s, s_max))
+            ret.append(self._categorize_count(c))
 
         return tuple(ret)
+
+    def _categorize_speed(self, s, s_max):
+        """Converts a float speed into a category"""
+        if s >= .66 * s_max:
+            return 2
+        elif s <= .25 * s_max:
+            return 0
+        else:
+            return 1
+
+    def _categorize_count(self, c):
+        """Converts a int count into a category"""
+        if c >= 8:
+            return 2
+        elif c <= 2:
+            return 0
+        else:
+            return 1
 
     def _get_observable_state_by(self, node_id):
         """Returns a vehicle list observed from the node_id
@@ -335,7 +349,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         # return rewards.average_velocity(self, fail=False)
         return reward_fixed_apply(self)
 
-    def _action_to_index(self, action: tuple):
+    def _action_to_index(self, action):
         """"Converts an action in tuple form to an integer"""
         # defines a generator on the reverse of the action
         # the super class defines actions oposite as ours
@@ -347,20 +361,25 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
         return sum([po2(k, n) for n, k in gen_act])
 
-    def _action_value_filter(self, actions_values):
-        """filters a list of tuples based on a mask"""
+    def _actions_filter(self, actions):
+        """filters a list of tuples based on a mask
 
-        # avaliates duration: 1 lets the pattern to pass otherwise
-        filter_mask = [
-            1 if d <= self.min_duration_time else 0 for d in self.duration
-        ]
+            This function maps the agent's action
+            fast green / slow green into the traffic
+            light's action keep or switch
+        """
+        # new phase case -- doesn't restrict actions
+        if self.action is None or self.duration == 0.0:
+            return actions
 
-        ffn = lambda x: self._apply_mask_actions(x, filter_mask)
+        if self.duration == 10.0:
+            if not all(self.action):
+                # Switch all directions with the 0-bit
+                return [tuple([1 if a == 0 else 0 for a in self.action])]
 
-        ret = [(action, value) for action, value in actions_values
-               if ffn(action)]
-
-        return ret
-
-    def _apply_mask_actions(self, action, filter_mask):
-        return not any([a * m for a, m in zip(action, filter_mask)])
+        if self.duration == 25.0:
+            if any(self.action):
+                # Switch all directions with the 1-bit
+                return [self.action]
+        # do nothing
+        return [tuple([0] * self.num_traffic_lights)]

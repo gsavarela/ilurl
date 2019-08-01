@@ -69,9 +69,10 @@ def dpq(states, actions, initial_value=0):
     [1] Sutton et Barto, Reinforcement Learning 2nd Ed 2018
     """
     return {
-            s: {a: initial_value
+            s: {
+                a: initial_value
                 for a in actions
-                }
+            }
             for s in states
     }
 
