@@ -8,12 +8,10 @@ supposed to serve as a benchmark to experiments/smart_grid.py
 """
 from flow.controllers import GridRouter
 from flow.core.experiment import Experiment
-from flow.core.params import SumoParams, EnvParams, InitialConfig, NetParams
-from flow.core.params import VehicleParams
-from flow.core.params import TrafficLightParams
-from flow.core.params import SumoCarFollowingParams
-from flow.core.params import InFlows
-from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
+from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
+                              SumoCarFollowingParams, SumoParams,
+                              TrafficLightParams, VehicleParams)
+from flow.envs.loop.loop_accel import ADDITIONAL_ENV_PARAMS, AccelEnv
 from flow.scenarios.grid import SimpleGridScenario
 
 
@@ -67,23 +65,22 @@ def get_flow_params(col_num, row_num, additional_net_params):
     flow.core.params.NetParams
         network-specific parameters used to generate the scenario
     """
-    initial = InitialConfig(
-        spacing='custom', lanes_distribution=float('inf'), shuffle=True)
+    initial = InitialConfig(spacing='custom',
+                            lanes_distribution=float('inf'),
+                            shuffle=True)
 
     inflow = InFlows()
     outer_edges = gen_edges(col_num, row_num)
     for i in range(len(outer_edges)):
-        inflow.add(
-            veh_type='human',
-            edge=outer_edges[i],
-            probability=0.25,
-            departLane='free',
-            departSpeed=20)
+        inflow.add(veh_type='human',
+                   edge=outer_edges[i],
+                   probability=0.25,
+                   departLane='free',
+                   departSpeed=20)
 
-    net = NetParams(
-        inflows=inflow,
-        no_internal_links=False,
-        additional_params=additional_net_params)
+    net = NetParams(inflows=inflow,
+                    no_internal_links=False,
+                    additional_params=additional_net_params)
 
     return initial, net
 
@@ -111,15 +108,18 @@ def get_non_flow_params(enter_speed, add_net_params):
         network-specific parameters used to generate the scenario
     """
     additional_init_params = {'enter_speed': enter_speed}
-    initial = InitialConfig(
-        spacing='custom', additional_params=additional_init_params)
-    net = NetParams(
-        no_internal_links=False, additional_params=add_net_params)
+    initial = InitialConfig(spacing='custom',
+                            additional_params=additional_init_params)
+    # net = NetParams(
+    # no_internal_links=False,
+    # additional_params=add_net_params,
+    #)
+    net = NetParams(additional_params=add_net_params)
 
     return initial, net
 
 
-def grid_example(render=None, use_inflows=False):
+def grid_example(render=None, use_inflows=False, emission_path=None):
     """
     Perform a simulation of vehicles on a grid.
 
@@ -162,7 +162,10 @@ def grid_example(render=None, use_inflows=False):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=0.1, render=True)
+    if emission_path is None:
+        sim_params = SumoParams(sim_step=0.1, render=render)
+    else:
+        sim_params = SumoParams(sim_step=0.1, render=render, emission_path=emission_path)
 
     if render is not None:
         sim_params.render = render
@@ -177,7 +180,10 @@ def grid_example(render=None, use_inflows=False):
         ),
         num_vehicles=tot_cars)
 
-    env_params = EnvParams(evaluate=True, additional_params=ADDITIONAL_ENV_PARAMS)
+    env_params = EnvParams(
+        evaluate=True,
+        additional_params=ADDITIONAL_ENV_PARAMS,
+    )
 
     tl_logic = TrafficLightParams(baseline=False)
     phases = [{
@@ -201,10 +207,10 @@ def grid_example(render=None, use_inflows=False):
         "maxDur": "6",
         "state": "ryryryryryry"
     }]
-    tl_logic.add("center0", phases=phases, programID=1, tls_type="actuated")
-    tl_logic.add("center1", phases=phases, programID=1, tls_type="actuated")
-    tl_logic.add("center2", phases=phases, programID=1, tls_type="actuated")
-    tl_logic.add("center3", phases=phases, programID=1, tls_type="actuated")
+    tl_logic.add("center0", phases=phases, programID=1)
+    tl_logic.add("center1", phases=phases, programID=1)
+    tl_logic.add("center2", phases=phases, programID=1)
+    tl_logic.add("center3", phases=phases, programID=1)
     # tl_logic.add("center2", phases=phases, programID=1, tls_type="actuated")
 
     additional_net_params = {
@@ -221,15 +227,13 @@ def grid_example(render=None, use_inflows=False):
             additional_net_params=additional_net_params)
     else:
         initial_config, net_params = get_non_flow_params(
-            enter_speed=v_enter,
-            add_net_params=additional_net_params)
+            enter_speed=v_enter, add_net_params=additional_net_params)
 
-    scenario = SimpleGridScenario(
-        name="grid-intersection",
-        vehicles=vehicles,
-        net_params=net_params,
-        initial_config=initial_config,
-        traffic_lights=tl_logic)
+    scenario = SimpleGridScenario(name="grid-intersection",
+                                  vehicles=vehicles,
+                                  net_params=net_params,
+                                  initial_config=initial_config,
+                                  traffic_lights=tl_logic)
 
     env = AccelEnv(env_params, sim_params, scenario)
 
@@ -241,4 +245,4 @@ if __name__ == "__main__":
     exp = grid_example()
 
     # run for a set number of rollouts / time steps
-    exp.run(1, 1400)
+    exp.run(1, 1500)

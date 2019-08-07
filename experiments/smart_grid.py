@@ -4,9 +4,9 @@ from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
 from flow.scenarios.grid import SimpleGridScenario
+from ilu.benchmarks.grid import grid_example
 from ilu.core.experiment import Experiment
-from ilu.envs.agents import (ADDITIONAL_QL_ENV_PARAMS,
-                                     TrafficLightQLGridEnv)
+from ilu.envs.agents import ADDITIONAL_QL_ENV_PARAMS, TrafficLightQLGridEnv
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
@@ -113,7 +113,11 @@ def get_non_flow_params(enter_speed, add_net_params):
     return initial, net
 
 
-def grid_example(render=None, use_inflows=False, additional_env_params=None):
+def smart_grid_example(render=None,
+                       use_inflows=False,
+                       additional_env_params=None,
+                       emission_path=None,
+                       sim_step=0.1):
     """
     Perform a simulation of vehicles on a grid.
 
@@ -157,9 +161,17 @@ def grid_example(render=None, use_inflows=False, additional_env_params=None):
         "cars_bot": num_cars_bot
     }
 
-    sim_params = SumoParams(sim_step=0.5, render=True,
-                            print_warnings=False,
-                            emission_path=EMISSION_PATH)
+    if render is None:
+        sim_params = SumoParams(sim_step=sim_step,
+                                render=False,
+                                print_warnings=False,
+                                emission_path=emission_path)
+
+    else:
+        sim_params = SumoParams(sim_step=sim_step,
+                                render=render,
+                                print_warnings=False,
+                                emission_path=emission_path)
 
     if render is not None:
         sim_params.render = render
@@ -224,20 +236,22 @@ def grid_example(render=None, use_inflows=False, additional_env_params=None):
 
 if __name__ == "__main__":
     # import the experiment variable
-    import os
-    exp, env = grid_example()
+    # import os
+    print('running grid_intersection')
+    grdexp = grid_example(render=False, emission_path=None)
+
+    grid_dict = grdexp.run(NUM_ITERATIONS, HORIZON)
+
+    print('running smart_grid')
+    smaexp, env = smart_grid_example(render=False, emission_path=None)
     # de-serialize data
     # UNCOMMENT to serialize
     # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())
     # env = TrafficLightQLGridEnv.load(pickle_path)
     # run for a set number of rollouts / time steps
-    info_dict = exp.run(NUM_ITERATIONS,
-                        HORIZON,
-                        rl_actions=env.rl_actions,
-                        convert_to_csv=False,
-                        save_interval=None)
+    info_dict = smaexp.run(NUM_ITERATIONS, HORIZON, rl_actions=env.rl_actions)
     #serialize data
     #UNCOMMENT to serialize
-    env.dump(os.getcwd())
+    # env.dump(os.getcwd())
     # import pdb
     # pdb.set_trace()

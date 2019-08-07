@@ -10,7 +10,7 @@
    * extend outputs to custumized reward functions
    * fix bug of averaging speeds when no cars are on the simulation
    """
-
+import pdb
 import datetime
 import json
 import logging
@@ -203,7 +203,7 @@ class Experiment:
             # collect the location of the emission file
             dir_path = self.env.sim_params.emission_path
 
-            if getattr(self.env, 'log'):
+            if hasattr(self.env, 'log'):
                 log_filename = \
                 "{0}-log.json".format(self.env.scenario.name)
 

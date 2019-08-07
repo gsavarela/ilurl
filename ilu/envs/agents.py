@@ -4,16 +4,32 @@
     Extends the flow's green wave environmenets
 '''
 __author__ = "Guilherme Varela"
+import pdb
 from collections import defaultdict
 
+import numpy as np
 from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
+from flow.envs.loop.loop_accel import AccelEnv
 from ilu.ql.choice import choice_eps_greedy, choice_optimistic
 from ilu.ql.define import dpq_tls
 from ilu.ql.reward import reward_fixed_apply
 from ilu.ql.update import dpq_update
 from ilu.utils.decorators import logger
 from ilu.utils.serialize import Serializer
+
+# action rank is the number of dimensions for the
+# representation of one tls action
+TLS_ACTION_RANK = 1
+# action depth is size of each of dimensions
+# ( binary )
+TLS_ACTION_RANK_DEPTH = 2
+# action rank is the number of dimensions for the
+# representation of one tls action
+TLS_STATE_RANK = 2
+# action depth is size of each of dimensions
+# ( binary )
+TLS_STATE_RANK_DEPTH = 3
 
 ADDITIONAL_QL_PARAMS = {
     # epsilon is the chance to adopt a random action instead of
@@ -34,7 +50,8 @@ ADDITIONAL_QL_PARAMS = {
     'cost_medium': 0.5,
     'cost_low': 1.0,
 }
-ADDITIONAL_QL_ENV_PARAMS = {**ADDITIONAL_ENV_PARAMS, **ADDITIONAL_QL_PARAMS}
+ADDITIONAL_QL_ENV_PARAMS = \
+    {**ADDITIONAL_ENV_PARAMS, **ADDITIONAL_QL_PARAMS}
 
 
 class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
@@ -47,13 +64,12 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
     2. The actions for the agent is for each of the
        K-TFL is to:
-        2.1 0 - short green (10s Green, 5s Yellow, 25s Red)
-        2.2 1 - long green (25s Green, 5s Yellow, 10s Red)
-        2.3 For each switch action the TFL must be open at
-            least for switch_time.
-        2.4 A switch action might no be taken while a traffic
-            light is on yellow state.
-
+        2.1 0 - short green (direction 0), Ex:
+            (10s Green, 5s Yellow, 25s Red)
+        2.2 1 - long green (direction 0), Ex:
+            (25s Green, 5s Yellow, 10s Red)
+        2.3 short green (direction 0) implies long
+            green (direction 1) and vice-versa.
 
     3. Each k-TFL can only observe it's subjacent edges -
         meaning the state is described by the cars locally
@@ -85,12 +101,12 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
     Q-Learning
     ----------
-    * epsilon: [1]  small positive number representing the change of
-                the agent taking a random action.
-    * alpha: [1]  positive number between 0 and 1 representing the
-                 update rate.
-    * gamma: [1]  positive number between 0 and 1 representing the
-                discount rate for the rewards.
+    * epsilon: small positive number representing the change of
+                the agent taking a random action [1].
+    * alpha: positive number between 0 and 1 representing the
+                 update rate [1].
+    * gamma: positive number between 0 and 1 representing the
+                discount rate for the rewards [1].
 
    References:
     [1] Sutton et Barto, Reinforcement Learning 2nd Ed 2018
@@ -130,6 +146,13 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                                                     scenario,
                                                     simulator=simulator)
 
+        #THIS IS FROM ACCELL ENV
+        # variables used to sort vehicles by their initial position plus
+        # distance traveled
+        self.prev_pos = dict()
+        self.absolute_position = dict()
+
+        self.switch_time = 5
         for p in ADDITIONAL_QL_PARAMS:
             if p not in env_params.additional_params:
                 raise KeyError(
@@ -152,44 +175,22 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         self.sim_step = sim_params.sim_step
 
         # Q learning stuff
-        # every state is composed of 2 features:
-        # velocity, number
-        self.num_features = 2
-        # every feature has tree possible values
-        # low, medium, high
-        self.feature_depth = 3
-        # keep on current state or skip to the next
-        self.action_depth = 2
-        # neighbouring maps neightborhood edges
-        self._init_traffic_light_to_edges()
-        self.Q = dpq_tls(self.num_features * self.num_traffic_lights,
-                         self.feature_depth,
-                         self.num_traffic_lights,
-                         self.action_depth,
-                         initial_value=self.k.scenario.max_speed())
-        self.action = None
+        # neighbouring maps neighbourhood edges
+        self._init_observation_space_filter()
+        self.Q = dpq_tls(TLS_STATE_RANK * self.num_traffic_lights,
+                         TLS_STATE_RANK_DEPTH,
+                         TLS_ACTION_RANK * self.num_traffic_lights,
+                         TLS_ACTION_RANK_DEPTH,
+                         initial_value=0)
+        self._rl_action = None
+        self._state = None
+        self._control_action_default = tuple([0] * self.num_traffic_lights)
+        self._observation_space = {
+            tls: {}
+            for tls in range(self.num_traffic_lights)
+        }
 
-    def rl_actions(self, state, compute=True):
-        if compute:
-            S = tuple(state)
-
-            # direction are the current values for traffic lights
-            actions_dict = self.Q[S]
-            actions_list = self._actions_filter(list(actions_dict.keys()))
-
-            actions_values = [(a, v) for a, v in actions_dict.items()
-                              if a in actions_list]
-            if self.epsilon is None:
-                action = choice_optimistic(actions_values)
-            else:
-                action = choice_eps_greedy(actions_values, self.epsilon)
-
-            if self.action is None or self.duration == 0.0:
-                self.action = action
-            return action
-        return self.action
-
-    def _init_traffic_light_to_edges(self):
+    def _init_observation_space_filter(self):
         """Returns edges attached to the node center#{node_id}
 
         This function should be provided by Kernel#Scenario,
@@ -199,7 +200,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
         """
         # map traffic light to edges
-        self.traffic_light_to_edges = defaultdict(list)
+        self._observation_space_filter = defaultdict(list)
         incoming = self.filter_incoming_edges is None or\
             self.filter_incoming_edges is True
         outgoing = self.filter_incoming_edges is None or\
@@ -224,68 +225,60 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 edge_ids.append('bot{}_{}'.format(i, j + 1))
                 edge_ids.append('left{}_{}'.format(i, j))
 
-            self.traffic_light_to_edges[n] = edge_ids
+            self._observation_space_filter[n] = edge_ids
 
-    @logger
-    def _apply_rl_actions(self, rl_actions):
-        """Q-Learning
+    def set_observation_space(self):
+        """updates the observation space"""
+        for tls in range(self.num_traffic_lights):
+            for edges in self._observation_space_filter[tls]:
+                k = self.duration
+                self._observation_space[tls][k] = \
+                    [self.k.vehicle.get_speed(veh_id)
+                     for veh_id in self.k.vehicle.get_ids_by_edge(edges)]
 
-        Algorithm as in Sutton et Barto, 2018 [1]
-        for a single agent controlling all traffic
-        light.
+    def get_observation_space(self):
+        """consolidates the observation space
 
-        Parameters
-        ----------
-
-        rl_actions: list of actions or None
+        WARNING:
+            when all cars are dispatched the
+            state will be encoded with speed zero --
+            change for when there aren't any cars
+            the state is equivalent to maximum speed
         """
-        if rl_actions is None:
-            rl_actions = self.rl_actions(self.get_state())
+        # get ids from vehicles -- closer to the edges
+        ret = []
+        for tls in range(self.num_traffic_lights):
+            # speeds and counts for every time step
+            veh_speeds = [
+                0.0 if len(values) == 0 else np.mean(values)
+                for t, values in self._observation_space[tls].items()
+            ]
+            # handles the case of invoking get_state before
+            # applying any action
+            if any(veh_speeds):
+                ret.append(np.mean(veh_speeds))
+            else:
+                ret.append(0.0)
 
-        # check if the action space is discrete
-        state, action = self.get_state(), rl_actions
-
-        #  _apply_rl_actions -- actions have to be on integer format
-        idx = self._action_to_index(rl_actions)
-
-        super(TrafficLightQLGridEnv, self)._apply_rl_actions(idx)
-
-        # place q-learning here
-        reward = self.compute_reward(rl_actions)
-
-        self.duration = (self.duration + self.sim_step) % self.phase_time
-        next_state = self.get_state()
-        dpq_update(self.gamma, self.alpha, self.Q, state, action, reward,
-                   next_state)
+            veh_counts = [
+                len(values)
+                for t, values in self._observation_space[tls].items()
+            ]
+            if any(veh_speeds):
+                ret.append(np.mean(veh_counts))
+            else:
+                ret.append(0.0)
+        return tuple(ret)
 
     def get_state(self):
         """See class definition."""
-        # build a list of tuples (vk, nk)
-        # where vk is the speed for vehicles on observable edges
-        #       from k-th traffic light
-        #       nk is the count of vehicles on observable edges
-        #       from k-th traffic light
-        # for k =0..num_traffic_lights-1
-        speed_count_list = []
-        for n in range(self.num_traffic_lights):
-            vehicle_list = self._get_observable_state_by(n)
-            speed_list = [
-                self.k.vehicle.get_speed(veh_id) for veh_id in vehicle_list
-            ]
-            if any(speed_list):
-                speed_count_list.append(
-                    (sum(speed_list) / len(speed_list), len(speed_list)))
-            else:
-                # all vehicles were routed
-                speed_count_list.append((999, 0))
-
         # categorize
         s_max = self.k.scenario.max_speed()
-        c_list = [c for _, c in speed_count_list]
-        c_max = sum(c_list) / len(c_list)
-
+        # c_list = [c for _, c in speed_count_list]
+        # c_max = sum(c_list) / len(c_list)
+        obs_space = self.get_observation_space()
         ret = []
-        for s, c in speed_count_list:
+        for s, c in zip(obs_space[::2], obs_space[1::2]):
             ret.append(self._categorize_speed(s, s_max))
             ret.append(self._categorize_count(c))
 
@@ -309,45 +302,136 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         else:
             return 1
 
-    def _get_observable_state_by(self, node_id):
-        """Returns a vehicle list observed from the node_id
+    def rl_actions(self, state, compute=True):
+        if compute:
+            S = tuple(state)
 
-        This function should be provided by Kernel#Scenario,
-        effectively unbinding the Grid enviroment names from
-        the agent implementation -- that doesn't seem to be
-        an option.
+            actions_values = list(self.Q[S].items())
+
+            action = choice_eps_greedy(actions_values, self.epsilon)
+
+            if self._rl_action is None or self.duration == 0.0:
+                self._rl_action = action
+            return action
+        return self._rl_action
+
+    def control_actions(self):
+        """filters a list of tuples based on a mask
+
+        rl_action:
+        0 fast green — on vertical ~ slow green on horizontal
+        1 slow green — on vertical ~ fast green on horizontal
+
+        direction:
+        0 green vertical
+        1 green horizontal
+
+        10s:
+
+        direction rl_action  result
+        0		0 		1
+        0		1		0
+        1		0		0
+        1		1		1
+
+        25s:
+
+        switch last control action
+        """
+        # if self.duration == 10.0:
+        if self.duration == 0 and self.step_counter > 1:
+            self._control_action = tuple([1] * self.num_traffic_lights)
+
+        if self.duration == 31.0:
+            self._control_action = tuple([1] * self.num_traffic_lights)
+            # fast green time case orientation is 0
+            # slow green time case orientation is 1
+            # _direction = [int(i) for i in self.direction.flatten()]
+            # self._control_action = tuple(
+            #     [int(a == d) for a, d in zip(self._rl_action, _direction)])
+            # print('''{}: rl_action {} direction {} ctrl {}'''.format(
+            #     self.duration, self._rl_action,
+            #     [i for i in self.direction.flatten()], self._control_action))
+
+            return [self._control_action]
+
+        if self.duration == 62.0 + self.switch_time:
+            self._control_action = tuple([1] * self.num_traffic_lights)
+            # self._control_action = tuple(
+            #     [1 if a == 0 else 0 for a in self._control_action])
+            # print('''{}: rl_action {} direction {} ctrl {}'''.format(
+            #     self.duration, self._rl_action,
+            #     [i for i in self.direction.flatten()], self._control_action))
+            return [self._control_action]
+        # do nothing
+        return [self._control_action_default]
+
+    # @logger
+    def _apply_rl_actions(self, rl_actions):
+        """Q-Learning
+
+        Algorithm as in Sutton et Barto, 2018 [1]
+        for a single agent controlling all traffic
+        light.
 
         Parameters
         ----------
-        node_id: int
-            a central node_id which a traffic light has control
 
-        Returns
-        -------
-        state: tuple
-            the observed state from traffic light on node_id
+        rl_actions: list of actions or None
         """
-        edges_list = self.traffic_light_to_edges[node_id]
-        vehicle_per_edge_dict = {
-            edge_id: self.k.vehicle.get_ids_by_edge(edge_id)
-            for edge_id in edges_list
-            if any(self.k.vehicle.get_ids_by_edge(edge_id))
-        }
+        self.set_observation_space()
 
-        vehicle_list = []
-        for edge_id, vehicle_edge_list in vehicle_per_edge_dict.items():
-            for veh_id in vehicle_edge_list:
-                pos = self.k.vehicle.get_position(veh_id)
-                length = self.k.scenario.edge_length(edge_id)
-                if pos > length / 2:
-                    vehicle_list.append(veh_id)
+        if self.duration < self.sim_step:
+            if rl_actions is None:
+                action = self.rl_actions(self.get_state())
+            else:
+                action = rl_actions
 
-        return vehicle_list
+            # some function is changing self._state to numpy array
+            # if self._state is None or isinstance(self._state, np.ndarray):
+            if self.step_counter == 1:
+                self._state = self.get_state()
 
-    def compute_reward(self, rl_actions, **kwargs):
-        """See class definition."""
-        # return rewards.average_velocity(self, fail=False)
-        return reward_fixed_apply(self)
+        action = self.control_actions()[0]
+
+        if self.duration % 5.0 == 0:
+            direction = [int(d) for d in self.direction.flatten()]
+            # print(self.duration, direction, action)
+
+        #  _apply_rl_actions -- actions have to be on integer format
+        idx = self._action_to_index(action)
+
+        super(TrafficLightQLGridEnv, self)._apply_rl_actions(idx)
+
+        if self.duration == 0 and self.step_counter > 1:
+            # place q-learning here
+            reward = self.compute_reward(rl_actions)
+
+            next_state = self.get_state()
+            dpq_update(self.gamma, self.alpha, self.Q, self._state, action,
+                       reward, next_state)
+            self._state = next_state
+        self.duration = round(
+            self.duration + self.sim_step,
+            2,
+        ) % self.phase_time
+        # print(self.duration)
+
+
+#     def compute_reward(self, rl_actions, **kwargs):
+#         """See class definition."""
+#         obsspace = self.get_observation_space()
+#         ret = np.mean([
+#             speed * count
+#             for speed, count in zip(obsspace[::2], obsspace[1::2])
+#         ])
+#         # return rewards.average_velocity(self, fail=False)
+#         # return reward_fixed_apply(self)
+#         return ret
+#
+
+    def compute_reward(self, rl_actions, **kargs):
+        return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
 
     def _action_to_index(self, action):
         """"Converts an action in tuple form to an integer"""
@@ -361,25 +445,62 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
         return sum([po2(k, n) for n, k in gen_act])
 
-    def _actions_filter(self, actions):
-        """filters a list of tuples based on a mask
+    def additional_command(self):
+        """See parent class.
 
-            This function maps the agent's action
-            fast green / slow green into the traffic
-            light's action keep or switch
+        Define which vehicles are observed for visualization purposes, and
+        update the sorting of vehicles using the self.sorted_ids variable.
         """
-        # new phase case -- doesn't restrict actions
-        if self.action is None or self.duration == 0.0:
-            return actions
+        # specify observed vehicles
+        if self.k.vehicle.num_rl_vehicles > 0:
+            for veh_id in self.k.vehicle.get_human_ids():
+                self.k.vehicle.set_observed(veh_id)
 
-        if self.duration == 10.0:
-            if not all(self.action):
-                # Switch all directions with the 0-bit
-                return [tuple([1 if a == 0 else 0 for a in self.action])]
+        # update the "absolute_position" variable
+        for veh_id in self.k.vehicle.get_ids():
+            this_pos = self.k.vehicle.get_x_by_id(veh_id)
 
-        if self.duration == 25.0:
-            if any(self.action):
-                # Switch all directions with the 1-bit
-                return [self.action]
-        # do nothing
-        return [tuple([0] * self.num_traffic_lights)]
+            if this_pos == -1001:
+                # in case the vehicle isn't in the network
+                self.absolute_position[veh_id] = -1001
+            else:
+                change = this_pos - self.prev_pos.get(veh_id, this_pos)
+                self.absolute_position[veh_id] = \
+                    (self.absolute_position.get(veh_id, this_pos) + change) \
+                    % self.k.scenario.length()
+                self.prev_pos[veh_id] = this_pos
+
+    @property
+    def sorted_ids(self):
+        """Sort the vehicle ids of vehicles in the network by position.
+
+        This environment does this by sorting vehicles by their absolute
+        position, defined as their initial position plus distance traveled.
+
+        Returns
+        -------
+        list of str
+            a list of all vehicle IDs sorted by position
+        """
+        if self.env_params.additional_params['sort_vehicles']:
+            return sorted(self.k.vehicle.get_ids(), key=self._get_abs_position)
+        else:
+            return self.k.vehicle.get_ids()
+
+    def _get_abs_position(self, veh_id):
+        """Return the absolute position of a vehicle."""
+        return self.absolute_position.get(veh_id, -1001)
+
+    def reset(self):
+        """See parent class.
+
+        This also includes updating the initial absolute position and previous
+        position.
+        """
+        obs = super().reset()
+
+        for veh_id in self.k.vehicle.get_ids():
+            self.absolute_position[veh_id] = self.k.vehicle.get_x_by_id(veh_id)
+            self.prev_pos[veh_id] = self.k.vehicle.get_x_by_id(veh_id)
+
+        return obs

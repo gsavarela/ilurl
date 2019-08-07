@@ -20,7 +20,7 @@ def logger(function):
         self.log['t'].append(self.sim_step * self.step_counter)
         self.log['S'].append(self.get_state())
         self.log['R'].append(self.compute_reward(rl_actions))
-        self.log['A'].append(self.action)
+        self.log['A'].append(self._rl_action)
         return ret
 
     return decorator
