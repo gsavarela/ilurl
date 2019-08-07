@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ilu",
-    version="0.2.5",
+    version="0.2.6",
     author="Guilherme Varela",
     author_email="guilhermevarela@hotmail.com",
     description=

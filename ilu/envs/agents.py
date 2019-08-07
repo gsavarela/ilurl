@@ -4,13 +4,11 @@
     Extends the flow's green wave environmenets
 '''
 __author__ = "Guilherme Varela"
-import pdb
 from collections import defaultdict
 
 import numpy as np
 from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
-from flow.envs.loop.loop_accel import AccelEnv
 from ilu.ql.choice import choice_eps_greedy, choice_optimistic
 from ilu.ql.define import dpq_tls
 from ilu.ql.reward import reward_fixed_apply
@@ -40,9 +38,14 @@ ADDITIONAL_QL_PARAMS = {
     'alpha': 5e-2,
     # gamma is the discount rate for value function
     'gamma': 0.999,
-    # phase_time is the time a given traffic light has to stay
-    # at the same configuration: phase_time >= switch_time
-    'phase_time': 40,
+    # fast_phase_time is the time it takes for a direction to enter
+    # the yellow state e.g
+    # GrGr -> yryr or rGrG -> yGyG
+    'fast_phase_time': 36,
+    # slow_time same effect as fast_phase_time but taking longer
+    'slow_phase_time': 36,
+    # switch_time is the time it takes to exit the yellow state e.g
+    # yryr -> rGrG or ryry -> GrGr
     'switch_time': 5,
     # use only incoming edges to account for observation states
     # None means use both incoming and outgoing
@@ -88,8 +91,9 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
     PARAMETERS
     ----------
-    ENV
-    ---
+
+    TrafficLightGridEnv
+    -------------------
 
     * switch_time: minimum time a light must be constant before it
                     switches (in seconds). Earlier RL commands are
@@ -163,9 +167,14 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 setattr(self, p, val)
 
         # Check constrains on minimum duration
-        if self.switch_time > self.phase_time:
-            raise ValueError('''Minimum duration time must be
+        if self.switch_time > self.fast_phase_time:
+            raise ValueError('''Fast phase time must be
                 greater than minimum switch time''')
+
+        if self.fast_phase_time > self.slow_phase_time:
+            raise ValueError('''Fast phase time must be
+                lesser than or equal to slow phase time''')
+        self.cycle_time = self.slow_phase_time + self.fast_phase_time
 
         # duration measures the amount of time the current
         # configuration has been going on
@@ -182,9 +191,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                          TLS_ACTION_RANK * self.num_traffic_lights,
                          TLS_ACTION_RANK_DEPTH,
                          initial_value=0)
-        self._rl_action = None
-        self._state = None
-        self._control_action_default = tuple([0] * self.num_traffic_lights)
+        self.rl_action = None
         self._observation_space = {
             tls: {}
             for tls in range(self.num_traffic_lights)
@@ -302,20 +309,18 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         else:
             return 1
 
-    def rl_actions(self, state, compute=True):
-        if compute:
-            S = tuple(state)
+    def rl_actions(self, state):
+        S = tuple(state)
 
-            actions_values = list(self.Q[S].items())
+        actions_values = list(self.Q[S].items())
 
-            action = choice_eps_greedy(actions_values, self.epsilon)
+        action = choice_eps_greedy(actions_values, self.epsilon)
 
-            if self._rl_action is None or self.duration == 0.0:
-                self._rl_action = action
-            return action
-        return self._rl_action
+        if self.rl_action is None or self.duration == 0.0:
+            self.rl_action = action
+        return action
 
-    def control_actions(self):
+    def control_actions(self, static=False):
         """filters a list of tuples based on a mask
 
         rl_action:
@@ -323,8 +328,8 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         1 slow green — on vertical ~ fast green on horizontal
 
         direction:
-        0 green vertical
-        1 green horizontal
+            0 green vertical
+            1 green horizontal
 
         10s:
 
@@ -338,33 +343,35 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
         switch last control action
         """
-        # if self.duration == 10.0:
-        if self.duration == 0 and self.step_counter > 1:
-            self._control_action = tuple([1] * self.num_traffic_lights)
+        ret = []
+        if static:
+            if self.duration == 0 and self.step_counter > 1 or \
+                    self.duration == self.fast_phase_time or \
+                    self.duration == self.cycle_time - self.switch_time:
+                ret = tuple([1] * self.num_traffic_lights)
+            else:
+                ret = tuple([0] * self.num_traffic_lights)
 
-        if self.duration == 31.0:
-            self._control_action = tuple([1] * self.num_traffic_lights)
-            # fast green time case orientation is 0
-            # slow green time case orientation is 1
-            # _direction = [int(i) for i in self.direction.flatten()]
-            # self._control_action = tuple(
-            #     [int(a == d) for a, d in zip(self._rl_action, _direction)])
-            # print('''{}: rl_action {} direction {} ctrl {}'''.format(
-            #     self.duration, self._rl_action,
-            #     [i for i in self.direction.flatten()], self._control_action))
+        else:
+            if self.duration == self.fast_phase_time - self.switch_time:
+                # Short phase
+                if self.fast_phase_time == self.slow_phase_time:
+                    # handles the case of both phases are the same
+                    ret = tuple([1] * self.num_traffic_lights)
+                else:
+                    diracts = zip(self.direction, self.rl_action)
+                    ret = tuple([int(d == a) for d, a in diracts])
+                    self.control_action = ret
 
-            return [self._control_action]
-
-        if self.duration == 62.0 + self.switch_time:
-            self._control_action = tuple([1] * self.num_traffic_lights)
-            # self._control_action = tuple(
-            #     [1 if a == 0 else 0 for a in self._control_action])
-            # print('''{}: rl_action {} direction {} ctrl {}'''.format(
-            #     self.duration, self._rl_action,
-            #     [i for i in self.direction.flatten()], self._control_action))
-            return [self._control_action]
-        # do nothing
-        return [self._control_action_default]
+            elif self.duration == self.slow_phase_time - self.switch_time:
+                # Long phase
+                ret = tuple(
+                    [1 if ca == 0 else 0 for ca in self.control_action])
+            elif self.duration == self.cycle_time - self.switch_time:
+                ret = tuple([1] * self.num_traffic_lights)  # switch to init
+            else:
+                ret = tuple([0] * self.num_traffic_lights)  # do nothing
+        return ret
 
     # @logger
     def _apply_rl_actions(self, rl_actions):
@@ -381,7 +388,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         """
         self.set_observation_space()
 
-        if self.duration < self.sim_step:
+        if self.duration == 0:
             if rl_actions is None:
                 action = self.rl_actions(self.get_state())
             else:
@@ -390,13 +397,9 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             # some function is changing self._state to numpy array
             # if self._state is None or isinstance(self._state, np.ndarray):
             if self.step_counter == 1:
-                self._state = self.get_state()
+                self.prev_state = self.get_state()
 
-        action = self.control_actions()[0]
-
-        if self.duration % 5.0 == 0:
-            direction = [int(d) for d in self.direction.flatten()]
-            # print(self.duration, direction, action)
+        action = self.control_actions(static=False)
 
         #  _apply_rl_actions -- actions have to be on integer format
         idx = self._action_to_index(action)
@@ -407,31 +410,28 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             # place q-learning here
             reward = self.compute_reward(rl_actions)
 
-            next_state = self.get_state()
-            dpq_update(self.gamma, self.alpha, self.Q, self._state, action,
-                       reward, next_state)
-            self._state = next_state
+            state = self.get_state()
+            dpq_update(self.gamma, self.alpha, self.Q, self.prev_state, action,
+                       reward, state)
+            self.prev_state = state
+
         self.duration = round(
             self.duration + self.sim_step,
             2,
-        ) % self.phase_time
-        # print(self.duration)
+        ) % self.cycle_time
 
-
-#     def compute_reward(self, rl_actions, **kwargs):
-#         """See class definition."""
-#         obsspace = self.get_observation_space()
-#         ret = np.mean([
-#             speed * count
-#             for speed, count in zip(obsspace[::2], obsspace[1::2])
-#         ])
-#         # return rewards.average_velocity(self, fail=False)
-#         # return reward_fixed_apply(self)
-#         return ret
-#
-
-    def compute_reward(self, rl_actions, **kargs):
-        return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+    def compute_reward(self, rl_actions, **kwargs):
+        """See class definition.
+        """
+        # return rewards.average_velocity(self, fail=False)
+        # return reward_fixed_apply(self)
+        # return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+        obsspace = self.get_observation_space()
+        ret = np.mean([
+            speed * count
+            for speed, count in zip(obsspace[::2], obsspace[1::2])
+        ])
+        return ret
 
     def _action_to_index(self, action):
         """"Converts an action in tuple form to an integer"""

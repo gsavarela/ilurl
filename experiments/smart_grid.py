@@ -237,13 +237,13 @@ def smart_grid_example(render=None,
 if __name__ == "__main__":
     # import the experiment variable
     # import os
-    print('running grid_intersection')
-    grdexp = grid_example(render=False, emission_path=None)
+    # print('running grid_intersection')
+    # grdexp = grid_example(render=False, emission_path=None)
 
-    grid_dict = grdexp.run(NUM_ITERATIONS, HORIZON)
+    # grid_dict = grdexp.run(NUM_ITERATIONS, HORIZON)
 
     print('running smart_grid')
-    smaexp, env = smart_grid_example(render=False, emission_path=None)
+    smaexp, env = smart_grid_example(render=True, emission_path=None)
     # de-serialize data
     # UNCOMMENT to serialize
     # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())
