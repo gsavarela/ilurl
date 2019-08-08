@@ -1,12 +1,15 @@
 """Grid example."""
+import pdb
 from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
 from flow.scenarios.grid import SimpleGridScenario
+from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
 from ilu.benchmarks.grid import grid_example
+from ilu.core.params import QLParams
 from ilu.core.experiment import Experiment
-from ilu.envs.agents import ADDITIONAL_QL_ENV_PARAMS, TrafficLightQLGridEnv
+from ilu.envs.agents import TrafficLightQLGridEnv
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
@@ -187,7 +190,7 @@ def smart_grid_example(render=None,
         num_vehicles=tot_cars)
 
     if additional_env_params is None:
-        additional_env_params = ADDITIONAL_QL_ENV_PARAMS.copy()
+        additional_env_params = ADDITIONAL_ENV_PARAMS.copy()
 
     additional_env_params.update({
         # minimum switch time for each traffic light (in seconds)
@@ -197,11 +200,13 @@ def smart_grid_example(render=None,
         "tl_type": "controlled",
         # determines whether the action space is meant to be discrete or continuous
         "discrete": True,
-        "cost_medium": 0.5,
-        "cost_low": 0.75,
-        "epsilon": 0.05
     })
 
+    additional_env_params.update({
+        'fast_phase_time': 36,
+        'slow_phase_time': 36,
+        'filter_incoming_edges': None
+    })
     env_params = EnvParams(horizon=HORIZON,
                            additional_params=additional_env_params)
 
@@ -228,8 +233,8 @@ def smart_grid_example(render=None,
         initial_config=initial_config,
         traffic_lights=TrafficLightParams(baseline=False))
 
-    #env = AccelEnv(env_params, sim_params, scenario)
-    env = TrafficLightQLGridEnv(env_params, sim_params, scenario)
+    ql_params = QLParams()
+    env = TrafficLightQLGridEnv(env_params, sim_params, ql_params, scenario)
 
     return Experiment(env), env
 
@@ -243,7 +248,7 @@ if __name__ == "__main__":
     # grid_dict = grdexp.run(NUM_ITERATIONS, HORIZON)
 
     print('running smart_grid')
-    smaexp, env = smart_grid_example(render=True, emission_path=None)
+    smaexp, env = smart_grid_example(render=False, emission_path=None)
     # de-serialize data
     # UNCOMMENT to serialize
     # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())

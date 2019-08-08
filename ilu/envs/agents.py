@@ -4,6 +4,7 @@
     Extends the flow's green wave environmenets
 '''
 __author__ = "Guilherme Varela"
+import pdb
 from collections import defaultdict
 
 import numpy as np
@@ -29,7 +30,7 @@ TLS_STATE_RANK = 2
 # ( binary )
 TLS_STATE_RANK_DEPTH = 3
 
-ADDITIONAL_QL_PARAMS = {
+QL_PARAMS = {
     # epsilon is the chance to adopt a random action instead of
     # a greedy action - if is None then adopt optimistic values
     # see class definitino for details
@@ -38,6 +39,8 @@ ADDITIONAL_QL_PARAMS = {
     'alpha': 5e-2,
     # gamma is the discount rate for value function
     'gamma': 0.999,
+}
+ADDITIONAL_TLS_PARAMS = {
     # fast_phase_time is the time it takes for a direction to enter
     # the yellow state e.g
     # GrGr -> yryr or rGrG -> yGyG
@@ -50,11 +53,7 @@ ADDITIONAL_QL_PARAMS = {
     # use only incoming edges to account for observation states
     # None means use both incoming and outgoing
     'filter_incoming_edges': None,
-    'cost_medium': 0.5,
-    'cost_low': 1.0,
 }
-ADDITIONAL_QL_ENV_PARAMS = \
-    {**ADDITIONAL_ENV_PARAMS, **ADDITIONAL_QL_PARAMS}
 
 
 class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
@@ -143,7 +142,12 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         constant number of vehicles.
     """
 
-    def __init__(self, env_params, sim_params, scenario, simulator='traci'):
+    def __init__(self,
+                 env_params,
+                 sim_params,
+                 ql_params,
+                 scenario,
+                 simulator='traci'):
 
         super(TrafficLightQLGridEnv, self).__init__(env_params,
                                                     sim_params,
@@ -157,10 +161,22 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         self.absolute_position = dict()
 
         self.switch_time = 5
-        for p in ADDITIONAL_QL_PARAMS:
+        # those parameters are going to be forwarded to learning engine
+        for p in QL_PARAMS:
+            if not hasattr(ql_params, p):
+                raise KeyError(
+                    'Q-learning parameter "{}" not supplied'.format(p))
+            else:
+                # dynamicaly set attributes for Q-learning attributes
+                val = getattr(ql_params, p)
+                setattr(self, p, val)
+
+        # those parameters are extensions from the standard
+        # traffic light green wave additional parameters
+        for p in ADDITIONAL_TLS_PARAMS:
             if p not in env_params.additional_params:
                 raise KeyError(
-                    'Environment parameter "{}" not supplied'.format(p))
+                    'Traffic Light parameter "{}" not supplied'.format(p))
             else:
                 # dynamicaly set attributes for Q-learning attributes
                 val = env_params.additional_params[p]
