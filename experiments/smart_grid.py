@@ -1,14 +1,13 @@
 """Grid example."""
-import pdb
 from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
-from flow.scenarios.grid import SimpleGridScenario
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
+from flow.scenarios.grid import SimpleGridScenario
 from ilu.benchmarks.grid import grid_example
-from ilu.core.params import QLParams
 from ilu.core.experiment import Experiment
+from ilu.core.params import QLParams
 from ilu.envs.agents import TrafficLightQLGridEnv
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'

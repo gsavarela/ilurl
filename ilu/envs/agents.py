@@ -4,7 +4,6 @@
     Extends the flow's green wave environmenets
 '''
 __author__ = "Guilherme Varela"
-import pdb
 from collections import defaultdict
 
 import numpy as np
@@ -212,6 +211,8 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             tls: {}
             for tls in range(self.num_traffic_lights)
         }
+        self.memo_speeds = {tls: {} for tls in range(self.num_traffic_lights)}
+        self.memo_counts = {tls: {} for tls in range(self.num_traffic_lights)}
 
     def _init_observation_space_filter(self):
         """Returns edges attached to the node center#{node_id}
@@ -270,35 +271,50 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         """
         # get ids from vehicles -- closer to the edges
         ret = []
+        # prev = round(max(self.duration - self.sim_step, 0), 2)
+        d = round(max(self.duration - self.sim_step, 0), 2)
+
         for tls in range(self.num_traffic_lights):
             # speeds and counts for every time step
-            veh_speeds = [
-                0.0 if len(values) == 0 else np.mean(values)
-                for t, values in self._observation_space[tls].items()
-            ]
-            # handles the case of invoking get_state before
-            # applying any action
-            if any(veh_speeds):
-                ret.append(np.mean(veh_speeds))
+            # veh_speeds = {
+            #     t: 0.0 if len(values) == 0 else np.mean(values)
+            #     for t, values in self._observation_space[tls].items()
+            #     if t not in self.memo_speeds and not any(values)
+            # }
+            # veh_speeds = {
+            #     t: 0.0 if not any(values) else round(np.mean(values), 2)
+            #     for t, values in self._observation_space[tls].items()
+            #     if t not in self.memo_speeds[tls] or (t == self.duration - 1)
+            # }
+            # testing incremental script
+            veh_speeds = {
+                t: 0.0 if not any(values) else round(np.mean(values), 2)
+                for t, values in self._observation_space[tls].items() if t == d
+            }
+
+            self.memo_speeds[tls].update(veh_speeds)
+            if any(self.memo_speeds[tls].values()):
+                ret.append(np.mean(list(self.memo_speeds[tls].values())))
             else:
                 ret.append(0.0)
 
-            veh_counts = [
-                len(values)
-                for t, values in self._observation_space[tls].items()
-            ]
-            if any(veh_speeds):
-                ret.append(np.mean(veh_counts))
+            veh_counts = {
+                t: len(_values)
+                for t, _values in self._observation_space[tls].items()
+                if t == d
+            }
+            self.memo_counts[tls].update(veh_counts)
+            if any(self.memo_counts[tls].values()):
+                ret.append(np.mean(list(self.memo_counts[tls].values())))
             else:
                 ret.append(0.0)
+
         return tuple(ret)
 
     def get_state(self):
         """See class definition."""
         # categorize
         s_max = self.k.scenario.max_speed()
-        # c_list = [c for _, c in speed_count_list]
-        # c_max = sum(c_list) / len(c_list)
         obs_space = self.get_observation_space()
         ret = []
         for s, c in zip(obs_space[::2], obs_space[1::2]):
@@ -404,7 +420,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         """
         self.set_observation_space()
 
-        if self.duration == 0:
+        if self.duration == 0.0:
             if rl_actions is None:
                 action = self.rl_actions(self.get_state())
             else:
@@ -415,6 +431,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             if self.step_counter == 1:
                 self.prev_state = self.get_state()
 
+            self.memo_rewards = {}
         action = self.control_actions(static=False)
 
         #  _apply_rl_actions -- actions have to be on integer format
@@ -442,12 +459,13 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         # return rewards.average_velocity(self, fail=False)
         # return reward_fixed_apply(self)
         # return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
-        obsspace = self.get_observation_space()
-        ret = np.mean([
-            speed * count
-            for speed, count in zip(obsspace[::2], obsspace[1::2])
-        ])
-        return ret
+        if self.duration not in self.memo_rewards:
+            obsspace = self.get_observation_space()
+            self.memo_rewards[self.duration] = np.mean([
+                speed * count
+                for speed, count in zip(obsspace[::2], obsspace[1::2])
+            ])
+        return self.memo_rewards[self.duration]
 
     def _action_to_index(self, action):
         """"Converts an action in tuple form to an integer"""
