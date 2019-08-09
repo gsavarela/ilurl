@@ -9,10 +9,7 @@ from collections import defaultdict
 import numpy as np
 from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
-from ilu.ql.choice import choice_eps_greedy, choice_optimistic
-from ilu.ql.define import dpq_tls
-from ilu.ql.reward import reward_fixed_apply
-from ilu.ql.update import dpq_update
+from ilu.ql.dpq import DPQ
 from ilu.utils.decorators import logger
 from ilu.utils.serialize import Serializer
 
@@ -201,11 +198,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         # Q learning stuff
         # neighbouring maps neighbourhood edges
         self._init_observation_space_filter()
-        self.Q = dpq_tls(TLS_STATE_RANK * self.num_traffic_lights,
-                         TLS_STATE_RANK_DEPTH,
-                         TLS_ACTION_RANK * self.num_traffic_lights,
-                         TLS_ACTION_RANK_DEPTH,
-                         initial_value=0)
+        self.dpq = DPQ(ql_params)
         self.rl_action = None
         self._observation_space = {
             tls: {}
@@ -275,17 +268,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         d = round(max(self.duration - self.sim_step, 0), 2)
 
         for tls in range(self.num_traffic_lights):
-            # speeds and counts for every time step
-            # veh_speeds = {
-            #     t: 0.0 if len(values) == 0 else np.mean(values)
-            #     for t, values in self._observation_space[tls].items()
-            #     if t not in self.memo_speeds and not any(values)
-            # }
-            # veh_speeds = {
-            #     t: 0.0 if not any(values) else round(np.mean(values), 2)
-            #     for t, values in self._observation_space[tls].items()
-            #     if t not in self.memo_speeds[tls] or (t == self.duration - 1)
-            # }
             # testing incremental script
             veh_speeds = {
                 t: 0.0 if not any(values) else round(np.mean(values), 2)
@@ -342,11 +324,8 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             return 1
 
     def rl_actions(self, state):
-        S = tuple(state)
 
-        actions_values = list(self.Q[S].items())
-
-        action = choice_eps_greedy(actions_values, self.epsilon)
+        action = self.dpq.rl_actions(tuple(state))
 
         if self.rl_action is None or self.duration == 0.0:
             self.rl_action = action
@@ -444,8 +423,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             reward = self.compute_reward(rl_actions)
 
             state = self.get_state()
-            dpq_update(self.gamma, self.alpha, self.Q, self.prev_state, action,
-                       reward, state)
+            self.dpq.update(self.prev_state, action, reward, state)
             self.prev_state = state
 
         self.duration = round(

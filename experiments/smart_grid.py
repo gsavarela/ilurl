@@ -1,4 +1,5 @@
 """Grid example."""
+import time
 from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
@@ -247,6 +248,7 @@ if __name__ == "__main__":
     # grid_dict = grdexp.run(NUM_ITERATIONS, HORIZON)
 
     print('running smart_grid')
+    start = time.time()
     smaexp, env = smart_grid_example(render=False, emission_path=None)
     # de-serialize data
     # UNCOMMENT to serialize
@@ -254,6 +256,7 @@ if __name__ == "__main__":
     # env = TrafficLightQLGridEnv.load(pickle_path)
     # run for a set number of rollouts / time steps
     info_dict = smaexp.run(NUM_ITERATIONS, HORIZON, rl_actions=env.rl_actions)
+    print(time.time() - start)
     #serialize data
     #UNCOMMENT to serialize
     # env.dump(os.getcwd())
