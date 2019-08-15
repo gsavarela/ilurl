@@ -1,5 +1,6 @@
 """Grid example."""
 import time
+
 from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
@@ -13,7 +14,10 @@ from ilu.envs.agents import TrafficLightQLGridEnv
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
-NUM_ITERATIONS = 1
+NUM_ITERATIONS = 10
+SHORT_CYCLE_TIME = 31
+LONG_CYCLE_TIME = 45
+SWITCH_TIME = 6
 
 
 def gen_edges(col_num, row_num):
@@ -191,10 +195,15 @@ def smart_grid_example(render=None,
 
     if additional_env_params is None:
         additional_env_params = ADDITIONAL_ENV_PARAMS.copy()
+        additional_env_params['filter_incoming_edges'] = True
+        additional_env_params[
+            'short_cycle_time'] = SHORT_CYCLE_TIME + SWITCH_TIME
+        additional_env_params[
+            'long_cycle_time'] = LONG_CYCLE_TIME + SWITCH_TIME
 
     additional_env_params.update({
         # minimum switch time for each traffic light (in seconds)
-        "switch_time": 5.0,
+        "switch_time": SWITCH_TIME,
         # whether the traffic lights should be actuated by sumo or RL
         # options are "controlled" and "actuated"
         "tl_type": "controlled",
@@ -202,11 +211,6 @@ def smart_grid_example(render=None,
         "discrete": True,
     })
 
-    additional_env_params.update({
-        'fast_phase_time': 36,
-        'slow_phase_time': 36,
-        'filter_incoming_edges': None
-    })
     env_params = EnvParams(horizon=HORIZON,
                            additional_params=additional_env_params)
 
@@ -233,7 +237,7 @@ def smart_grid_example(render=None,
         initial_config=initial_config,
         traffic_lights=TrafficLightParams(baseline=False))
 
-    ql_params = QLParams()
+    ql_params = QLParams(epsilon=0.05, alpha=0.05)
     env = TrafficLightQLGridEnv(env_params, sim_params, ql_params, scenario)
 
     return Experiment(env), env
@@ -241,11 +245,17 @@ def smart_grid_example(render=None,
 
 if __name__ == "__main__":
     # import the experiment variable
-    # import os
-    # print('running grid_intersection')
-    # grdexp = grid_example(render=False, emission_path=None)
+    import os
+    import json
+    print('running grid_intersection')
+    start = time.time()
+    grdexp = grid_example(short_cycle_time=SHORT_CYCLE_TIME,
+                          long_cycle_time=LONG_CYCLE_TIME,
+                          switch_time=SWITCH_TIME,
+                          render=False,
+                          emission_path=None)
 
-    # grid_dict = grdexp.run(NUM_ITERATIONS, HORIZON)
+    grid_dict = grdexp.run(1, HORIZON)
 
     print('running smart_grid')
     start = time.time()
@@ -257,8 +267,9 @@ if __name__ == "__main__":
     # run for a set number of rollouts / time steps
     info_dict = smaexp.run(NUM_ITERATIONS, HORIZON, rl_actions=env.rl_actions)
     print(time.time() - start)
-    #serialize data
-    #UNCOMMENT to serialize
-    # env.dump(os.getcwd())
-    # import pdb
-    # pdb.set_trace()
+    # serialize data
+    # UNCOMMENT to serialize
+    env.dump(os.getcwd())
+    infoname = '{}.info.json'.format(env.scenario.name)
+    with open(infoname, 'w') as f:
+        json.dump(info_dict, f)

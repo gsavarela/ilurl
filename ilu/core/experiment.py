@@ -10,13 +10,13 @@
    * extend outputs to custumized reward functions
    * fix bug of averaging speeds when no cars are on the simulation
    """
-import pdb
 import datetime
 import json
 import logging
 import os
 import tempfile
 import time
+from collections import defaultdict
 
 import numpy as np
 from flow.core.util import emission_to_csv
@@ -137,6 +137,15 @@ class Experiment:
         mean_vels = []
         std_vels = []
         outflows = []
+        if hasattr(self.env, 'cycle_time'):
+            cycle_time = getattr(self.env, 'cycle_time')
+        else:
+            cycle_time = 1
+
+        cycle_rewards = defaultdict(list)
+        cycle_vels = defaultdict(list)
+        cycle_states = defaultdict(list)
+        cycle_actions = defaultdict(list)
         for i in range(num_runs):
             vel = np.zeros(num_steps)
             logging.info("Iter #" + str(i))
@@ -155,21 +164,41 @@ class Experiment:
 
             for j in range(num_steps):
                 state, reward, done, _ = self.env.step(rl_actions(state))
-                vel[j] = np.mean(
-                    self.env.k.vehicle.get_speed(self.env.k.vehicle.get_ids()))
+                vel[j] = round(
+                            np.mean(
+                                self.env.k.vehicle.get_speed(self.env.k.vehicle.get_ids())
+                            ),
+                2)
                 ret += reward
-                ret_list.append(reward)
+                ret_list.append(round(reward, 2))
 
+                if j % cycle_time == 0 and j > 0:
+                    cycle_vels[i].append(
+                        round(np.mean(vel[j-cycle_time+1:j]), 2)
+
+                    )
+                    cycle_rewards[i].append(
+                        round(np.sum(ret_list[j-cycle_time+1:j]), 2)
+                    )
+                    cycle_states[i].append(
+                        list(self.env.get_state())
+                    )
+                    cycle_actions[i].append(
+                        list(self.env.rl_action)
+                    )
                 if done:
                     break
             rets.append(ret)
             vels.append(vel)
-            mean_rets.append(np.mean(ret_list))
+            mean_rets.append(round(np.mean(ret_list), 2))
             ret_lists.append(ret_list)
-            mean_vels.append(np.mean(vel))
-            std_vels.append(np.std(vel))
+            mean_vels.append(round(np.mean(vel), 2))
+            std_vels.append(round(np.std(vel), 2))
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
-            print("Round {0}, return: {1}".format(i, ret))
+
+            mean_cycle = np.mean([s for s in cycle_vels[i]])
+            print_msg = "Round {0}\treturn: {1}\tcycle speeds: {2}"
+            print(print_msg.format(i, ret, round(mean_cycle, 2)))
 
         if save_interval is not None:
             os.remove('{}/env.pickle'.format(dump_dir))
@@ -179,7 +208,13 @@ class Experiment:
         info_dict["velocities"] = list(vels[0])
         info_dict["mean_returns"] = mean_rets
         info_dict["per_step_returns"] = ret_lists
-        info_dict["mean_outflows"] = np.mean(outflows).astype(float)
+        info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
+        info_dict["returns"] = rets
+        info_dict["cycle_velocities"] = cycle_vels
+        info_dict["cycle_rewards"] = cycle_rewards
+        info_dict["cycle_states"] = cycle_states
+        info_dict["cycle_actions"] = cycle_actions
+
         print("Average, std return: {}, {}".format(np.mean(rets),
                                                    np.std(rets)))
         print("Average, std speed: {}, {}".format(np.mean(mean_vels),

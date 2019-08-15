@@ -119,7 +119,12 @@ def get_non_flow_params(enter_speed, add_net_params):
     return initial, net
 
 
-def grid_example(render=None, use_inflows=False, emission_path=None):
+def grid_example(short_cycle_time=31,
+                 switch_time=6,
+                 long_cycle_time=31,
+                 render=None,
+                 use_inflows=False,
+                 emission_path=None):
     """
     Perform a simulation of vehicles on a grid.
 
@@ -165,7 +170,11 @@ def grid_example(render=None, use_inflows=False, emission_path=None):
     if emission_path is None:
         sim_params = SumoParams(sim_step=0.1, render=render)
     else:
-        sim_params = SumoParams(sim_step=0.1, render=render, emission_path=emission_path)
+        sim_params = SumoParams(
+            sim_step=0.1,
+            render=render,
+            emission_path=emission_path,
+        )
 
     if render is not None:
         sim_params.render = render
@@ -187,22 +196,22 @@ def grid_example(render=None, use_inflows=False, emission_path=None):
 
     tl_logic = TrafficLightParams(baseline=False)
     phases = [{
-        "duration": "31",
+        "duration": str(long_cycle_time),
         "minDur": "8",
         "maxDur": "45",
         "state": "GrGrGrGrGrGr"
     }, {
-        "duration": "6",
+        "duration": str(switch_time),
         "minDur": "3",
         "maxDur": "6",
         "state": "yryryryryryr"
     }, {
-        "duration": "31",
+        "duration": str(short_cycle_time),
         "minDur": "8",
         "maxDur": "45",
         "state": "rGrGrGrGrGrG"
     }, {
-        "duration": "6",
+        "duration": str(switch_time),
         "minDur": "3",
         "maxDur": "6",
         "state": "ryryryryryry"

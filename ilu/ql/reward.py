@@ -2,45 +2,66 @@
 
 __author__ = "Guilherme Varela"
 __date__ = "2019-07-26"
+import numpy as np
 
 
-def reward_fixed_apply(env):
-    """Äpplies the reward fixed to environment
-    """
-    p = env.cost_medium
-    q = env.cost_low
-    state = env.get_state()
-    n, n1, n0 = env.num_traffic_lights, 0, 0
-    for speed in state[0::2]:
-        n1 = n1 + 1 if speed == 1 else n1
-        n0 = n0 + 1 if speed == 0 else n0
+class RewardCalculator(object):
+    def __init__(self, ql_params):
+        self.type = ql_params.rewards.type
+        self.costs = ql_params.rewards.costs
+        self.categorize = lambda x: ql_params.categorize_space(x)
+        self.split = lambda x: ql_params.split_space(x)
 
-    return reward_fixed(1000, p, q, n1 / n, n0 / n)
+    def calculate(self, observation_space):
+        if self.type in ('weighted_average', ):
+            speeds, counts = self.split(observation_space)
+            if counts is not None:
+                K = sum(counts)
+                if K == 0.0:
+                    return 0.0
+                return sum([s * c for s, c in zip(speeds, counts)]) / K
+        elif self.type in ('costs', ):
+            speeds, counts = self.split(self.categorize(observation_space))
+            return reward_costs(speeds, counts, self.costs)
+        else:
+            raise NotImplementedError
 
 
-def reward_fixed(K, p, q, ratio_medium, ratio_low):
-    """Promotes the maxium reward of K for each step
+def reward_costs(speeds, counts, costs):
+    """Constant reward of 1000 if
+        (a) there are no vehicles ( dispatched all )
+        (b) all cars are moving at their fastest
 
     PARAMETERS
     ----------
-    * K: int or float
-        Maximum reward happens when either:
-        ratio_medium == 0 and ratio_low == 0, or
-        there are the number of vehicle on simulation
-        is zero
+    * speeds: tuple
+        categorical vehicle speeds
 
-    * p: float (0 < p < q)
-        Reward loss for excess ratio_medium
+    * counts: tuple
+        categorical vehicle number
 
-    * q: float (p < q <= 1)
-        Reward loss for excess ratio_low
-
-    * ratio_medium: float ( 0 <= ratio_medium < 1)
-        Ratio of the number of medium speed vehicles
-        and vehicle total
-
-    * ratio_low: float ( 0 <= ratio_low < 1)
-        Ratio of the number of low speed vehicles
-        and vehicle total
+    * costs: tuple
+        cost for being at speed level i.g
+        cost[0] cost for speeds=0
+        cost[k] cost for speed=k ...
     """
-    return K * (1 - p * ratio_medium - q * ratio_low)
+
+    N = len(speeds)
+    R = len(counts)
+    weights = [0] * R
+    # weights are proportional to the speed levels
+    for i, s in enumerate(speeds):
+        if counts[i] == 0:  # no vehicles present
+            # either all have been dispached or none
+            weights[-1] += 1
+        else:
+            weights[s] += 1
+
+    # weights are then normalized to sum at most one
+    weights = [w / N for w in weights]
+
+    k = 1
+    for c, w in zip(costs, weights):
+        k -= c * w
+
+    return 1000 * k

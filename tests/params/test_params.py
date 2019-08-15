@@ -7,28 +7,27 @@ class TestQLParamsConstraints(unittest.TestCase):
     '''Tests  ilu.core.params.QLParams '''
 
     # constraints testing
-    def test_alpha(self):
+    def test_alpha_eq0(self):
+        with self.assertRaises(ValueError):
+            QLParams(alpha=0)
+
+    def test_alpha_eq1(self):
         with self.assertRaises(ValueError):
             QLParams(alpha=1)
 
-    def test_epsilon(self):
+    def test_epsilon_eq0(self):
         '''0 < epsilon < 1'''
         with self.assertRaises(ValueError):
             QLParams(epsilon=0)
 
-    def test_reward_type(self):
+    def test_epsilon_eq1(self):
+        '''0 < epsilon < 1'''
         with self.assertRaises(ValueError):
-            QLParams(reward_type='x')
+            QLParams(epsilon=1)
 
-    def test_cost_medium(self):
+    def test_reward(self):
         with self.assertRaises(ValueError):
-            '''0 < cost_medium < cost_low'''
-            QLParams(reward_type='cost', cost_medium=1)
-
-    def test_cost_low(self):
-        with self.assertRaises(ValueError):
-            '''0 < cost_medium < cost_low < 1'''
-            QLParams(reward_type='cost', cost_low=1.5)
+            QLParams(rewards={'type': 'x'})
 
 
 class TestQLParamsAssignments(unittest.TestCase):
@@ -41,9 +40,18 @@ class TestQLParamsAssignments(unittest.TestCase):
         self.ql_params = QLParams(alpha=2e-1,
                                   epsilon=1e-2,
                                   gamma=0.75,
-                                  reward_type='cost',
-                                  cost_medium=0.25,
-                                  cost_low=0.5)
+                                  rewards={
+                                      'type': 'costs',
+                                      'costs': (0, 0.5, 0.75)
+                                  },
+                                  states={
+                                      'rank': 4,
+                                      'depth': 2
+                                  },
+                                  actions={
+                                      'rank': 4,
+                                      'depth': 3
+                                  })
 
     def test_alpha(self):
         self.assertEqual(self.ql_params.alpha, 2e-1)
@@ -52,10 +60,36 @@ class TestQLParamsAssignments(unittest.TestCase):
         self.assertEqual(self.ql_params.epsilon, 1e-2)
 
     def test_reward_type(self):
-        self.assertEqual(self.ql_params.reward_type, 'cost')
+        self.assertEqual(self.ql_params.rewards.type, 'cost')
 
-    def test_cost_medium(self):
-        self.assertEqual(self.ql_params.cost_medium, 0.25)
+    def test_costs(self):
+        self.assertEqual(self.ql_params.rewards.costs, (0, 0.5, 0.75))
 
-    def test_cost_low(self):
-        self.assertEqual(self.ql_params.cost_low, 0.5)
+    def test_max_speed(self):
+        self.assertEqual(self.ql_params.max_speed, 35)
+
+    def test_states_rank(self):
+        self.assertEqual(self.ql_params.states.rank, 4)
+
+    def test_states_depth(self):
+        self.assertEqual(self.ql_params.states.depth, 2)
+
+    def test_actions_rank(self):
+        self.assertEqual(self.ql_params.actions.rank, 4)
+
+    def test_actions_depth(self):
+        self.assertEqual(self.ql_params.actions.depth, 3)
+
+
+class TestQLParamsCategorize(unittest.TestCase):
+    def setUp(self):
+        self.states = QLParams().categorize_states(
+            (0.0, 0.0, 8.75, 2.0, 8.76, 5, 23.2, 6))
+
+    def test_categorize_states_speeds(self):
+        speeds = self.states[::2]
+        self.assertEqual(speeds, (0, 0, 1, 2))
+
+    def test_categorize_states_counts(self):
+        counts = self.states[1::2]
+        self.assertEqual(counts, (0, 1, 1, 2))
