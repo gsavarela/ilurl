@@ -12,7 +12,7 @@ from ilu.core.experiment import Experiment
 from ilu.core.params import QLParams
 from ilu.envs.agents import TrafficLightQLGridEnv
 
-EMISSION_PATH = '/Users/gsavarela/sumo_data/'
+EMISSION_PATH = '/home/gsavarela/sumo_data/'
 HORIZON = 1500
 NUM_ITERATIONS = 10
 SHORT_CYCLE_TIME = 31
@@ -259,7 +259,7 @@ if __name__ == "__main__":
 
     print('running smart_grid')
     start = time.time()
-    smaexp, env = smart_grid_example(render=False, emission_path=None)
+    smaexp, env = smart_grid_example(render=True, emission_path=None)
     # de-serialize data
     # UNCOMMENT to serialize
     # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())

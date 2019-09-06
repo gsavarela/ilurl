@@ -14,12 +14,10 @@ dill==0.3.0
 docutils==0.14
 filelock==3.0.12
 flatbuffers==1.11
--e git+https://github.com/flow-project/flow.git@f7c9797c93d7442a9c18ccd3e53dd5e315d78452#egg=flow
 funcsigs==1.0.2
 future==0.17.1
 gym==0.10.5
 idna==2.8
--e git+https://gitlab.com/guilhermevarela/ilu.git@88651cb6dfb14810fbcd2479ce4fe57d9dace6da#egg=ilu
 imagesize==1.1.0
 importlib-metadata==0.18
 imutils==0.5.1
@@ -47,7 +45,6 @@ pytest==5.0.1
 python-dateutil==2.7.3
 pytz==2019.1
 PyYAML==5.1.1
-ray==0.6.1
 redis==3.2.1
 requests==2.22.0
 scipy==1.1.0

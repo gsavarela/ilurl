@@ -162,6 +162,7 @@ class Experiment:
                 env_instance = env_class.load("{}/env.pickle".format(dump_dir))
                 self.env.Q = env_instance.Q
 
+            num_cycles = 0
             for j in range(num_steps):
                 state, reward, done, _ = self.env.step(rl_actions(state))
                 vel[j] = round(
@@ -186,6 +187,9 @@ class Experiment:
                     cycle_actions[i].append(
                         list(self.env.rl_action)
                     )
+                    
+                    num_cycles += 1
+
                 if done:
                     break
             rets.append(ret)
@@ -197,8 +201,8 @@ class Experiment:
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
 
             mean_cycle = np.mean([s for s in cycle_vels[i]])
-            print_msg = "Round {0}\treturn: {1}\tcycle speeds: {2}"
-            print(print_msg.format(i, ret, round(mean_cycle, 2)))
+            print_msg = "Round {0}\treturn: {1}\tcycle speeds: {2}\tcycle count:{3}"
+            print(print_msg.format(i, ret, round(mean_cycle, 2), num_cycles))
 
         if save_interval is not None:
             os.remove('{}/env.pickle'.format(dump_dir))

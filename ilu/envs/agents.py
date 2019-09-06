@@ -319,7 +319,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         """See class definition."""
         # categorize
         # s_max = self.k.scenario.max_speed()
-        return self.ql_params.categorize_states(self.get_observation_space())
+        return self.ql_params.categorize_space(self.get_observation_space())
 
     def rl_actions(self, state):
         """
