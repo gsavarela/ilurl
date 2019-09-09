@@ -237,7 +237,7 @@ def smart_grid_example(render=None,
         initial_config=initial_config,
         traffic_lights=TrafficLightParams(baseline=False))
 
-    ql_params = QLParams(epsilon=0.05, alpha=0.05)
+    ql_params = QLParams(epsilon=0.10, alpha=0.05)
     env = TrafficLightQLGridEnv(env_params, sim_params, ql_params, scenario)
 
     return Experiment(env), env
@@ -261,11 +261,9 @@ if __name__ == "__main__":
     start = time.time()
     smaexp, env = smart_grid_example(render=False, emission_path=None)
     # de-serialize data
-    # UNCOMMENT to serialize
-    # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())
     # env = TrafficLightQLGridEnv.load(pickle_path)
     # run for a set number of rollouts / time steps
-    info_dict = smaexp.run(NUM_ITERATIONS, HORIZON, rl_actions=env.rl_actions)
+    info_dict = smaexp.run(NUM_ITERATIONS, HORIZON)
     print(time.time() - start)
     # serialize data
     # UNCOMMENT to serialize

@@ -122,8 +122,7 @@ class Experiment:
                 'emissions, set the convert_to_csv parameter to False.')
 
         if save_interval is not None:
-            dump_dir = tempfile.mkdtemp()
-
+            print('Warning save_interval has been disabled')
         info_dict = {}
         if rl_actions is None:
 
@@ -137,62 +136,32 @@ class Experiment:
         mean_vels = []
         std_vels = []
         outflows = []
-        if hasattr(self.env, 'cycle_time'):
-            cycle_time = getattr(self.env, 'cycle_time')
-        else:
-            cycle_time = 1
 
-        cycle_rewards = defaultdict(list)
-        cycle_vels = defaultdict(list)
-        cycle_states = defaultdict(list)
-        cycle_actions = defaultdict(list)
         for i in range(num_runs):
             vel = np.zeros(num_steps)
             logging.info("Iter #" + str(i))
             ret = 0
             ret_list = []
-            if save_interval is not None and i + 1 % save_interval == 0:
-                self.env.dump(dump_dir, "env.pickle")
 
+            # This feature is disabled since it requires
+            # that the sumo server is down
+            # if save_interval is not None and (i + 1) % save_interval == 0:
+            #     self.env.dump(os.getcwd())
             state = self.env.reset()
 
-            if save_interval is not None and i + 1 % save_interval == 0:
-                # refresh the q function
-                env_class = self.env.__class__
-                env_instance = env_class.load("{}/env.pickle".format(dump_dir))
-                self.env.Q = env_instance.Q
-
-            num_cycles = 0
             for j in range(num_steps):
                 state, reward, done, _ = self.env.step(rl_actions(state))
-                vel[j] = round(
-                            np.mean(
-                                self.env.k.vehicle.get_speed(self.env.k.vehicle.get_ids())
-                            ),
-                2)
+                speeds = self.env.k.vehicle.get_speed(
+                    self.env.k.vehicle.get_ids()
+                )
+                vel[j] = round(np.mean(speeds), 2)
                 ret += reward
                 ret_list.append(round(reward, 2))
 
-                if self.env.duration == 0 and j > 0:
-                    cycle_vels[i].append(
-                        round(np.mean(vel[j-cycle_time * 10 +1:j]), 2)
-
-                    )
-                    cycle_rewards[i].append(
-                        round(np.sum(ret_list[j-cycle_time * 10 +1:j]), 2)
-                    )
-                    cycle_states[i].append(
-                        list(self.env.get_state())
-                    )
-                    cycle_actions[i].append(
-                        list(self.env.rl_action)
-                        if isinstance(self.env.rl_action, tuple) else None
-                    )
-                    num_cycles += 1
-
                 if done:
                     break
-            rets.append(ret)
+
+            rets.append(round(ret, 2))
             vels.append(vel)
             mean_rets.append(round(np.mean(ret_list), 2))
             ret_lists.append(ret_list)
@@ -200,13 +169,9 @@ class Experiment:
             std_vels.append(round(np.std(vel), 2))
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
 
-            mean_cycle = np.mean([s for s in cycle_vels[i]])
-            print_msg = "Round {0}\treturn: {1}\tcycle speeds: {2}\tcycle count:{3}"
-            print(print_msg.format(i, ret, round(mean_cycle, 2), num_cycles))
-
-        if save_interval is not None:
-            os.remove('{}/env.pickle'.format(dump_dir))
-            os.rmdir(dump_dir)
+            print(f"""
+                    Round {i}\treturn: {ret}\tavg speed:{mean_vels[-1]}
+                  """)
 
         info_dict["returns"] = rets
         info_dict["velocities"] = list(vels[0])
@@ -214,10 +179,6 @@ class Experiment:
         info_dict["per_step_returns"] = ret_lists
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
         info_dict["returns"] = rets
-        info_dict["cycle_velocities"] = cycle_vels
-        info_dict["cycle_rewards"] = cycle_rewards
-        info_dict["cycle_states"] = cycle_states
-        info_dict["cycle_actions"] = cycle_actions
 
         print("Average, std return: {}, {}".format(np.mean(rets),
                                                    np.std(rets)))
@@ -258,4 +219,5 @@ class Experiment:
             with open(info_path, 'w') as fj:
                 json.dump(info_dict, fj)
 
+        self.env.dump(os.getcwd())
         return info_dict

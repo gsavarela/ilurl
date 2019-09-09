@@ -355,8 +355,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         """
         if self.duration == 0:
             action = self.dpq.rl_actions(tuple(state))
-            if action != (0, 0, 0, 0):
-                print('random action')
 
             self.rl_action = action
         else:
