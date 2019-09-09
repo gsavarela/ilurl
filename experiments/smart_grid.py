@@ -12,9 +12,9 @@ from ilu.core.experiment import Experiment
 from ilu.core.params import QLParams
 from ilu.envs.agents import TrafficLightQLGridEnv
 
-EMISSION_PATH = '/home/gsavarela/sumo_data/'
+EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
-NUM_ITERATIONS = 10
+NUM_ITERATIONS = 1000
 SHORT_CYCLE_TIME = 31
 LONG_CYCLE_TIME = 45
 SWITCH_TIME = 6
@@ -197,9 +197,9 @@ def smart_grid_example(render=None,
         additional_env_params = ADDITIONAL_ENV_PARAMS.copy()
         additional_env_params['filter_incoming_edges'] = True
         additional_env_params[
-            'short_cycle_time'] = SHORT_CYCLE_TIME + SWITCH_TIME
+            'short_cycle_time'] = SHORT_CYCLE_TIME
         additional_env_params[
-            'long_cycle_time'] = LONG_CYCLE_TIME + SWITCH_TIME
+            'long_cycle_time'] = LONG_CYCLE_TIME
 
     additional_env_params.update({
         # minimum switch time for each traffic light (in seconds)
@@ -259,7 +259,7 @@ if __name__ == "__main__":
 
     print('running smart_grid')
     start = time.time()
-    smaexp, env = smart_grid_example(render=True, emission_path=None)
+    smaexp, env = smart_grid_example(render=False, emission_path=None)
     # de-serialize data
     # UNCOMMENT to serialize
     # pickle_path = '{}/traffic_light_ql_grid_env.pickle'.format(os.getcwd())

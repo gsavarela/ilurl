@@ -173,21 +173,21 @@ class Experiment:
                 ret += reward
                 ret_list.append(round(reward, 2))
 
-                if j % cycle_time == 0 and j > 0:
+                if self.env.duration == 0 and j > 0:
                     cycle_vels[i].append(
-                        round(np.mean(vel[j-cycle_time+1:j]), 2)
+                        round(np.mean(vel[j-cycle_time * 10 +1:j]), 2)
 
                     )
                     cycle_rewards[i].append(
-                        round(np.sum(ret_list[j-cycle_time+1:j]), 2)
+                        round(np.sum(ret_list[j-cycle_time * 10 +1:j]), 2)
                     )
                     cycle_states[i].append(
                         list(self.env.get_state())
                     )
                     cycle_actions[i].append(
                         list(self.env.rl_action)
+                        if isinstance(self.env.rl_action, tuple) else None
                     )
-                    
                     num_cycles += 1
 
                 if done:

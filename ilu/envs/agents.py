@@ -7,6 +7,7 @@ __author__ = "Guilherme Varela"
 from collections import defaultdict
 
 import numpy as np
+import pdb
 
 from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
@@ -210,6 +211,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         self.memo_speeds = {tls: {} for tls in range(self.num_traffic_lights)}
         self.memo_counts = {tls: {} for tls in range(self.num_traffic_lights)}
 
+        self.memo_rewards = {}
     def _init_observation_space_filter(self):
         """Returns edges attached to the node center#{node_id}
 
@@ -351,10 +353,14 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                                     |    |               |    |
 
         """
-        action = self.dpq.rl_actions(tuple(state))
+        if self.duration == 0:
+            action = self.dpq.rl_actions(tuple(state))
+            if action != (0, 0, 0, 0):
+                print('random action')
 
-        if self.rl_action is None or self.duration == 0.0:
             self.rl_action = action
+        else:
+            action = None
         return action
 
     def control_actions(self, static=False):
@@ -379,7 +385,8 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                     # handles the case of both phases are the same
                     ret = tuple([1] * self.num_traffic_lights)
                 else:
-                    diracts = zip(self.direction, self.rl_action)
+                    directions = [int(d[0]) for d in self.direction]
+                    diracts = zip(directions, self.rl_action)
                     ret = tuple([int(d == a) for d, a in diracts])
                     self.control_action = ret
 
@@ -394,7 +401,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         return ret
 
     # @logger
-    def _apply_rl_actions(self, rl_actions):
+    def apply_rl_actions(self, rl_actions):
         """Q-Learning
 
         Algorithm as in Sutton et Barto, 2018 [1]
@@ -410,30 +417,30 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
         if self.duration == 0.0:
             if rl_actions is None:
-                action = self.rl_actions(self.get_state())
+                rl_action = self.rl_actions(self.get_state())
             else:
-                action = rl_actions
+                rl_action = rl_actions
 
             # some function is changing self._state to numpy array
             # if self._state is None or isinstance(self._state, np.ndarray):
             if self.step_counter == 1:
                 self.prev_state = self.get_state()
-
+                self.prev_action = rl_action
             self.memo_rewards = {}
-        action = self.control_actions(static=False)
 
         #  _apply_rl_actions -- actions have to be on integer format
-        idx = self._to_index(action)
+        idx = self._to_index(self.control_actions(static=False))
 
         super(TrafficLightQLGridEnv, self)._apply_rl_actions(idx)
 
-        if self.duration == 0 and self.step_counter > 1:
+        if self.duration == 0.0 and self.step_counter > 1:
             # place q-learning here
             reward = self.compute_reward(rl_actions)
 
             state = self.get_state()
-            self.dpq.update(self.prev_state, action, reward, state)
+            self.dpq.update(self.prev_state, self.prev_action, reward, state)
             self.prev_state = state
+            self.prev_action = rl_action
 
         self.duration = round(
             self.duration + self.sim_step,
@@ -443,8 +450,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition.
         """
-        # return rewards.average_velocity(self, fail=False)
-        # return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
         if self.duration not in self.memo_rewards:
             # rew = rewards.average_velocity(self, fail=False)
             rew = self.reward_calculator.calculate(
