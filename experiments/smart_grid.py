@@ -14,7 +14,7 @@ from ilu.envs.agents import TrafficLightQLGridEnv
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
-NUM_ITERATIONS = 1000
+NUM_ITERATIONS = 30
 SHORT_CYCLE_TIME = 31
 LONG_CYCLE_TIME = 45
 SWITCH_TIME = 6
@@ -240,7 +240,7 @@ def smart_grid_example(render=None,
     ql_params = QLParams(epsilon=0.10, alpha=0.05)
     env = TrafficLightQLGridEnv(env_params, sim_params, ql_params, scenario)
 
-    return Experiment(env), env
+    return Experiment(env)
 
 
 if __name__ == "__main__":
@@ -249,25 +249,26 @@ if __name__ == "__main__":
     import json
     print('running grid_intersection')
     start = time.time()
-    grdexp = grid_example(short_cycle_time=SHORT_CYCLE_TIME,
-                          long_cycle_time=LONG_CYCLE_TIME,
-                          switch_time=SWITCH_TIME,
-                          render=False,
-                          emission_path=None)
+    exp = grid_example(
+        short_cycle_time=SHORT_CYCLE_TIME,
+        long_cycle_time=LONG_CYCLE_TIME,
+        switch_time=SWITCH_TIME,
+        render=False,
+        emission_path=None)
 
-    grid_dict = grdexp.run(1, HORIZON)
+    grid_dict = exp.run(NUM_ITERATIONS, HORIZON)
 
     print('running smart_grid')
     start = time.time()
-    smaexp, env = smart_grid_example(render=False, emission_path=None)
+    exp = smart_grid_example(render=False, emission_path=None)
     # de-serialize data
     # env = TrafficLightQLGridEnv.load(pickle_path)
     # run for a set number of rollouts / time steps
-    info_dict = smaexp.run(NUM_ITERATIONS, HORIZON)
+    info_dict = exp.run(NUM_ITERATIONS, HORIZON)
     print(time.time() - start)
     # serialize data
     # UNCOMMENT to serialize
-    env.dump(os.getcwd())
-    infoname = '{}.info.json'.format(env.scenario.name)
+    exp.env.dump(os.getcwd())
+    infoname = '{}.info.json'.format(exp.env.scenario.name)
     with open(infoname, 'w') as f:
         json.dump(info_dict, f)

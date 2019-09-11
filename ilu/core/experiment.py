@@ -77,6 +77,7 @@ class Experiment:
 
         logging.info("Initializing environment.")
 
+
     def run(
             self,
             num_runs,
@@ -84,6 +85,7 @@ class Experiment:
             rl_actions=None,
             convert_to_csv=False,
             save_interval=None,
+            show_plot=False
     ):
         """Run the given scenario for a set number of runs and steps per run.
 
@@ -123,6 +125,19 @@ class Experiment:
 
         if save_interval is not None:
             print('Warning save_interval has been disabled')
+
+        if show_plot:
+            # Plotting stuff
+            import matplotlib.pyplot as plt
+
+            _, self.ax1 = plt.subplots()
+
+            self.ax2 = self.ax1.twinx()
+
+            self.ax1.set_xlabel('Iteration')
+            self.ax1.set_ylabel('Return', color='c')
+            self.ax2.set_ylabel('Speed', color='b')
+
         info_dict = {}
         if rl_actions is None:
 
@@ -161,7 +176,8 @@ class Experiment:
                 if done:
                     break
 
-            rets.append(round(ret, 2))
+            ret = round(ret, 2)
+            rets.append(ret)
             vels.append(vel)
             mean_rets.append(round(np.mean(ret_list), 2))
             ret_lists.append(ret_list)
@@ -172,13 +188,17 @@ class Experiment:
             print(f"""
                     Round {i}\treturn: {ret}\tavg speed:{mean_vels[-1]}
                   """)
+            if show_plot:
+                self.ax1.plot(rets, 'c-')
+                self.ax2.plot(mean_vels, 'b-')
+                plt.draw()
+                plt.pause(0.01)
 
         info_dict["returns"] = rets
-        info_dict["velocities"] = list(vels[0])
+        info_dict["velocities"] = mean_vels 
         info_dict["mean_returns"] = mean_rets
         info_dict["per_step_returns"] = ret_lists
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
-        info_dict["returns"] = rets
 
         print("Average, std return: {}, {}".format(np.mean(rets),
                                                    np.std(rets)))
@@ -221,3 +241,5 @@ class Experiment:
 
         self.env.dump(os.getcwd())
         return info_dict
+
+

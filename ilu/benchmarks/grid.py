@@ -122,7 +122,7 @@ def get_non_flow_params(enter_speed, add_net_params):
 def grid_example(short_cycle_time=31,
                  switch_time=6,
                  long_cycle_time=31,
-                 render=None,
+                 render=False,
                  use_inflows=False,
                  emission_path=None):
     """
@@ -168,11 +168,15 @@ def grid_example(short_cycle_time=31,
     }
 
     if emission_path is None:
-        sim_params = SumoParams(sim_step=0.1, render=render)
+        sim_params = SumoParams(
+            sim_step=0.1,
+            print_warnings=False,
+            render=render)
     else:
         sim_params = SumoParams(
             sim_step=0.1,
             render=render,
+            print_warnings=False,
             emission_path=emission_path,
         )
 
@@ -254,4 +258,4 @@ if __name__ == "__main__":
     exp = grid_example()
 
     # run for a set number of rollouts / time steps
-    exp.run(1, 1500)
+    exp.run(30, 1500)
