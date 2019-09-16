@@ -48,10 +48,7 @@ ADDITIONAL_TLS_PARAMS = {
     'long_cycle_time': 36,
     # switch_time is the time it takes to exit the yellow state e.g
     # yryr -> rGrG or ryry -> GrGr
-    'switch_time': 5,
-    # use only incoming edges to account for observation states
-    # None means use both incoming and outgoing
-    'filter_incoming_edges': None,
+    'switch_time': 5
 }
 
 
@@ -197,22 +194,44 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         # keeps the internal value of sim step
         self.sim_step = sim_params.sim_step
 
-        # Q learning stuff
+        # initializes the observable scope
+        self.incoming_speeds = {
+            tls: defaultdict(list)
+            for tls in range(self.num_traffic_lights)
+        }
+
+        self.outgoing_speeds = {
+            tls: defaultdict(list)
+            for tls in range(self.num_traffic_lights)
+        }
+        self.incoming_edge_ids = {
+            tls: []
+            for tls in range(self.num_traffic_lights)
+        }
+
+        self.outgoing_edge_ids = {
+            tls: []
+            for tls in range(self.num_traffic_lights)
+        }
+        self._observation_space = {
+            tls: defaultdict(list)
+            for tls in range(self.num_traffic_lights)
+        }
+
         # neighbouring maps neighbourhood edges
-        self._init_observation_space_filter()
+        self.init_observation_scope_filter()
+
+        # Q learning stuff
         self.ql_params = ql_params
         self.dpq = DPQ(ql_params)
         self.reward_calculator = RewardCalculator(ql_params)
         self.rl_action = None
-        self._observation_space = {
-            tls: {}
-            for tls in range(self.num_traffic_lights)
-        }
         self.memo_speeds = {tls: {} for tls in range(self.num_traffic_lights)}
         self.memo_counts = {tls: {} for tls in range(self.num_traffic_lights)}
 
         self.memo_rewards = {}
-    def _init_observation_space_filter(self):
+
+    def init_observation_scope_filter(self):
         """Returns edges attached to the node center#{node_id}
 
         This function should be provided by Kernel#Scenario,
@@ -221,33 +240,21 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         an option.
 
         """
-        # map traffic light to edges
-        self._observation_space_filter = defaultdict(list)
-        incoming = self.filter_incoming_edges is None or\
-            self.filter_incoming_edges is True
-        outgoing = self.filter_incoming_edges is None or\
-            self.filter_incoming_edges is False
-
         for n in range(self.num_traffic_lights):
-            edge_ids = []
-
             i = int(n / self.grid_array["col_num"])  # row counter
             j = n - i * self.grid_array["col_num"]  # column counter
 
             # handles left and right of the n-th traffic light
-            if incoming:
-                edge_ids.append('right{}_{}'.format(i, j))
-                edge_ids.append('top{}_{}'.format(i, j + 1))
-                edge_ids.append('bot{}_{}'.format(i, j))
-                edge_ids.append('left{}_{}'.format(i + 1, j))
+            self.incoming_edge_ids[n].append('right{}_{}'.format(i, j))
+            self.incoming_edge_ids[n].append('top{}_{}'.format(i, j + 1))
+            self.incoming_edge_ids[n].append('bot{}_{}'.format(i, j))
+            self.incoming_edge_ids[n].append('left{}_{}'.format(i + 1, j))
 
-            if outgoing:
-                edge_ids.append('right{}_{}'.format(i + 1, j))
-                edge_ids.append('top{}_{}'.format(i, j))
-                edge_ids.append('bot{}_{}'.format(i, j + 1))
-                edge_ids.append('left{}_{}'.format(i, j))
+            self.outgoing_edge_ids[n].append('right{}_{}'.format(i + 1, j))
+            self.outgoing_edge_ids[n].append('top{}_{}'.format(i, j))
+            self.outgoing_edge_ids[n].append('bot{}_{}'.format(i, j + 1))
+            self.outgoing_edge_ids[n].append('left{}_{}'.format(i, j))
 
-            self._observation_space_filter[n] = edge_ids
 
     def set_observation_space(self):
         """updates the observation space
@@ -256,7 +263,16 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         has the traffic light information if the vehicle is as close as 50%
         the edge's length.
 
-        * _observation_space: nested dict
+        Updates the following data structures:
+
+        * incoming_speeds: nested dict
+               outer keys: int
+                    traffic_light_id
+               inner keys: float
+                    frame_id of observations ranging from 0 to duration
+               values: list
+                    vehicle speeds at frame or edge
+        * outgoing_speeds: nested dict
                outer keys: int
                     traffic_light_id
                inner keys: float
@@ -266,16 +282,23 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         RETURNS:
         --------
         """
-        # backwards compatibility
-        # prevent same vehicle to be accounted twice
-        for tls in range(self.num_traffic_lights):
-            for edge_id in self._observation_space_filter[tls]:
-                k = self.duration
-                self._observation_space[tls][k] = \
+        def extract(edge_ids):
+            speed_ids = []
+            for edge_id in edge_ids:
+                speed_ids += \
                     [self.k.vehicle.get_speed(veh_id)
                      for veh_id in self.k.vehicle.get_ids_by_edge(edge_id)
                      if self.get_distance_to_intersection(veh_id) <
                         0.5 * self.k.scenario.edge_length(edge_id)]
+            return speed_ids
+
+        for tls in range(self.num_traffic_lights):
+
+            self.incoming_speeds[tls][self.duration] = \
+                                extract(self.incoming_edge_ids[tls])
+
+            self.outgoing_speeds[tls][self.duration] = \
+                                extract(self.outgoing_edge_ids[tls])
 
     def get_observation_space(self):
         """consolidates the observation space
@@ -286,34 +309,20 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             change for when there aren't any cars
             the state is equivalent to maximum speed
         """
-        # get ids from vehicles -- closer to the edges
         ret = []
-        # prev = round(max(self.duration - self.sim_step, 0), 2)
-        d = round(max(self.duration - self.sim_step, 0), 2)
+        prev = round(max(self.duration - self.sim_step, 0), 2)
 
         for tls in range(self.num_traffic_lights):
-            # testing incremental script
-            veh_speeds = {
-                t: 0.0 if not any(values) else round(np.mean(values), 2)
-                for t, values in self._observation_space[tls].items() if t == d
-            }
 
-            self.memo_speeds[tls].update(veh_speeds)
-            if any(self.memo_speeds[tls].values()):
-                ret.append(np.mean(list(self.memo_speeds[tls].values())))
-            else:
-                ret.append(0.0)
+            speed_ids = self.incoming_speeds[tls][prev] + \
+                        self.outgoing_speeds[tls][prev]
 
-            veh_counts = {
-                t: len(_values)
-                for t, _values in self._observation_space[tls].items()
-                if t == d
-            }
-            self.memo_counts[tls].update(veh_counts)
-            if any(self.memo_counts[tls].values()):
-                ret.append(np.mean(list(self.memo_counts[tls].values())))
-            else:
-                ret.append(0.0)
+            self.memo_speeds[tls][prev] = \
+                0.0 if not any(speed_ids) else round(np.mean(speed_ids), 2)
+
+            ret.append(np.mean(list(self.memo_speeds[tls].values())))
+            self.memo_counts[tls][prev] = len(speed_ids)
+            ret.append(np.mean(list(self.memo_counts[tls].values())))
 
         return tuple(ret)
 
@@ -398,7 +407,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 ret = tuple([0] * self.num_traffic_lights)  # do nothing
         return ret
 
-    # @logger
     def apply_rl_actions(self, rl_actions):
         """Q-Learning
 
@@ -429,6 +437,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         #  _apply_rl_actions -- actions have to be on integer format
         idx = self._to_index(self.control_actions(static=False))
 
+        # updates traffic lights' control signals
         super(TrafficLightQLGridEnv, self)._apply_rl_actions(idx)
 
         if self.duration == 0.0 and self.step_counter > 1:

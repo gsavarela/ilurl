@@ -195,7 +195,7 @@ def smart_grid_example(render=None,
 
     if additional_env_params is None:
         additional_env_params = ADDITIONAL_ENV_PARAMS.copy()
-        additional_env_params['filter_incoming_edges'] = True
+        additional_env_params['filter_incoming_edges'] = False
         additional_env_params[
             'short_cycle_time'] = SHORT_CYCLE_TIME
         additional_env_params[
@@ -247,16 +247,16 @@ if __name__ == "__main__":
     # import the experiment variable
     import os
     import json
-    print('running grid_intersection')
-    start = time.time()
-    exp = grid_example(
-        short_cycle_time=SHORT_CYCLE_TIME,
-        long_cycle_time=LONG_CYCLE_TIME,
-        switch_time=SWITCH_TIME,
-        render=False,
-        emission_path=None)
+    # print('running grid_intersection')
+    # start = time.time()
+    # exp = grid_example(
+    #     short_cycle_time=SHORT_CYCLE_TIME,
+    #     long_cycle_time=LONG_CYCLE_TIME,
+    #     switch_time=SWITCH_TIME,
+    #     render=False,
+    #     emission_path=None)
 
-    grid_dict = exp.run(NUM_ITERATIONS, HORIZON)
+    # grid_dict = exp.run(NUM_ITERATIONS, HORIZON)
 
     print('running smart_grid')
     start = time.time()
