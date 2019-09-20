@@ -2,7 +2,7 @@
 
 __author__ = "Guilherme Varela"
 __date__ = "2019-07-26"
-import numpy as np
+REWARD_TYPES = ('fix', 'weighted_average', 'score')
 
 
 class RewardCalculator(object):
@@ -11,23 +11,38 @@ class RewardCalculator(object):
         self.costs = ql_params.rewards.costs
         self.categorize = lambda x: ql_params.categorize_space(x)
         self.split = lambda x: ql_params.split_space(x)
+        self.labels = ql_params.states_labels
 
     def calculate(self, observation_space):
-        if self.type in ('weighted_average', ):
+        if self.type in ('fix', ):
+            # makes as compution based on discrete levels
+            speeds, counts = self.split(self.categorize(observation_space))
+            return reward_fix(speeds, counts, self.costs)
+
+        elif self.type in ('weighted_average', ):
+            # weighted average
             speeds, counts = self.split(observation_space)
             if counts is not None:
                 K = sum(counts)
                 if K == 0.0:
                     return 0.0
                 return sum([s * c for s, c in zip(speeds, counts)]) / K
-        elif self.type in ('costs', ):
-            speeds, counts = self.split(self.categorize(observation_space))
-            return reward_costs(speeds, counts, self.costs)
+        elif self.type in ('score', ):
+            # scores some are either negative in case of queues
+            # or positive in the case of flow or velocity
+            data = self.split(observation_space)
+            s = 0
+            for i, label in enumerate(self.labels):
+                if label in ('flow', 'speed',):
+                    s += sum(data[i])
+                if label in ('queue', ):
+                    s -= sum(data[i])
+            return s
         else:
             raise NotImplementedError
 
 
-def reward_costs(speeds, counts, costs):
+def reward_fix(speeds, counts, costs):
     """Constant reward of 1000 if
         (a) there are no vehicles ( dispatched all )
         (b) all cars are moving at their fastest

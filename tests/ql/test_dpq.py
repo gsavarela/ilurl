@@ -1,10 +1,9 @@
 import os
-import pdb
 import pickle
 import unittest
 
 import numpy as np
-from ilu.core.params import QLParams
+from ilu.core.params import QLParams, Bounds
 from ilu.ql.dpq import DPQ
 
 
@@ -28,17 +27,17 @@ class TestDPQUpdate(unittest.TestCase):
             (0,)        (0,)
     '''
     def setUp(self):
-        self.dpq = DPQ(
-            QLParams(alpha=0.5,
-                     gamma=1.0,
-                     states={
-                         'rank': 2,
-                         'depth': 2
-                     },
-                     actions={
-                         'rank': 1,
-                         'depth': 2
-                     }))
+        ql_params = QLParams(
+            alpha=0.5,
+            gamma=1.0,
+            states=('count',),
+            actions=('fast_green', 'slow_green')
+        )
+        # This shouldn't be used like that but
+        # outside testing scenarios
+        ql_params.states = Bounds(rank=2, depth=2)
+        ql_params.actions = Bounds(rank=1, depth=2)
+        self.dpq = DPQ(ql_params)
         #  self.rands: list[5000]
         #       With 5000 3-digit random numbers (0,1)
         with open('tests/data/rands.pickle', 'rb') as f:

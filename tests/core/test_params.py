@@ -28,6 +28,10 @@ class TestQLParamsConstraints(unittest.TestCase):
     def test_reward(self):
         with self.assertRaises(ValueError):
             QLParams(rewards={'type': 'x'})
+    
+    def test_choice_type(self):
+        with self.assertRaises(ValueError):
+            QLParams(choice_type='my precious choice')
 
 
 class TestQLParamsAssignments(unittest.TestCase):
@@ -41,17 +45,11 @@ class TestQLParamsAssignments(unittest.TestCase):
                                   epsilon=1e-2,
                                   gamma=0.75,
                                   rewards={
-                                      'type': 'costs',
+                                      'type': 'fix',
                                       'costs': (0, 0.5, 0.75)
                                   },
-                                  states={
-                                      'rank': 4,
-                                      'depth': 2
-                                  },
-                                  actions={
-                                      'rank': 4,
-                                      'depth': 3
-                                  })
+                                  states=('count', )
+                                  )
 
     def test_alpha(self):
         self.assertEqual(self.ql_params.alpha, 2e-1)
@@ -60,7 +58,7 @@ class TestQLParamsAssignments(unittest.TestCase):
         self.assertEqual(self.ql_params.epsilon, 1e-2)
 
     def test_reward_type(self):
-        self.assertEqual(self.ql_params.rewards.type, 'cost')
+        self.assertEqual(self.ql_params.rewards.type, 'fix')
 
     def test_costs(self):
         self.assertEqual(self.ql_params.rewards.costs, (0, 0.5, 0.75))
@@ -72,24 +70,24 @@ class TestQLParamsAssignments(unittest.TestCase):
         self.assertEqual(self.ql_params.states.rank, 4)
 
     def test_states_depth(self):
-        self.assertEqual(self.ql_params.states.depth, 2)
+        self.assertEqual(self.ql_params.states.depth, 3)
 
     def test_actions_rank(self):
         self.assertEqual(self.ql_params.actions.rank, 4)
 
     def test_actions_depth(self):
-        self.assertEqual(self.ql_params.actions.depth, 3)
+        self.assertEqual(self.ql_params.actions.depth, 2)
 
 
 class TestQLParamsCategorize(unittest.TestCase):
     def setUp(self):
-        self.states = QLParams().categorize_states(
+        self.states = QLParams().categorize_space(
             (0.0, 0.0, 8.75, 2.0, 8.76, 5, 23.2, 6))
 
-    def test_categorize_states_speeds(self):
+    def test_categorize_space_speeds(self):
         speeds = self.states[::2]
         self.assertEqual(speeds, (0, 0, 1, 2))
 
-    def test_categorize_states_counts(self):
+    def test_categorize_space_counts(self):
         counts = self.states[1::2]
         self.assertEqual(counts, (0, 1, 1, 2))

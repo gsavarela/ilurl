@@ -1,7 +1,10 @@
 """Objects that define the various meta-parameters of an experiment."""
 from collections import namedtuple
+from ilu.ql.reward import REWARD_TYPES
+from ilu.ql.choice import CHOICE_TYPES
 
-REWARD_TYPES = ('weighted_average', 'costs')
+STATE_FEATURES = ('speed', 'count', 'flow', 'queue')
+ACTIONS = ('fast_slow_green', )
 ''' Bounds : namedtuple
         provide the settings to describe discrete variables ( e.g actions ). Or
         create discrete categorizations from continous variables ( e.g states)
@@ -41,20 +44,17 @@ class QLParams:
             epsilon=3e-2,
             alpha=5e-2,
             gamma=0.95,
+            c=2,
             initial_value=0,
             max_speed=35,
             rewards={
                 'type': 'weighted_average',
                 'costs': None
             },
-            states={
-                'rank': 8,
-                'depth': 3,
-            },
-            actions={
-                'rank': 4,
-                'depth': 2
-            },
+            num_traffic_lights=4,
+            states=('speed', 'count'),
+            actions=('fast_slow_green', ),
+            choice_type='eps-greedy'
     ):
         """Instantiate base traffic light.
 
@@ -68,6 +68,7 @@ class QLParams:
 
         * gamma: is the discount rate for value function [1].
 
+        * c: upper confidence bound (ucb) exploration constant.
         * rewards: namedtuple
                     see above
         * states: namedtuple
@@ -105,24 +106,38 @@ class QLParams:
         if epsilon <= 0 or epsilon >= 1:
             raise ValueError('''The ineq 0 < epsilon < 1 must hold.
                     got epsilon = {}'''.format(epsilon))
+
+        if choice_type not in CHOICE_TYPES:
+            raise ValueError(
+                f'''Choice type should be in {CHOICE_TYPES} got {choice_type}'''
+            )
+
+
         for attr, value in kwargs.items():
             if attr not in ('self', 'states', 'actions', 'rewards'):
                 setattr(self, attr, value)
 
         if 'states' in kwargs:
-            states_dict = kwargs['states']
-            self.set_states(states_dict['rank'], states_dict['depth'])
+            states_tuple = kwargs['states']
+            for name in states_tuple:
+                if name not in STATE_FEATURES:
+                    raise ValueError(f'''
+                        {name} must be in {STATE_FEATURES}
+                    ''')
+            self.set_states(states_tuple)
 
         if 'actions' in kwargs:
-            actions_dict = kwargs['actions']
-            self.set_actions(actions_dict['rank'], actions_dict['depth'])
+            actions_tuple = kwargs['actions']
+            self.set_actions(actions_tuple)
 
+        rewards = kwargs['rewards']
         if 'type' not in rewards:
             raise ValueError('''``type` must be provided in reward types''')
 
         elif rewards['type'] not in REWARD_TYPES:
-            raise ValueError('''rewards must be in {} got {}'''.format(
-                REWARD_TYPES, rewards['type']))
+            raise ValueError(f'''
+                Rewards must be in {REWARD_TYPES} got {rewards['type']}
+            ''')
         elif rewards['type'] == 'costs':
             if rewards['costs'] is None:
                 raise ValueError(
@@ -135,25 +150,35 @@ class QLParams:
                     self.state.depth, len(rewards['costs'])))
         self.set_rewards(rewards['type'], rewards['costs'])
 
-    def set_states(self, rank, depth):
+    def set_states(self, states_tuple):
+        self.states_labels = states_tuple
+        rank = self.num_traffic_lights * len(states_tuple)
+        depth = 3
         self.states = Bounds(rank, depth)
 
-    def set_actions(self, rank, depth):
+    def set_actions(self, actions_tuple):
+        self.actions_labels = actions_tuple
+        rank = self.num_traffic_lights * len(actions_tuple)
+        depth = 2
         self.actions = Bounds(rank, depth)
 
     def set_rewards(self, type, costs):
         self.rewards = Rewards(type, costs)
 
     def categorize_space(self, observation_space):
+
+        labels = list(self.states_labels) * self.num_traffic_lights
         return tuple([
-            self._categorize_count(val) if i %
-            2 == 1 else self._categorize_speed(val)
-            for i, val in enumerate(observation_space)
+            getattr(self, f'_categorize_{name}')(value)
+            for name, value in zip(labels, observation_space)
         ])
 
     def split_space(self, observation_space):
-        return observation_space[::2], \
-                observation_space[1::2]
+        """Splits different variables into tuple"""
+        num_labels = len(self.states_labels)
+        ss = [observation_space[ll::num_labels]
+              for ll in range(num_labels)]
+        return tuple(ss)
 
     def _categorize_speed(self, speed):
         """Converts a float speed into a category"""
@@ -169,6 +194,24 @@ class QLParams:
         if count >= 6:
             return 2
         elif count == 0:
+            return 0
+        else:
+            return 1
+
+    def _categorize_flow(self, flow):
+        """Converts a int flow into a category"""
+        if flow >= 6:
+            return 2
+        elif flow == 0:
+            return 0
+        else:
+            return 1
+
+    def _categorize_queue(self, queue):
+        """Converts a int queue into a category"""
+        if queue >= 6:
+            return 2
+        elif queue == 0:
             return 0
         else:
             return 1

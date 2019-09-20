@@ -16,19 +16,6 @@ from ilu.ql.reward import RewardCalculator
 from ilu.utils.decorators import logger
 from ilu.utils.serialize import Serializer
 
-# action rank is the number of dimensions for the
-# representation of one tls action
-TLS_ACTION_RANK = 1
-# action depth is size of each of dimensions
-# ( binary )
-TLS_ACTION_RANK_DEPTH = 2
-# action rank is the number of dimensions for the
-# representation of one tls action
-TLS_STATE_RANK = 2
-# action depth is size of each of dimensions
-# ( binary )
-TLS_STATE_RANK_DEPTH = 3
-
 QL_PARAMS = {
     # epsilon is the chance to adopt a random action instead of
     # a greedy action - if is None then adopt optimistic values
@@ -189,18 +176,18 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
         # duration measures the amount of time the current
         # configuration has been going on
-        self.duration = 0
+        self.duration = 0.0
 
         # keeps the internal value of sim step
         self.sim_step = sim_params.sim_step
 
         # initializes the observable scope
-        self.incoming_speeds = {
+        self.incoming = {
             tls: defaultdict(list)
             for tls in range(self.num_traffic_lights)
         }
 
-        self.outgoing_speeds = {
+        self.outgoing = {
             tls: defaultdict(list)
             for tls in range(self.num_traffic_lights)
         }
@@ -213,11 +200,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             tls: []
             for tls in range(self.num_traffic_lights)
         }
-        self._observation_space = {
-            tls: defaultdict(list)
-            for tls in range(self.num_traffic_lights)
-        }
-
         # neighbouring maps neighbourhood edges
         self.init_observation_scope_filter()
 
@@ -226,10 +208,14 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         self.dpq = DPQ(ql_params)
         self.reward_calculator = RewardCalculator(ql_params)
         self.rl_action = None
+
         self.memo_speeds = {tls: {} for tls in range(self.num_traffic_lights)}
         self.memo_counts = {tls: {} for tls in range(self.num_traffic_lights)}
+        self.memo_flows = {tls: {} for tls in range(self.num_traffic_lights)}
+        self.memo_queue = {tls: {} for tls in range(self.num_traffic_lights)}
 
         self.memo_rewards = {}
+        self.memo_observation_space = {}
 
     def init_observation_scope_filter(self):
         """Returns edges attached to the node center#{node_id}
@@ -265,14 +251,14 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
 
         Updates the following data structures:
 
-        * incoming_speeds: nested dict
+        * incoming: nested dict
                outer keys: int
                     traffic_light_id
                inner keys: float
                     frame_id of observations ranging from 0 to duration
                values: list
                     vehicle speeds at frame or edge
-        * outgoing_speeds: nested dict
+        * outgoing: nested dict
                outer keys: int
                     traffic_light_id
                inner keys: float
@@ -283,21 +269,25 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
         --------
         """
         def extract(edge_ids):
-            speed_ids = []
+            veh_ids = []
             for edge_id in edge_ids:
-                speed_ids += \
-                    [self.k.vehicle.get_speed(veh_id)
+                veh_ids += \
+                    [veh_id
                      for veh_id in self.k.vehicle.get_ids_by_edge(edge_id)
                      if self.get_distance_to_intersection(veh_id) <
                         0.5 * self.k.scenario.edge_length(edge_id)]
-            return speed_ids
+            speeds = [
+                self.k.vehicle.get_speed(veh_id)
+                for veh_id in veh_ids
+            ]
+            return veh_ids, speeds
 
         for tls in range(self.num_traffic_lights):
 
-            self.incoming_speeds[tls][self.duration] = \
+            self.incoming[tls][self.duration] = \
                                 extract(self.incoming_edge_ids[tls])
 
-            self.outgoing_speeds[tls][self.duration] = \
+            self.outgoing[tls][self.duration] = \
                                 extract(self.outgoing_edge_ids[tls])
 
     def get_observation_space(self):
@@ -309,22 +299,83 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             change for when there aren't any cars
             the state is equivalent to maximum speed
         """
-        ret = []
-        prev = round(max(self.duration - self.sim_step, 0), 2)
+        data = []
 
-        for tls in range(self.num_traffic_lights):
+        def delay(t):
+            return round(
+                t - self.sim_step
+                if t >= self.sim_step else
+                self.cycle_time - self.sim_step
+                if self.step_counter > 1 else 0.0, 2)
+        prev = delay(self.duration)
 
-            speed_ids = self.incoming_speeds[tls][prev] + \
-                        self.outgoing_speeds[tls][prev]
+        if prev not in self.memo_observation_space or self.step_counter <= 2:
+            for tls in range(self.num_traffic_lights):
 
-            self.memo_speeds[tls][prev] = \
-                0.0 if not any(speed_ids) else round(np.mean(speed_ids), 2)
+                for label in self.ql_params.states_labels:
 
-            ret.append(np.mean(list(self.memo_speeds[tls].values())))
-            self.memo_counts[tls][prev] = len(speed_ids)
-            ret.append(np.mean(list(self.memo_counts[tls].values())))
+                    if label in ('count',):
+                        count = 0
+                        count += len(self.incoming[tls][prev][1]) \
+                                 if prev in self.incoming[tls] else 0.0
+                        count += len(self.outgoing[tls][prev][1]) \
+                                 if prev in self.outgoing[tls] else 0.0
+                        self.memo_counts[tls][prev] = count
+                        value = np.mean(list(self.memo_counts[tls].values()))
 
-        return tuple(ret)
+                    elif label in ('flow',):
+                        # outflow measures cumulate number of the
+                        # vehicles leaving the intersection
+                        veh_set = set(self.outgoing[tls][prev][0]) \
+                                 if prev in self.outgoing[tls] else set()
+
+
+                        # The vehicles which we should accumulate over
+                        prevprev = delay(prev)
+                        prev_veh_set = self.memo_flows[tls][prevprev] \
+                                       if prevprev in self.memo_flows[tls] else set()
+
+                        # The vehicles which should be deprecated
+                        old_veh_set = self.memo_flows[tls][prev] \
+                                      if prev in self.memo_flows[tls] else set()
+
+                        self.memo_flows[tls][prev] = \
+                            (veh_set | prev_veh_set) - (prev_veh_set & old_veh_set)
+
+                        value = np.mean([
+                            len(veh_ids)
+                            for veh_ids in self.memo_flows[tls].values()
+                        ])
+
+                    elif label in ('queue',):
+                        # vehicles are slowing :
+                        queue = []
+                        queue += self.incoming[tls][prev][1] \
+                                  if prev in self.incoming[tls] else []
+
+                        queue = [q for q in queue
+                                 if q < 0.15 * self.k.scenario.max_speed()]
+
+                        self.memo_queue[tls][prev] = len(queue)
+                        value = np.mean(list(self.memo_queue[tls].values()))
+
+                    elif label in ('speed',):
+                        speeds = []
+                        speeds += self.incoming[tls][prev][1] \
+                                 if prev in self.incoming[tls] else []
+                        speeds += self.outgoing[tls][prev][1] \
+                                 if prev in self.outgoing[tls] else []
+
+                        self.memo_speeds[tls][prev] = \
+                            0.0 if not any(speeds) else round(np.mean(speeds), 2)
+                        value = np.mean(list(self.memo_speeds[tls].values()))
+                    else:
+                        raise ValueError('Label not found')
+
+                    data.append(value)
+
+            self.memo_observation_space[prev] = tuple(data)
+        return self.memo_observation_space[prev]
 
     def get_state(self):
         """See class definition."""
@@ -433,6 +484,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 self.prev_state = self.get_state()
                 self.prev_action = rl_action
             self.memo_rewards = {}
+            self.memo_observation_space = {}
 
         #  _apply_rl_actions -- actions have to be on integer format
         idx = self._to_index(self.control_actions(static=False))
