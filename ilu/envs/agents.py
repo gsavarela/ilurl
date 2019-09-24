@@ -342,10 +342,16 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                         self.memo_flows[tls][prev] = \
                             (veh_set | prev_veh_set) - (prev_veh_set & old_veh_set)
 
-                        value = np.mean([
-                            len(veh_ids)
-                            for veh_ids in self.memo_flows[tls].values()
-                        ])
+                        # mean of cum flow ?
+                        # value = np.mean([
+                        #     len(veh_ids)
+                        #     for veh_ids in self.memo_flows[tls].values()
+                        # ])
+                        # Make the average between cycles
+                        t =  max(self.duration, self.sim_step) \
+                             if self.step_counter * self.sim_step < self.cycle_time \
+                             else self.cycle_time
+                        value = len(self.memo_flows[tls][prev]) / t
 
                     elif label in ('queue',):
                         # vehicles are slowing :
@@ -501,6 +507,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             self.prev_state = state
             self.prev_action = rl_action
 
+            print(self.get_observation_space())
         self.duration = round(
             self.duration + self.sim_step,
             2,

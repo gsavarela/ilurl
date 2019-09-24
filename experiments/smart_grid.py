@@ -241,6 +241,7 @@ def smart_grid_example(render=None,
                          states=('flow', 'queue'),
                          rewards={'type': 'score', 'costs': None},
                          num_traffic_lights=n_columns * n_rows,
+                         c=10,
                          choice_type='ucb')
     env = TrafficLightQLGridEnv(env_params, sim_params, ql_params, scenario)
 
