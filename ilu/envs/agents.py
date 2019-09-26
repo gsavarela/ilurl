@@ -309,7 +309,12 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                 if self.step_counter > 1 else 0.0, 2)
         prev = delay(self.duration)
 
-        if prev not in self.memo_observation_space or self.step_counter <= 2:
+        if (prev not in self.memo_observation_space) or self.step_counter <= 2:
+            # Make the average between cycles
+            t =  max(self.duration, self.sim_step) \
+                 if self.step_counter * self.sim_step < self.cycle_time \
+                 else self.cycle_time
+
             for tls in range(self.num_traffic_lights):
 
                 for label in self.ql_params.states_labels:
@@ -347,10 +352,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                         #     len(veh_ids)
                         #     for veh_ids in self.memo_flows[tls].values()
                         # ])
-                        # Make the average between cycles
-                        t =  max(self.duration, self.sim_step) \
-                             if self.step_counter * self.sim_step < self.cycle_time \
-                             else self.cycle_time
                         value = len(self.memo_flows[tls][prev]) / t
 
                     elif label in ('queue',):
@@ -360,10 +361,10 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                                   if prev in self.incoming[tls] else []
 
                         queue = [q for q in queue
-                                 if q < 0.15 * self.k.scenario.max_speed()]
+                                 if q < 0.10 * self.k.scenario.max_speed()]
 
                         self.memo_queue[tls][prev] = len(queue)
-                        value = np.mean(list(self.memo_queue[tls].values()))
+                        value = np.mean(list(self.memo_queue[tls].values())) / t
 
                     elif label in ('speed',):
                         speeds = []
@@ -378,7 +379,7 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
                     else:
                         raise ValueError('Label not found')
 
-                    data.append(value)
+                    data.append(round(value, 2))
 
             self.memo_observation_space[prev] = tuple(data)
         return self.memo_observation_space[prev]
@@ -507,7 +508,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             self.prev_state = state
             self.prev_action = rl_action
 
-            print(self.get_observation_space())
         self.duration = round(
             self.duration + self.sim_step,
             2,

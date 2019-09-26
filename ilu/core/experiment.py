@@ -143,6 +143,9 @@ class Experiment:
 
             def rl_actions(*_):
                 return None
+        #  duration flags where in the current phase
+        #  the syncronous agent is.
+        is_synch = hasattr(self.env, "duration")
 
         rets = []
         mean_rets = []
@@ -151,6 +154,7 @@ class Experiment:
         mean_vels = []
         std_vels = []
         outflows = []
+        observation_spaces = []
 
         for i in range(num_runs):
             vel = np.zeros(num_steps)
@@ -173,6 +177,9 @@ class Experiment:
                 ret += reward
                 ret_list.append(round(reward, 2))
 
+                if is_synch and self.env.duration == 0.0 and j > 0:
+                    observation_spaces.append(list(self.env.get_observation_space()))
+
                 if done:
                     break
 
@@ -184,7 +191,7 @@ class Experiment:
             mean_vels.append(round(np.mean(vel), 2))
             std_vels.append(round(np.std(vel), 2))
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
-
+            
             print(f"""
                     Round {i}\treturn: {ret}\tavg speed:{mean_vels[-1]}
                   """)
@@ -199,6 +206,7 @@ class Experiment:
         info_dict["mean_returns"] = mean_rets
         info_dict["per_step_returns"] = ret_lists
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
+        info_dict["observation_spaces"] = observation_spaces
 
         print("Average, std return: {}, {}".format(np.mean(rets),
                                                    np.std(rets)))
