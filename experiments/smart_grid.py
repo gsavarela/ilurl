@@ -14,7 +14,7 @@ from ilu.envs.agents import TrafficLightQLGridEnv
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
-NUM_ITERATIONS = 250
+NUM_ITERATIONS = 30
 SHORT_CYCLE_TIME = 31
 LONG_CYCLE_TIME = 45
 SWITCH_TIME = 6

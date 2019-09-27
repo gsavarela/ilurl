@@ -198,20 +198,33 @@ class QLParams:
         else:
             return 1
 
-    def _categorize_flow(self, flow):
-        """Converts a int flow into a category"""
-        if flow >= 6:
-            return 2
-        elif flow == 0:
-            return 0
-        else:
-            return 1
+    def _categorize_flow(self, flow_per_cycle):
+        """Converts float flow into a category
 
-    def _categorize_queue(self, queue):
-        """Converts a int queue into a category"""
-        if queue >= 6:
+            UPDATES:
+            -------
+            2017-09-27 histogram analysis sugest the following
+            breakdowns for the quantiles of 20% and 75% for
+            the varable flow_per_cyle
+        """
+        if flow_per_cycle > .5067: # Top 25% data-points
             return 2
-        elif queue == 0:
-            return 0
-        else:
+
+        if flow_per_cycle > .2784:  # Average 20% -- 75%  data-points
             return 1
+        return 0  # Bottom 20% data-points
+
+    def _categorize_queue(self, queue_per_cycle):
+        """Converts float queue into a category
+
+            UPDATES:
+            -------
+            2017-09-27 histogram analysis sugest the following
+            breakdowns for the quantiles of 20% and 75% for
+            the varable queue_per_cyle
+        """
+        if queue_per_cycle > .2002:  # Top 25% data-points
+            return 2
+        if queue_per_cycle > .1042:  # Average 20% -- 75%  data-points
+            return 1
+        return 0  # Bottom 20% data-points
