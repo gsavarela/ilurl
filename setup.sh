@@ -32,3 +32,4 @@ echo "$(sumo --version)"
 cd $HOME/ilu && pip install -r requirements.txt && pip install -e .
 # Run a sumo test
 python -m unittest discover tests/
+deactivate
