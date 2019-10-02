@@ -4,7 +4,8 @@
 # TODO: include other environments
 
 
-sudo apt-get install virtualenv
+# virtualenv for python and libsm6 for sumo
+sudo apt-get install -y virtualenv libsm6
 mkdir $HOME/venvs/
 virtualenv -p python3 $HOME/venvs/ilurl
 source $HOME/venvs/ilurl/bin/activate
@@ -12,20 +13,18 @@ source $HOME/venvs/ilurl/bin/activate
 
 
 # Install FLOW
-# this is the last tested version of flow
-git clone https://github.com/flow-project/flow.git && cd $HOME/flow &&\
-git checkout 5b30957047b &&\
-pip install -e .
+# this is the lastest tested version of flow
+git clone https://github.com/flow-project/flow.git $HOME/flow &&\
+cd $HOME/flow && git checkout 5b30957047b && pip install -e .
 
-# Install flow package
+# Install SUMO
 # Get distro version and select proper script
 # assumption this distro is ubuntu1804
-chmod +x scripts/setup_sumo_ubuntu1804.sh
-./scripts/setup_sumo_ubuntu1804.sh
+chmod +x $HOME/flow/scripts/setup_sumo_ubuntu1804.sh &&\
+$HOME/flow/scripts/setup_sumo_ubuntu1804.sh && cd $HOME
 
 # Proof to the user everything is up-to-date
-source $HOME/.bashrc
-echo "$(which sumo)"
+source $HOME/.bashrc && echo "$(which sumo)"
 echo "$(sumo --version)"
 
 # Install ilu as a package 
