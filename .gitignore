@@ -7,6 +7,10 @@
 #macos nonsensical files
 *.DS_Store
 
+#prevent data/points to into repo
+*data/
+!ilu/data
+
 #Flow's emission files
 *emission.xml
 *emission.csv

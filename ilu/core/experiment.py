@@ -247,7 +247,8 @@ class Experiment:
             with open(info_path, 'w') as fj:
                 json.dump(info_dict, fj)
 
-        self.env.dump(os.getcwd())
+        if hasattr(self.env, 'dump'):
+            self.env.dump(os.getcwd())
         return info_dict
 
 
