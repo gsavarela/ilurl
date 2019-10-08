@@ -1,5 +1,6 @@
 """Grid example."""
 import time
+import os
 
 from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
@@ -115,7 +116,11 @@ def get_non_flow_params(enter_speed, add_net_params):
     additional_init_params = {'enter_speed': enter_speed}
     initial = InitialConfig(spacing='custom',
                             additional_params=additional_init_params)
-    net = NetParams(additional_params=add_net_params)
+
+    # assumption os.getcwd() -- is project root
+    template = f"{os.getcwd()}/data/intersection/intersection.net.xml"
+    net = NetParams(template=template,additional_params=add_net_params)
+    # net = NetParams(additional_params=add_net_params)
 
     return initial, net
 
@@ -195,7 +200,6 @@ def smart_grid_example(render=None,
 
     if additional_env_params is None:
         additional_env_params = ADDITIONAL_ENV_PARAMS.copy()
-        additional_env_params['filter_incoming_edges'] = False
         additional_env_params[
             'short_cycle_time'] = SHORT_CYCLE_TIME
         additional_env_params[
