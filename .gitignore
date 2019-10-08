@@ -1,3 +1,9 @@
+# deployment variables
+# This is the virtual environment which should not be copied
+*venv/
+*flow/
+*sumo_binaries/
+
 #macos nonsensical files
 *.DS_Store
 
