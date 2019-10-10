@@ -123,10 +123,7 @@ def get_non_flow_params(enter_speed, add_net_params):
     initial = InitialConfig(spacing='custom',
                             additional_params=additional_init_params)
 
-    # assumption os.getcwd() -- is project root
-    template = f"{os.getcwd()}/data/intersection/intersection.net.xml"
-    net = NetParams(template=template,additional_params=add_net_params)
-    # net = NetParams(additional_params=add_net_params)
+    net = NetParams(additional_params=add_net_params)
 
     return initial, net
 
@@ -246,13 +243,13 @@ def network_example(render=None,
     # TODO: template should be an input variable
     # assumption project gets run from root
     import os
-    template = f'{os.getcwd()}/data/intersection/intersection.net.xml'
+    template = f'{os.getcwd()}/data/networks/intersection.net.xml'
     net_params = NetParams(
         template=template
     )
     env_params = EnvParams()
     initial_config = InitialConfig()
-    sim_params = SumoParams(render=True)
+    sim_params = SumoParams(render=True, sim_step=0.1)
     vehicles = VehicleParams()
     vehicles.add("Human", num_vehicles=10)
     scenario = Scenario(
