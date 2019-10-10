@@ -7,7 +7,7 @@
 #macos nonsensical files
 *.DS_Store
 
-#prevent data/points to into repo
+#prevent sensitive data to into repo
 *data/
 !ilu/data
 
