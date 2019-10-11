@@ -1,10 +1,10 @@
 import unittest
 
-from ilu.core.params import QLParams
+from ilurl.core.params import QLParams
 
 
 class TestQLParamsConstraints(unittest.TestCase):
-    '''Tests  ilu.core.params.QLParams '''
+    '''Tests  ilurl.core.params.QLParams '''
 
     # constraints testing
     def test_alpha_eq0(self):
@@ -35,7 +35,7 @@ class TestQLParamsConstraints(unittest.TestCase):
 
 
 class TestQLParamsAssignments(unittest.TestCase):
-    '''Tests  ilu.core.params.QLParams
+    '''Tests  ilurl.core.params.QLParams
 
     That things are being correctly assigned
     '''

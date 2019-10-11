@@ -1,7 +1,7 @@
 import unittest
 
-from experiments.smart_grid import smart_grid_example
-from ilu.envs.agents import TrafficLightQLGridEnv, ADDITIONAL_TLS_PARAMS
+from examples.smart_grid import smart_grid_example
+from ilurl.envs.green_wave_env import TrafficLightQLGridEnv, ADDITIONAL_TLS_PARAMS
 
 
 class TestGetState(unittest.TestCase):

@@ -9,7 +9,7 @@
 
 #prevent sensitive data to into repo
 *data/
-!ilu/data
+!tests/data
 
 #Flow's emission files
 *emission.xml

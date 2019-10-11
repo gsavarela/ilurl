@@ -7,9 +7,9 @@ from glob import glob
 import pdb
 import dill
 
-from experiments.smart_grid import smart_grid_example
-from ilu.core.experiment import Experiment
-from ilu.envs.agents import TrafficLightQLGridEnv
+from examples.smart_grid import smart_grid_example
+from ilurl.core.experiment import Experiment
+from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
 
 def evaluate(envs):
     for i, env in enumerate(envs):

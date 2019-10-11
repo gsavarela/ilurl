@@ -14,10 +14,10 @@ from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
 from flow.envs import TestEnv
 from flow.scenarios.grid import SimpleGridScenario
 from flow.scenarios import Scenario
-from ilu.benchmarks.grid import grid_example
-from ilu.core.experiment import Experiment
-from ilu.core.params import QLParams
-from ilu.envs.agents import TrafficLightQLGridEnv
+from ilurl.benchmarks.grid import grid_example
+from ilurl.core.experiment import Experiment
+from ilurl.core.params import QLParams
+from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500

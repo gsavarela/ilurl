@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from ilu.utils.serialize import Serializer
+from ilurl.utils.serialize import Serializer
 
 
 class TestSerialization(unittest.TestCase):

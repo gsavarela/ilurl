@@ -15,7 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # current project dependencies
-from ilu.envs.agents import TrafficLightQLGridEnv
+from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
 
 # Retrieves output data
 filename = "smart-grid_20191001-1737031569947823.294037.info.json"

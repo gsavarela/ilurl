@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="ilu",
+    name="ilurl",
     version="0.3.0",
     author="Guilherme Varela",
     author_email="guilhermevarela@hotmail.com",

@@ -1,7 +1,7 @@
 """Objects that define the various meta-parameters of an experiment."""
 from collections import namedtuple
-from ilu.ql.reward import REWARD_TYPES
-from ilu.ql.choice import CHOICE_TYPES
+from ilurl.core.ql.reward import REWARD_TYPES
+from ilurl.core.ql.choice import CHOICE_TYPES
 
 STATE_FEATURES = ('speed', 'count', 'flow', 'queue')
 ACTIONS = ('fast_slow_green', )

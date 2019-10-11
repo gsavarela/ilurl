@@ -11,10 +11,10 @@ import pdb
 
 from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
-from ilu.ql.dpq import DPQ
-from ilu.ql.reward import RewardCalculator
-from ilu.utils.decorators import logger
-from ilu.utils.serialize import Serializer
+from ilurl.core.ql.dpq import DPQ
+from ilurl.core.ql.reward import RewardCalculator
+from ilurl.utils.decorators import logger
+from ilurl.utils.serialize import Serializer
 
 QL_PARAMS = {
     # epsilon is the chance to adopt a random action instead of

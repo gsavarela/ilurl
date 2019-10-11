@@ -1,7 +1,7 @@
 import unittest
 
-from ilu.core.params import QLParams
-from ilu.ql.reward import RewardCalculator
+from ilurl.core.params import QLParams
+from ilurl.core.ql.reward import RewardCalculator
 
 
 class TestRewardCalculator(unittest.TestCase):

@@ -1,7 +1,7 @@
-from ilu.core.params import QLParams
-from ilu.ql.choice import choice_eps_greedy, choice_ucb
-from ilu.ql.define import dpq_tls
-from ilu.ql.update import dpq_update
+from ilurl.core.params import QLParams
+from ilurl.core.ql.choice import choice_eps_greedy, choice_ucb
+from ilurl.core.ql.define import dpq_tls
+from ilurl.core.ql.update import dpq_update
 
 
 class DPQ(object):

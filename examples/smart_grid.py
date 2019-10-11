@@ -8,10 +8,10 @@ from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               TrafficLightParams, VehicleParams)
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
 from flow.scenarios.grid import SimpleGridScenario
-from ilu.benchmarks.grid import grid_example
-from ilu.core.experiment import Experiment
-from ilu.core.params import QLParams
-from ilu.envs.agents import TrafficLightQLGridEnv
+from ilurl.benchmarks.grid import grid_example
+from ilurl.core.experiment import Experiment
+from ilurl.core.params import QLParams
+from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
@@ -118,9 +118,9 @@ def get_non_flow_params(enter_speed, add_net_params):
                             additional_params=additional_init_params)
 
     # assumption os.getcwd() -- is project root
-    template = f"{os.getcwd()}/data/intersection/intersection.net.xml"
-    net = NetParams(template=template,additional_params=add_net_params)
-    # net = NetParams(additional_params=add_net_params)
+    # template = f"{os.getcwd()}/data/topology/intersection/intersection.net.xml"
+    # net = NetParams(template=template,additional_params=add_net_params)
+    net = NetParams(additional_params=add_net_params)
 
     return initial, net
 

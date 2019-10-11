@@ -3,8 +3,8 @@ import pickle
 import unittest
 
 import numpy as np
-from ilu.core.params import QLParams, Bounds
-from ilu.ql.dpq import DPQ
+from ilurl.core.params import QLParams, Bounds
+from ilurl.core.ql.dpq import DPQ
 
 
 class TestDPQUpdate(unittest.TestCase):

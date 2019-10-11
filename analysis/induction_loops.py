@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ilu.loaders.induction_loops import get_induction_loops
+from ilurl.loaders.induction_loops import get_induction_loops
 
 def remove_time(x):
     return x.split(' ')[0]
