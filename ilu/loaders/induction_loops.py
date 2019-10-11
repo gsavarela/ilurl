@@ -5,11 +5,11 @@ __date__ = '2019-10-08'
 import pandas as pd
 
 
-def get_network():
+def get_induction_loops():
     """
         USAGE:
         ======
-        >>> df = get_network()
+        >>> df = get_induction_loops()
         >>> df.head()
                                        Count
         Data                ID_Espira
@@ -28,7 +28,7 @@ def get_network():
         10-02-2018 00:00:00 3:9          103
         09-03-2018 00:00:00 3:9          142
     """
-    df = pd.read_csv('data/points/points.csv', sep=',', header=0)
+    df = pd.read_csv('data/sensors/induction_loops.csv', sep=',', header=0)
     del df['Contadores']
     df['ID_Espira'] = df['Zona'].apply(str) + ':' + df['ID_Espira'].replace(regex='[a-zA-Z]', value='')
     del df['Zona']
@@ -46,9 +46,10 @@ def get_network():
     df = df.set_index(['Data', 'ID_Espira'])
     df = df.sort_values(['Data','ID_Espira'], axis=0)
     return df
+
 if __name__ == '__main__':
     # builds a tick graph
-    df = get_network()
+    df = get_induction_loops()
     df = df[df.index.get_level_values('ID_Espira') == '3:9']
     df.reset_index(inplace=True)
     del df['ID_Espira']
