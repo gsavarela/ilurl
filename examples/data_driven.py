@@ -10,8 +10,7 @@ from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
-from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
-from flow.envs import TestEnv
+from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 from flow.scenarios.grid import SimpleGridScenario
 from flow.scenarios import Scenario
 from ilurl.benchmarks.grid import grid_example
@@ -27,43 +26,13 @@ LONG_CYCLE_TIME = 45
 SWITCH_TIME = 6
 
 
-def gen_edges(col_num, row_num):
-    """Generate the names of the outer edges in the grid network.
-
-    Parameters
-    ----------
-    col_num : int
-        number of columns in the grid
-    row_num : int
-        number of rows in the grid
-
-    Returns
-    -------
-    list of str
-        names of all the outer edges
-    """
-    edges = []
-
-    # build the left and then the right edges
-    for i in range(col_num):
-        edges += ['left' + str(row_num) + '_' + str(i)]
-        edges += ['right' + '0' + '_' + str(i)]
-
-    # build the bottom and then top edges
-    for i in range(row_num):
-        edges += ['bot' + str(i) + '_' + '0']
-        edges += ['top' + str(i) + '_' + str(col_num)]
-
-    return edges
-
-
-def get_flow_params(col_num, row_num, additional_net_params):
+def get_flow_params(flow_sources, additional_net_params):
     """Define the network and initial params in the presence of inflows.
 
     Parameters
     ----------
-    col_num : int
-        number of columns in the grid
+    flow_sources: list of strings
+        ids from the edges in which the vehicles come from
     row_num : int
         number of rows in the grid
     additional_net_params : dict
@@ -82,16 +51,15 @@ def get_flow_params(col_num, row_num, additional_net_params):
                             shuffle=True)
 
     inflow = InFlows()
-    outer_edges = gen_edges(col_num, row_num)
-    for i in range(len(outer_edges)):
+    for i in range(len(flow_sources)):
         inflow.add(veh_type='human',
-                   edge=outer_edges[i],
+                   edge=flow_sources[i],
                    probability=0.25,
-                   departLane='free',
-                   departSpeed=20)
+                   depart_lane='free',
+                   depart_speed=20)
 
     net = NetParams(inflows=inflow,
-                    no_internal_links=False,
+                    template=f'{os.getcwd()}/data/networks/intersection.net.xml',
                     additional_params=additional_net_params)
 
     return initial, net
@@ -123,7 +91,9 @@ def get_non_flow_params(enter_speed, add_net_params):
     initial = InitialConfig(spacing='custom',
                             additional_params=additional_init_params)
 
-    net = NetParams(additional_params=add_net_params)
+    net = NetParams(
+        template= f'{os.getcwd()}/data/networks/intersection.net.xml',
+        additional_params=add_net_params)
 
     return initial, net
 
@@ -151,6 +121,7 @@ def network_example(render=None,
         vehicles and balanced traffic lights on a grid.
     """
     v_enter = 10
+    tot_cars = 160
     # inner_length = 300
     # long_length = 500
     # short_length = 300
@@ -176,135 +147,107 @@ def network_example(render=None,
     #     "cars_bot": num_cars_bot
     # }
 
-    # net_params = NetParams(
-    #     template=
-    # )
-    # if render is None:
-    #     sim_params = SumoParams(sim_step=sim_step,
-    #                             render=False,
-    #                             print_warnings=False,
-    #                             emission_path=emission_path)
+    if render is None:
+        sim_params = SumoParams(sim_step=sim_step,
+                                render=False,
+                                print_warnings=False,
+                                emission_path=emission_path)
 
-    # else:
-    #     sim_params = SumoParams(sim_step=sim_step,
-    #                             render=render,
-    #                             print_warnings=False,
-    #                             emission_path=emission_path)
+    else:
+        sim_params = SumoParams(sim_step=sim_step,
+                                render=render,
+                                print_warnings=False,
+                                emission_path=emission_path)
 
-    # if render is not None:
-    #     sim_params.render = render
+    if render is not None:
+        sim_params.render = render
 
-    # vehicles = VehicleParams()
-    # vehicles.add(
-    #     veh_id="human",
-    #     routing_controller=(GridRouter, {}),
-    #     car_following_params=SumoCarFollowingParams(
-    #         min_gap=2.5,
-    #         decel=7.5,  # avoid collisions at emergency stops
-    #     ),
-    #     num_vehicles=tot_cars)
+    vehicles = VehicleParams()
+    vehicles.add(
+        veh_id="human",
+        routing_controller=(GridRouter, {}),
+        car_following_params=SumoCarFollowingParams(
+            min_gap=2.5,
+            decel=7.5,  # avoid collisions at emergency stops
+        ),
+        num_vehicles=tot_cars)
 
-    # if additional_env_params is None:
-    #     additional_env_params = ADDITIONAL_ENV_PARAMS.copy()
-    #     additional_env_params[
-    #         'short_cycle_time'] = SHORT_CYCLE_TIME
-    #     additional_env_params[
-    #         'long_cycle_time'] = LONG_CYCLE_TIME
+    env_params = EnvParams(horizon=HORIZON,
+                           additional_params=ADDITIONAL_ENV_PARAMS)
 
-    # additional_env_params.update({
-    #     # minimum switch time for each traffic light (in seconds)
-    #     "switch_time": SWITCH_TIME,
-    #     # whether the traffic lights should be actuated by sumo or RL
-    #     # options are "controlled" and "actuated"
-    #     "tl_type": "controlled",
-    #     # determines whether the action space is meant to be discrete or continuous
-    #     "discrete": True,
-    # })
 
-    # env_params = EnvParams(horizon=HORIZON,
-    #                        additional_params=additional_env_params)
 
-    # additional_net_params = {
-    #     "grid_array": grid_array,
-    #     "speed_limit": 35,
-    #     "horizontal_lanes": 1,
-    #     "vertical_lanes": 1
-    # }
+    tl_logic = TrafficLightParams(baseline=False)
+    # phases = [{
+    #     "duration": "31",
+    #     "minDur": "8",
+    #     "maxDur": "45",
+    #     "state": "GrGrGrGrGrGr"
+    # }, {
+    #     "duration": "6",
+    #     "minDur": "3",
+    #     "maxDur": "6",
+    #     "state": "yryryryryryr"
+    # }, {
+    #     "duration": "31",
+    #     "minDur": "8",
+    #     "maxDur": "45",
+    #     "state": "rGrGrGrGrGrG"
+    # }, {
+    #     "duration": "6",
+    #     "minDur": "3",
+    #     "maxDur": "6",
+    #     "state": "ryryryryryry"
+    # }]
+    # # Junction ids
+    # tl_logic.add("247123161", phases=phases, programID=1)
+    # tl_logic.add("247123374", phases=phases, programID=1)
+    # tl_logic.add("center2", phases=phases, programID=1, tls_type="actuated")
 
-    # if use_inflows:
-    #     initial_config, net_params = get_flow_params(
-    #         col_num=n_columns,
-    #         row_num=n_rows,
-    #         additional_net_params=additional_net_params)
-    # else:
-    #     initial_config, net_params = get_non_flow_params(
-    #         enter_speed=v_enter, add_net_params=additional_net_params)
+    # Define flow
+    # lookup ids
+    additional_net_params = {
+        'template': f'{os.getcwd()}/data/networks/intersection.net.xml',
+        "speed_limit": 35
+    }
+
+    edge_ids = [
+        "309265401#0",
+        "-306967025#2",
+        "96864982#0",
+        "309265398#0"
+    ]
+    if use_inflows:
+        initial_config, net_params = get_flow_params(
+            edge_ids,
+            additional_net_params=additional_net_params)
+    else:
+        initial_config, net_params = get_non_flow_params(
+            enter_speed=v_enter, add_net_params=additional_net_params)
 
     # TODO: template should be an input variable
     # assumption project gets run from root
-    import os
-    template = f'{os.getcwd()}/data/networks/intersection.net.xml'
-    net_params = NetParams(
-        template=template
-    )
-    env_params = EnvParams()
-    initial_config = InitialConfig()
-    sim_params = SumoParams(render=True, sim_step=0.1)
-    vehicles = VehicleParams()
-    vehicles.add("Human", num_vehicles=10)
     scenario = Scenario(
         name="intersection",
         vehicles=vehicles,
         net_params=net_params,
         initial_config=initial_config,
-        traffic_lights=TrafficLightParams(baseline=True))
+        traffic_lights=tl_logic)
 
-    env = TestEnv(
+    env = AccelEnv(
         env_params=env_params,
         sim_params=sim_params,
         scenario=scenario)
 
     exp = Experiment(env)
-    # ql_params = QLParams(epsilon=0.10, alpha=0.05,
-    #                      states=('flow', 'queue'),
-    #                      rewards={'type': 'score', 'costs': None},
-    #                      num_traffic_lights=n_columns * n_rows,
-    #                      c=10,
-    #                      choice_type='ucb')
-    # env = TrafficLightQLGridEnv(env_params, sim_params, ql_params, scenario)
 
     return Experiment(env)
 
 
 if __name__ == "__main__":
-    exp = network_example()
+    exp = network_example(
+        render=True,
+        use_inflows=True
+    )
 
     exp.run(NUM_ITERATIONS, HORIZON)
-    # # import the experiment variable
-    # import os
-    # import json
-    # # print('running grid_intersection')
-    # # start = time.time()
-    # # exp = grid_example(
-    # #     short_cycle_time=SHORT_CYCLE_TIME,
-    # #     long_cycle_time=LONG_CYCLE_TIME,
-    # #     switch_time=SWITCH_TIME,
-    # #     render=False,
-    # #     emission_path=None)
-
-    # # grid_dict = exp.run(NUM_ITERATIONS, HORIZON)
-
-    # print('running smart_grid')
-    # start = time.time()
-    # exp = smart_grid_example(render=False, emission_path=None)
-    # # de-serialize data
-    # # env = TrafficLightQLGridEnv.load(pickle_path)
-    # # run for a set number of rollouts / time steps
-    # info_dict = exp.run(NUM_ITERATIONS, HORIZON)
-    # print(time.time() - start)
-    # # serialize data
-    # # UNCOMMENT to serialize
-    # exp.env.dump(os.getcwd())
-    # infoname = '{}.info.json'.format(exp.env.scenario.name)
-    # with open(infoname, 'w') as f:
-    #     json.dump(info_dict, f)
