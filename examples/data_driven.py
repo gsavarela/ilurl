@@ -12,13 +12,11 @@ from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
 
+from flow.envs import TestEnv
 from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 from flow.scenarios import Scenario
 
-from ilurl.benchmarks.grid import grid_example
 from ilurl.core.experiment import Experiment
-from ilurl.core.params import QLParams
-from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
@@ -30,6 +28,7 @@ SWITCH_TIME = 6
 
 # feed SOURCES to InitialConfig
 # on edges distribution
+EDGES_DISTRIBUTION = ["309265401#0"]
 SOURCES = [
     "309265401#0",
     "-238059324#1",
@@ -56,18 +55,34 @@ class IntersectionScenario(Scenario):
 
     def specify_routes(self, net_params):
         rts = {
-            "309265401#0": [(["238059324#0"], 0.5),
-                            (["238059328#0", "306967025#0"], 0.5)],
-            "-238059324#1": [(["-309265401#2"], 0.5),
-                             (["238059328#0", "306967025#0"], 0.5)],
-            "96864982#0": [(["96864982#1", "392619842", "238059324#0"], 0.5),
-                           (["96864982#1", "392619842", "238059328#0",
-                             "306967025#0"], 0.5)],
-            "309265398#0": [(["-306967025#2"], 0.5),
-                            (["-238059328#2", "-238059328#2"], 0.5)]
+            "309265401#0": ["238059328#0", "306967025#0"]
         }
         return rts
 
+    def specify_edge_starts(self):
+        sts = [("309265401#0", 77.4)]
+
+        return sts
+
+    # probabilistic initializations
+    # def specify_routes(self, net_params):
+    #     rts = {
+    #         "309265401#0": [(["238059324#0"], 0.5),
+    #                         (["238059328#0", "306967025#0"], 0.5)],
+    #         "-238059324#1": [(["-309265401#2"], 0.5),
+    #                          (["238059328#0", "306967025#0"], 0.5)],
+    #         "96864982#0": [(["96864982#1", "392619842", "238059324#0"], 0.5),
+    #                        (["96864982#1", "392619842", "238059328#0",
+    #                          "306967025#0"], 0.5)],
+    #         "309265398#0": [(["-306967025#2"], 0.5),
+    #                         (["-238059328#2", "-238059328#2"], 0.5)]
+    #     }
+    #     return rts
+
+    # def specify_edge_starts(self):
+    #     sts = [("309265401#0", 0), ("-238059324#1", 0),
+    #            ("96864982#0", 0), ("309265398#0", 0)]
+    #     return sts
 
 def get_flow_params(flow_sources, additional_net_params):
     """Define the network and initial params in the presence of inflows.
@@ -96,8 +111,10 @@ def get_flow_params(flow_sources, additional_net_params):
 
 
     # as per tutorial
-    initial = InitialConfig(edges_distribution=SOURCES,
-                            spacing='random')
+
+    initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION)
+    # initial = InitialConfig(edges_distribution=SOURCES,
+    #                         spacing='random')
     inflow = InFlows()
     for i in range(len(flow_sources)):
         inflow.add(veh_type='human',
@@ -136,9 +153,11 @@ def get_non_flow_params(enter_speed, add_net_params):
         network-specific parameters used to generate the scenario
     """
     add_net_params.update({'enter_speed': enter_speed})
-    initial = InitialConfig(edges_distribution=SOURCES,
-                            spacing='random',
-                            additional_params=add_net_params)
+
+    initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION)
+    # initial = InitialConfig(edges_distribution=SOURCES,
+    #                         spacing='random',
+    #                         additional_params=add_net_params)
 
     net = NetParams(
         template=f'{os.getcwd()}/data/networks/intersection.net.xml',
@@ -172,7 +191,7 @@ def network_example(render=None,
     """
     v_enter = 10
     # tot_cars = 160
-    tot_cars = 10
+    tot_cars = 1
     if render is None:
         sim_params = SumoParams(sim_step=sim_step,
                                 render=False,
