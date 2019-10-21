@@ -5,14 +5,16 @@ __date__ = '2019-10-08'
 
 import time
 import os
+# from IPython.core.debugger import Pdb
 
 from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
+
 from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
-from flow.scenarios.grid import SimpleGridScenario
 from flow.scenarios import Scenario
+
 from ilurl.benchmarks.grid import grid_example
 from ilurl.core.experiment import Experiment
 from ilurl.core.params import QLParams
@@ -24,6 +26,47 @@ NUM_ITERATIONS = 5
 SHORT_CYCLE_TIME = 31
 LONG_CYCLE_TIME = 45
 SWITCH_TIME = 6
+# debugger = Pdb()
+
+# feed SOURCES to InitialConfig
+# on edges distribution
+SOURCES = [
+    "309265401#0",
+    "-238059324#1",
+    "96864982#0",
+    "309265398#0"
+]
+SINKS = [
+    "-309265401#2",
+    "306967025#0",
+    "238059324#0",
+]
+
+EDGES = ["212788159_0", "247123161_0", "247123161_1", "247123161_3",
+         "247123161_14", "247123161_4", "247123161_5", "247123161_6",
+         "247123161_15", "247123161_7", "247123161_8", "247123161_10",
+         "247123161_16", "247123161_11", "247123161_12", "247123161_13",
+         "247123161_17", "247123367_0", "247123367_1", "247123374_0",
+         "247123374_1", "247123374_3", "247123374_9", "247123374_4",
+         "247123374_5", "247123374_6", "247123374_7", "247123449_0",
+         "247123449_2", "247123449_1", "247123464_0", "3928875116_0"]
+
+
+class IntersectionScenario(Scenario):
+
+    def specify_routes(self, net_params):
+        rts = {
+            "309265401#0": [(["238059324#0"], 0.5),
+                            (["238059328#0", "306967025#0"], 0.5)],
+            "-238059324#1": [(["-309265401#2"], 0.5),
+                             (["238059328#0", "306967025#0"], 0.5)],
+            "96864982#0": [(["96864982#1", "392619842", "238059324#0"], 0.5),
+                           (["96864982#1", "392619842", "238059328#0",
+                             "306967025#0"], 0.5)],
+            "309265398#0": [(["-306967025#2"], 0.5),
+                            (["-238059328#2", "-238059328#2"], 0.5)]
+        }
+        return rts
 
 
 def get_flow_params(flow_sources, additional_net_params):
@@ -46,10 +89,15 @@ def get_flow_params(flow_sources, additional_net_params):
     flow.core.params.NetParams
         network-specific parameters used to generate the scenario
     """
-    initial = InitialConfig(spacing='custom',
-                            lanes_distribution=float('inf'),
-                            shuffle=True)
+    # initial = InitialConfig(edges_distribution=SOURCES,
+    #                         spacing='random',
+    #                         lanes_distribution=float('inf'),
+    #                         shuffle=True)
 
+
+    # as per tutorial
+    initial = InitialConfig(edges_distribution=SOURCES,
+                            spacing='random')
     inflow = InFlows()
     for i in range(len(flow_sources)):
         inflow.add(veh_type='human',
@@ -87,12 +135,13 @@ def get_non_flow_params(enter_speed, add_net_params):
     flow.core.params.NetParams
         network-specific parameters used to generate the scenario
     """
-    additional_init_params = {'enter_speed': enter_speed}
-    initial = InitialConfig(spacing='custom',
-                            additional_params=additional_init_params)
+    add_net_params.update({'enter_speed': enter_speed})
+    initial = InitialConfig(edges_distribution=SOURCES,
+                            spacing='random',
+                            additional_params=add_net_params)
 
     net = NetParams(
-        template= f'{os.getcwd()}/data/networks/intersection.net.xml',
+        template=f'{os.getcwd()}/data/networks/intersection.net.xml',
         additional_params=add_net_params)
 
     return initial, net
@@ -110,6 +159,7 @@ def network_example(render=None,
     ----------
     render: bool, optional
         specifies whether to use the gui during execution
+
     use_inflows : bool, optional
         set to True if you would like to run the experiment with inflows of
         vehicles from the edges, and False otherwise
@@ -121,32 +171,8 @@ def network_example(render=None,
         vehicles and balanced traffic lights on a grid.
     """
     v_enter = 10
-    tot_cars = 160
-    # inner_length = 300
-    # long_length = 500
-    # short_length = 300
-    # n_rows = 2
-    # # n_columns = 3
-    # n_columns = 2
-    # num_cars_left = 20
-    # num_cars_right = 20
-    # num_cars_top = 20
-    # num_cars_bot = 20
-    # tot_cars = (num_cars_left + num_cars_right) * n_columns \
-    #     + (num_cars_top + num_cars_bot) * n_rows
-
-    # grid_array = {
-    #     "short_length": short_length,
-    #     "inner_length": inner_length,
-    #     "long_length": long_length,
-    #     "row_num": n_rows,
-    #     "col_num": n_columns,
-    #     "cars_left": num_cars_left,
-    #     "cars_right": num_cars_right,
-    #     "cars_top": num_cars_top,
-    #     "cars_bot": num_cars_bot
-    # }
-
+    # tot_cars = 160
+    tot_cars = 10
     if render is None:
         sim_params = SumoParams(sim_step=sim_step,
                                 render=False,
@@ -211,12 +237,17 @@ def network_example(render=None,
         "speed_limit": 35
     }
 
-    edge_ids = [
+    source_edge_ids = [
         "309265401#0",
         "-306967025#2",
         "96864982#0",
         "309265398#0"
     ]
+    sink_edge_ids = {
+        "-309265401#2",
+        "306967025#0",
+        "238059324#0",
+    }
     if use_inflows:
         initial_config, net_params = get_flow_params(
             edge_ids,
@@ -227,13 +258,15 @@ def network_example(render=None,
 
     # TODO: template should be an input variable
     # assumption project gets run from root
-    scenario = Scenario(
+    scenario = IntersectionScenario(
         name="intersection",
         vehicles=vehicles,
         net_params=net_params,
         initial_config=initial_config,
         traffic_lights=tl_logic)
 
+
+    # debugger.set_trace()
     env = AccelEnv(
         env_params=env_params,
         sim_params=sim_params,
@@ -246,8 +279,7 @@ def network_example(render=None,
 
 if __name__ == "__main__":
     exp = network_example(
-        render=True,
-        use_inflows=True
+        render=True
     )
 
     exp.run(NUM_ITERATIONS, HORIZON)
