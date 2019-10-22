@@ -6,14 +6,13 @@ from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
+
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
 from flow.scenarios.grid import SimpleGridScenario
 from ilurl.benchmarks.grid import grid_example
 from ilurl.core.experiment import Experiment
 from ilurl.core.params import QLParams
 from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
-from IPython.core.debugger import Pdb
-debugger = Pdb()
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
@@ -250,7 +249,6 @@ def smart_grid_example(render=None,
                          c=10,
                          choice_type='ucb')
     env = TrafficLightQLGridEnv(env_params, sim_params, ql_params, scenario)
-    debugger.set_trace()
     return Experiment(env)
 
 

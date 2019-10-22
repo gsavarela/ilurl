@@ -11,7 +11,6 @@ from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
 
-from flow.envs import TestEnv
 from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 from flow.scenarios import Scenario
 
@@ -25,12 +24,8 @@ NUM_ITERATIONS = 5
 # on edges distribution
 EDGES_DISTRIBUTION = ["309265401#0", "-306967025#2", "96864982#0",  "-238059324#1"]
 
-SOURCES = [
-    "309265401#0",
-    "-238059324#1",
-    "96864982#0",
-    "309265398#0"
-]
+SOURCES = EDGES_DISTRIBUTION
+
 SINKS = [
     "-309265401#2",
     "306967025#0",
@@ -55,7 +50,14 @@ class IntersectionScenario(Scenario):
             "-306967025#2": ["-306967025#2", "-238059328#2", "-309265401#2"],
             "96864982#0": ["96864982#0", "96864982#1", "392619842",
                            "238059324#0"],
-            "-238059324#1": ["-238059324#1", "-309265401#2"]
+            "-238059324#1": [(["-238059324#1", "-309265401#2"], 0.5),
+                             (["-238059324#1", "238059328#0",
+                               "306967025#0"], 0.5)],
+            "309265398#0": [(["309265398#0", "306967025#0"], 0.33),
+                            (["309265399#0", "96864982#1", "392619842",
+                              "-309265401#2"], 0.33),
+                            (["309265399#0", "96864982#1", "392619842",
+                              "238059324#0"], 0.34)]
         }
         return rts
 
@@ -66,30 +68,11 @@ class IntersectionScenario(Scenario):
             ("-238059328#2", 81.22), ("-309265401#2", 77.4),
             ("96864982#0", 46.05), ("96864982#1", 82.63),
             ("392619842", 22.22), ("238059324#0", 418.00),
-            ("-238059324#1", 418.00)
+            ("-238059324#1", 418.00), ("309265398#0",117.82)
         ]
 
         return sts
 
-    # probabilistic initializations
-    # def specify_routes(self, net_params):
-    #     rts = {
-    #         "309265401#0": [(["238059324#0"], 0.5),
-    #                         (["238059328#0", "306967025#0"], 0.5)],
-    #         "-238059324#1": [(["-309265401#2"], 0.5),
-    #                          (["238059328#0", "306967025#0"], 0.5)],
-    #         "96864982#0": [(["96864982#1", "392619842", "238059324#0"], 0.5),
-    #                        (["96864982#1", "392619842", "238059328#0",
-    #                          "306967025#0"], 0.5)],
-    #         "309265398#0": [(["-306967025#2"], 0.5),
-    #                         (["-238059328#2", "-238059328#2"], 0.5)]
-    #     }
-    #     return rts
-
-    # def specify_edge_starts(self):
-    #     sts = [("309265401#0", 0), ("-238059324#1", 0),
-    #            ("96864982#0", 0), ("309265398#0", 0)]
-    #     return sts
 
 def get_flow_params(additional_net_params):
     """Define the network and initial params in the presence of inflows.
@@ -117,7 +100,7 @@ def get_flow_params(additional_net_params):
                    # probability=0.25,
                    depart_lane='free',
                    depart_speed=20,
-                   vehs_per_hour=100)
+                   vehs_per_hour=200)
 
     net = NetParams(inflows=inflow,
                     template=f'{os.getcwd()}/data/networks/intersection.net.xml',
@@ -266,7 +249,6 @@ def network_example(render=None,
         net_params=net_params,
         initial_config=initial_config,
         traffic_lights=tl_logic)
-
 
     env = AccelEnv(
         env_params=env_params,
