@@ -5,7 +5,6 @@ __date__ = '2019-10-08'
 
 import time
 import os
-# from IPython.core.debugger import Pdb
 
 from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
@@ -21,14 +20,11 @@ from ilurl.core.experiment import Experiment
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
 HORIZON = 1500
 NUM_ITERATIONS = 5
-SHORT_CYCLE_TIME = 31
-LONG_CYCLE_TIME = 45
-SWITCH_TIME = 6
-# debugger = Pdb()
 
 # feed SOURCES to InitialConfig
 # on edges distribution
-EDGES_DISTRIBUTION = ["309265401#0"]
+EDGES_DISTRIBUTION = ["309265401#0", "-306967025#2", "96864982#0",  "-238059324#1"]
+
 SOURCES = [
     "309265401#0",
     "-238059324#1",
@@ -56,12 +52,22 @@ class IntersectionScenario(Scenario):
     def specify_routes(self, net_params):
         rts = {
             "309265401#0": ["309265401#0", "238059328#0", "306967025#0"],
-            "238059328#0": ["306967025#0"]
+            "-306967025#2": ["-306967025#2", "-238059328#2", "-309265401#2"],
+            "96864982#0": ["96864982#0", "96864982#1", "392619842",
+                           "238059324#0"],
+            "-238059324#1": ["-238059324#1", "-309265401#2"]
         }
         return rts
 
     def specify_edge_starts(self):
-        sts = [("309265401#0", 77.4), ("238059328#0", 81.22), ("306967025#0", 131.99)]
+        sts = [
+            ("309265401#0", 77.4), ("238059328#0", 81.22),
+            ("306967025#0", 131.99), ("-306967025#2", 131.99),
+            ("-238059328#2", 81.22), ("-309265401#2", 77.4),
+            ("96864982#0", 46.05), ("96864982#1", 82.63),
+            ("392619842", 22.22), ("238059324#0", 418.00),
+            ("-238059324#1", 418.00)
+        ]
 
         return sts
 
@@ -85,15 +91,11 @@ class IntersectionScenario(Scenario):
     #            ("96864982#0", 0), ("309265398#0", 0)]
     #     return sts
 
-def get_flow_params(flow_sources, additional_net_params):
+def get_flow_params(additional_net_params):
     """Define the network and initial params in the presence of inflows.
 
     Parameters
     ----------
-    flow_sources: list of strings
-        ids from the edges in which the vehicles come from
-    row_num : int
-        number of rows in the grid
     additional_net_params : dict
         network-specific parameters that are unique to the grid
 
@@ -105,24 +107,17 @@ def get_flow_params(flow_sources, additional_net_params):
     flow.core.params.NetParams
         network-specific parameters used to generate the scenario
     """
-    # initial = InitialConfig(edges_distribution=SOURCES,
-    #                         spacing='random',
-    #                         lanes_distribution=float('inf'),
-    #                         shuffle=True)
-
-
-    # as per tutorial
 
     initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION)
-    # initial = InitialConfig(edges_distribution=SOURCES,
-    #                         spacing='random')
+
     inflow = InFlows()
-    for i in range(len(flow_sources)):
+    for i in range(len(EDGES_DISTRIBUTION)):
         inflow.add(veh_type='human',
-                   edge=flow_sources[i],
-                   probability=0.25,
+                   edge=EDGES_DISTRIBUTION[i],
+                   # probability=0.25,
                    depart_lane='free',
-                   depart_speed=20)
+                   depart_speed=20,
+                   vehs_per_hour=100)
 
     net = NetParams(inflows=inflow,
                     template=f'{os.getcwd()}/data/networks/intersection.net.xml',
@@ -156,9 +151,10 @@ def get_non_flow_params(enter_speed, add_net_params):
     add_net_params.update({'enter_speed': enter_speed})
 
     initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION)
-    # initial = InitialConfig(edges_distribution=SOURCES,
-    #                         spacing='random',
-    #                         additional_params=add_net_params)
+
+    # initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION,
+    #                         lanes_distribution=float('inf'),
+    #                         shuffle=True)
 
     net = NetParams(
         template=f'{os.getcwd()}/data/networks/intersection.net.xml',
@@ -192,7 +188,7 @@ def network_example(render=None,
     """
     v_enter = 10
     # tot_cars = 160
-    tot_cars = 1
+    tot_cars = 0
     if render is None:
         sim_params = SumoParams(sim_step=sim_step,
                                 render=False,
@@ -253,25 +249,11 @@ def network_example(render=None,
     # Define flow
     # lookup ids
     additional_net_params = {
-        'template': f'{os.getcwd()}/data/networks/intersection.net.xml',
         "speed_limit": 35
     }
 
-    source_edge_ids = [
-        "309265401#0",
-        "-306967025#2",
-        "96864982#0",
-        "309265398#0"
-    ]
-    sink_edge_ids = {
-        "-309265401#2",
-        "306967025#0",
-        "238059324#0",
-    }
     if use_inflows:
-        initial_config, net_params = get_flow_params(
-            edge_ids,
-            additional_net_params=additional_net_params)
+        initial_config, net_params = get_flow_params(additional_net_params)
     else:
         initial_config, net_params = get_non_flow_params(
             enter_speed=v_enter, add_net_params=additional_net_params)
@@ -286,7 +268,6 @@ def network_example(render=None,
         traffic_lights=tl_logic)
 
 
-    # debugger.set_trace()
     env = AccelEnv(
         env_params=env_params,
         sim_params=sim_params,
@@ -299,7 +280,8 @@ def network_example(render=None,
 
 if __name__ == "__main__":
     exp = network_example(
-        render=True
+        render=True,
+        use_inflows=True
     )
 
     exp.run(NUM_ITERATIONS, HORIZON)
