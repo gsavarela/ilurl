@@ -55,12 +55,13 @@ class IntersectionScenario(Scenario):
 
     def specify_routes(self, net_params):
         rts = {
-            "309265401#0": ["238059328#0", "306967025#0"]
+            "309265401#0": ["309265401#0", "238059328#0", "306967025#0"],
+            "238059328#0": ["306967025#0"]
         }
         return rts
 
     def specify_edge_starts(self):
-        sts = [("309265401#0", 77.4)]
+        sts = [("309265401#0", 77.4), ("238059328#0", 81.22), ("306967025#0", 131.99)]
 
         return sts
 
