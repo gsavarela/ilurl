@@ -9,6 +9,7 @@
 
 #prevent sensitive data to into repo
 *data/
+!data/calendar/*
 !tests/data
 
 #Flow's emission files
