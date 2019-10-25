@@ -47,15 +47,10 @@ def plot_times(times, series, series_labels, xy_labels, title):
      14946371/editing-the-date-formatting-of-x-axis-tick-labels-in-matplotlib
 
     """
-    # time_tick = table['Time'].values
-    # means = table['mean'].values
-    # stds = table['std'].values
-
     num_series = len(series_labels)
     if num_series > 2:
         raise ValueError("Only 1 or 2 series are supported")
 
-    times = [datetime.strptime(tt, "%H:%M:%S") for tt in times]
     time_only_format = mdates.DateFormatter("%H:%M")
     fig, ax = plt.subplots()
     ax.xaxis.set_major_formatter(time_only_format)

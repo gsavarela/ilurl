@@ -24,6 +24,7 @@ def get_holidays():
     df = pd.read_csv("pthol2018.txt", sep=",",
                      parse_dates=True, index_col=0, header=0, encoding="utf-8")
 
+    return df
 
 def get_induction_loops(induction_loops=None, workdays=False):
     """Returns induction loops data from db
@@ -38,10 +39,10 @@ def get_induction_loops(induction_loops=None, workdays=False):
 
     RETURNS:
     --------
-    * df pd.DataFrame
-        index: MultiIndex ("Data", "ID_Espira")
-            "Data": is a datatime representation
-            "ID_Espira": in format <zone_id>:<espira_number>
+    * df pd.DateFrame
+        index: MultiIndex ("Date", "ID_Loop")
+            "Date": is a datatime representation
+            "ID_Loop": in format <zone_id>:<espira_number>
 
         columns:
             "Count":  Reading
@@ -51,17 +52,17 @@ def get_induction_loops(induction_loops=None, workdays=False):
     >>> df = get_induction_loops()
     >>> df.head()
                                    Count
-    Data                ID_Espira
+    Date                ID_Loop
     08-15-2018 00:00:00 3:16         395
                         3:9          496
     08-15-2018 00:15:00 3:16         358
                         3:9          377
     08-15-2018 00:30:00 3:16         365
 
-    >>> series = df[df.index.get_level_values('ID_Espira') == '3:9']
+    >>> series = df[df.index.get_level_values('ID_Loop') == '3:9']
     >>> series.head()
                                    Count
-    Data                ID_Espira
+    Date                ID_Loop
     09-01-2018 00:00:00 3:9          173
     10-01-2018 00:00:00 3:9           79
     09-02-2018 00:00:00 3:9          128
@@ -69,38 +70,38 @@ def get_induction_loops(induction_loops=None, workdays=False):
     09-03-2018 00:00:00 3:9          142
     """
     df = pd.read_csv('data/sensors/induction_loops.csv', sep=',', header=0)
+    df.rename({'Data': 'Date', 'ID_Espira': 'ID_Loop'}, axis=1, inplace=True)
     del df['Contadores']
 
-    df['ID_Espira'] = df['Zona'].apply(str) + ':' + \
-        df['ID_Espira'].replace(regex='[a-zA-Z]', value='')
+    df['ID_Loop'] = df['Zona'].apply(str) + ':' + \
+        df['ID_Loop'].replace(regex='[a-zA-Z]', value='')
     del df['Zona']
 
-    df = df.melt(id_vars=('Data', 'ID_Espira'),
+
+    df = df.melt(id_vars=('Date', 'ID_Loop'),
                  var_name='Time', value_name='Count')
 
-    df['Data'] = pd.to_datetime(df['Data']).dt.strftime('%Y-%m-%d')
-
-    def time_fix(x):
+    def to_timedelta(x):
         h, m = x.split('h')
-        return f'{int(h):02d}:{int(m):02d}:00'
+        return timedelta(hours=int(h), minutes=int(m))
 
-    df['Time'] = df['Time'].apply(time_fix)
-    df['Data'] = df['Data'] + ' ' + df['Time']
-    del df['Time']
-    df = df.set_index(['Data', 'ID_Espira'])
-    df = df.sort_values(['Data','ID_Espira'], axis=0)
+    df['Date'] = pd.to_datetime(df['Date']) + \
+        df['Time'].apply(to_timedelta)
+
+    df = df.set_index(['Date', 'ID_Loop'])
+    df = df.sort_values(['Date','ID_Loop'], axis=0)
+
 
     if induction_loops is not None and any(induction_loops):
         search_index = df.index. \
-                        get_level_values('ID_Espira'). \
+                        get_level_values('ID_Loop'). \
                         isin(induction_loops)
         df = df.loc[search_index, :]
 
     if workdays:
         # filter by workdays
-        search_index = pd.to_datetime(
-                        df.index. \
-                        get_level_values('Data')).dayofweek < 5
+        search_index = df.index. \
+                        get_level_values('Date').dayofweek < 5
 
         df = df.loc[search_index, :]
     return df
@@ -112,12 +113,12 @@ def groupby_induction_loops(df, anchor_date=None, width=5):
 
     PARAMETERS:
     -----------
-    * df: pd.DataFrame
+    * df: pd.DateFrame
         Return from get_induction_loops
 
-        index: MultiIndex ("Data", "ID_Espira")
-            "Data": is a datatime representation
-            "ID_Espira": in format <zone_id>:<espira_number>
+        index: MultiIndex ("Date", "ID_Loop")
+            "Date": is a datatime representation
+            "ID_Loop": in format <zone_id>:<espira_number>
 
         columns:
             "Count":  Reading
@@ -128,13 +129,13 @@ def groupby_induction_loops(df, anchor_date=None, width=5):
 
     RETURNS:
     --------
-    * groupby_df pd.DataFrame
+    * groupby_df pd.DateFrame
         index: DateTime
 
     """
     # handle input argument
     if anchor_date is None:
-        anchor_date = max(df.index.get_level_values("Data"))
+        anchor_date = max(df.index.get_level_values("Date"))
 
     if isinstance(anchor_date, str):
         anchor_date = datetime.strptime(
@@ -153,20 +154,21 @@ def groupby_induction_loops(df, anchor_date=None, width=5):
                 microsecond=0)
 
     # selects only the a window with width
-    index = pd.to_datetime(df.index.get_level_values("Data"))
+    index = df.index.get_level_values("Date")
     search_index = (index >= oldest) & (index < newest)
     df = df.iloc[search_index, :]
     df['Time'] = \
-        pd.to_datetime(df.index.get_level_values("Data")).time
+        df.index.get_level_values("Date").time
     df.reset_index(inplace=True)
 
-    # aggregates "Count" per "Time" while preserving "ID_Espira"
+    # aggregates "Count" per "Time" while preserving "ID_Loop"
     # converts from time to anchor_date
-    df = pd.pivot_table(df, columns='ID_Espira',
+    df = pd.pivot_table(df, columns='ID_Loop',
                         values='Count', index='Time', aggfunc=np.mean)
     df.index = [anchor_date + pd.to_timedelta(str(i)) for i in df.index]
+
     # Rename index to the default names
-    df.index.name = 'Data'
+    df.index.name = 'Date'
     df = df.stack().to_frame()
     df.rename({0: 'Count'}, axis=1, inplace=True)
     return df
@@ -174,24 +176,21 @@ def groupby_induction_loops(df, anchor_date=None, width=5):
 if __name__ == '__main__':
     # builds a tick graph
     df = get_induction_loops()
-    df = df[df.index.get_level_values('ID_Espira') == '3:9']
+    df = df[df.index.get_level_values('ID_Loop') == '3:9']
     assert df.equals(get_induction_loops(('3:9',)))
     assert len(df) > len((get_induction_loops(('3:9',), workdays=True)))
 
     # df.reset_index(inplace=True)
-    # del df['ID_Espira']
-    # df['Data'].replace(regex=' dd:dd:dd', value='', inplace=True)
+    # del df['ID_Loop']
+    # df['Date'].replace(regex=' dd:dd:dd', value='', inplace=True)
     # from matplotlib import pyplot as plt
     # fig, ax = plt.subplots()
     # plt.title('Induction Loop ("Espira") 3:9')
-    # ax.plot_date(df['Data'], df['Count'], marker='', linestyle='-')
+    # ax.plot_date(df['Date'], df['Count'], marker='', linestyle='-')
 
     # fig.autofmt_xdate()
 
     # plt.show()
 
-
     df = groupby_induction_loops(df)
-    from IPython.core.debugger import Pdb
-    debugger = Pdb()
-    debugger.set_trace()
+    print(df.head())

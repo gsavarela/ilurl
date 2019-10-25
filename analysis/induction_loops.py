@@ -6,23 +6,18 @@ __date__ = '2019-10-10'
 
 import pandas as pd
 import numpy as np
-
+from datetime import datetime
 from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.utils.plots import plot_times
 
-
-def remove_time(x):
-    return x.split(' ')[0]
-
-
-def remove_date(x):
-    return x.split(' ')[1]
-
+def datetimeftimedelta(x):
+    hrs, mns = x.components.hours, x.components.minutes
+    return datetime.strptime(f"{hrs:02d}:{mns:02d}:00", "%H:%M:%S")
 
 if __name__ == '__main__':
     df = get_induction_loops()
-    dates = df.index.get_level_values('Data')
-    sensors = df.index.get_level_values('ID_Espira')
+    dates = df.index.get_level_values('Date')
+    sensors = df.index.get_level_values('ID_Loop')
 
     print("x--------------------Header--------------------x")
     print("Start date:", min(dates))
@@ -34,11 +29,11 @@ if __name__ == '__main__':
     print("Per reading")
     print(df['Count'].describe())
 
-
     print("x--------------------Per time--------------------x")
-    df['Time'] = df.index.get_level_values('Data')
-    df['Time'] = df['Time'].apply(remove_date)
+    df['Time'] = pd.to_timedelta(
+        [np.datetime64(d) - np.datetime64(d, 'D') for d in dates])
 
+    df['Time'] = df['Time'].apply(datetimeftimedelta)
     table = pd.pivot_table(df, values='Count', index='Time',
                            aggfunc=(np.mean, np.std)).reset_index()
 
