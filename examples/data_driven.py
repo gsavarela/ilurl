@@ -15,14 +15,18 @@ from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 from flow.scenarios import Scenario
 
 from ilurl.core.experiment import Experiment
+from ilurl.loaders.induction_loops import get_induction_loops
+from ilurl.loaders.induction_loops import groupby_induction_loops
 
 EMISSION_PATH = '/Users/gsavarela/sumo_data/'
-HORIZON = 1500
-NUM_ITERATIONS = 5
+HORIZON = 1200
+NUM_ITERATIONS = 1
 
 # feed SOURCES to InitialConfig
 # on edges distribution
-EDGES_DISTRIBUTION = ["309265401#0", "-306967025#2", "96864982#0",  "-238059324#1"]
+# EDGES_DISTRIBUTION = ["309265401#0", "-306967025#2", "96864982#0",  "-238059324#1"]
+
+EDGES_DISTRIBUTION = ["309265401#0"]
 
 SOURCES = EDGES_DISTRIBUTION
 
@@ -74,12 +78,13 @@ class IntersectionScenario(Scenario):
         return sts
 
 
-def get_flow_params(additional_net_params):
+def get_flow_params(additional_net_params, df=None):
     """Define the network and initial params in the presence of inflows.
 
     Parameters
     ----------
-    additional_net_params : dict
+    * df : pandas.DataFrame
+    * additional_net_params : dict
         network-specific parameters that are unique to the grid
 
     Returns
@@ -94,13 +99,32 @@ def get_flow_params(additional_net_params):
     initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION)
 
     inflow = InFlows()
-    for i in range(len(EDGES_DISTRIBUTION)):
-        inflow.add(veh_type='human',
-                   edge=EDGES_DISTRIBUTION[i],
-                   # probability=0.25,
-                   depart_lane='free',
-                   depart_speed=20,
-                   vehs_per_hour=200)
+    for edge_id in EDGES_DISTRIBUTION:
+        if df is None:
+            inflow.add(veh_type='human',
+                       edge=edge_id,
+                       # probability=0.25,
+                       depart_lane='free',
+                       depart_speed=20,
+                       vehs_per_hour=200)
+
+        else:
+            edge_df = df[df['edge_id'] == edge_id]
+            del edge_df['edge_id']
+            # TODO: Read start from DataFrame
+            start = 1
+            for idx, count in edge_df.iterrows():
+                # Data is given every 15 minutes
+                flow_id, vehs_per_hour = str(idx[0]), count['Count'] * 4
+                inflow.add(veh_type='human',
+                           edge=edge_id,
+                           depart_lane='free',
+                           depart_speed=20,
+                           vehs_per_hour=int(vehs_per_hour),
+                           begin=start,
+                           end=start + 12000)
+                # TODO: Simulate a whole day
+                break
 
     net = NetParams(inflows=inflow,
                     template=f'{os.getcwd()}/data/networks/intersection.net.xml',
@@ -236,7 +260,11 @@ def network_example(render=None,
     }
 
     if use_inflows:
-        initial_config, net_params = get_flow_params(additional_net_params)
+        df = get_induction_loops(('3:9',), workdays=True)
+        df = groupby_induction_loops(df, width=5)
+        df['edge_id'] = EDGES_DISTRIBUTION[0]
+
+        initial_config, net_params = get_flow_params(additional_net_params, df)
     else:
         initial_config, net_params = get_non_flow_params(
             enter_speed=v_enter, add_net_params=additional_net_params)
@@ -263,7 +291,8 @@ def network_example(render=None,
 if __name__ == "__main__":
     exp = network_example(
         render=True,
-        use_inflows=True
+        use_inflows=True,
+        emission_path=EMISSION_PATH
     )
 
-    exp.run(NUM_ITERATIONS, HORIZON)
+    exp.run(NUM_ITERATIONS, HORIZON, convert_to_csv=True)

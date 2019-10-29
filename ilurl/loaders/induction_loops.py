@@ -26,6 +26,7 @@ def get_holidays():
 
     return df
 
+
 def get_induction_loops(induction_loops=None, workdays=False):
     """Returns induction loops data from db
 
@@ -104,6 +105,7 @@ def get_induction_loops(induction_loops=None, workdays=False):
                         get_level_values('Date').dayofweek < 5
 
         df = df.loc[search_index, :]
+    del df['Time']
     return df
 
 
