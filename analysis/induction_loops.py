@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from ilurl.loaders.induction_loops import get_induction_loops
+from ilurl.loaders.induction_loops import groupby_induction_loops
 from ilurl.utils.plots import plot_times
 
 def datetimeftimedelta(x):
@@ -15,7 +16,18 @@ def datetimeftimedelta(x):
     return datetime.strptime(f"{hrs:02d}:{mns:02d}:00", "%H:%M:%S")
 
 if __name__ == '__main__':
-    df = get_induction_loops()
+    # induction_loop_ids = None
+    induction_loop_ids = ('3:9',)
+
+    if induction_loop_ids is None:
+        df = get_induction_loops(workdays=True)
+    else:
+        df = get_induction_loops(induction_loop_ids, workdays=True)
+
+    # groupby_days = 0
+    groupby_days = 21
+    if groupby_days > 0:
+        df = groupby_induction_loops(df, width=groupby_days)
     dates = df.index.get_level_values('Date')
     sensors = df.index.get_level_values('ID_Loop')
 
@@ -39,9 +51,25 @@ if __name__ == '__main__':
 
     print(table.describe())
 
+
+    # title descriptor
+    if groupby_days  % 5 == 0:
+        period = f"{int(groupby_days / 5):02d}-WEEK(S)"
+    elif groupby_days  % 21 == 0:
+        period = f"{int(groupby_days / 21):02d}-MONTH(S)"
+    else:
+        period = f"{groupby_days}-DAY(S)"
+    title = f"Induction Loop Readings  {period} {induction_loop_ids}"
+
     time_tick = table['Time'].values
     means = table['mean'].values
-    stds = table['std'].values
+    #  'std' column is only present when the data is not yet grouped
+    if 'std' in table.columns:
+        stds = table['std'].values
 
-    plot_times(time_tick, [means, stds], ["Means", "Stds"],
-               ["Time", "# vehicles"], "Induction Loop Readings")
+        plot_times(time_tick, [means, stds], ["Means", "Stds"],
+                   ["Time", "# vehicles"], title)
+    else:
+
+        plot_times(time_tick, [means], ["Count"],
+                   ["Time", "# vehicles"], title)
