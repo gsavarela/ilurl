@@ -21,7 +21,7 @@ def get_holidays():
                 Description: string indicating why it's a holiday
 
     """
-    df = pd.read_csv("pthol2018.txt", sep=",",
+    df = pd.read_csv("/home/gsavarela/Work/py/ilu/ilurl/data/calendar/pthol2018.txt", sep=",",
                      parse_dates=True, index_col=0, header=0, encoding="utf-8")
 
     return df
@@ -69,6 +69,10 @@ def get_induction_loops(induction_loops=None, workdays=False):
     09-02-2018 00:00:00 3:9          128
     10-02-2018 00:00:00 3:9          103
     09-03-2018 00:00:00 3:9          142
+
+    UPDATES:
+    -------
+    2019-10-30: Purge holidays
     """
     df = pd.read_csv('data/sensors/induction_loops.csv', sep=',', header=0)
     df.rename({'Data': 'Date', 'ID_Espira': 'ID_Loop'}, axis=1, inplace=True)
@@ -100,11 +104,15 @@ def get_induction_loops(induction_loops=None, workdays=False):
         df = df.loc[search_index, :]
 
     if workdays:
-        # filter by workdays
-        search_index = df.index. \
-                        get_level_values('Date').dayofweek < 5
+        date_index = df.index.get_level_values('Date')
+        # holidays: 2018 removes 2018-08-15
+        hols_df = get_holidays()
 
+        # filter by workdays
+        search_index = date_index.dayofweek < 5 & \
+                      (~date_index.isin(hols_df.index))
         df = df.loc[search_index, :]
+
     del df['Time']
     return df
 
