@@ -18,8 +18,8 @@ from ilurl.core.experiment import Experiment
 from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
-EMISSION_PATH = '/Users/gsavarela/sumo_data/'
-HORIZON = 1200
+EMISSION_PATH = '/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/'
+HORIZON = 24 * 3600 * 10
 NUM_ITERATIONS = 1
 
 # feed SOURCES to InitialConfig
@@ -122,10 +122,8 @@ def get_flow_params(additional_net_params, df=None):
                            depart_speed=20,
                            vehs_per_hour=int(vehs_per_hour),
                            begin=start,
-                           end=start + 12000)
-                # TODO: Simulate a whole day
-                break
-
+                           end=start + 9000)
+                start += 9000
     net = NetParams(inflows=inflow,
                     template=f'{os.getcwd()}/data/networks/intersection.net.xml',
                     additional_params=additional_net_params)

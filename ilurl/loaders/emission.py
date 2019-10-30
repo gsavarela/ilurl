@@ -6,7 +6,11 @@ __date__ = '2019-10-29'
 from os.path import dirname, abspath, join
 
 import pandas as pd
+import numpy as np
 
+from ilurl.loaders.induction_loops import get_induction_loops
+
+from ilurl.loaders.induction_loops import groupby_induction_loops
 
 def get_emissions_dir():
     _path = dirname(abspath(__file__))
@@ -80,6 +84,15 @@ def get_vehicles(emissions_df):
     set_index('id'). \
     rename(columns={'value': 'wait'}, inplace=False)
 
+    speed_df = pd.pivot_table(
+        emissions_df.reset_index(),
+        columns='id', values='speed',
+        aggfunc=np.mean
+    ).\
+    melt(). \
+    set_index('id'). \
+    rename(columns={'value': 'speed'}, inplace=False)
+
     vehs_df = finish_df.join(
         start_df, on='id', how='inner',
     ). \
@@ -87,7 +100,12 @@ def get_vehicles(emissions_df):
     join(wait_df, on='id', how='left')
 
     vehs_df['total'] = vehs_df['finish'] - vehs_df['start']
+
+    vehs_df = vehs_df.join(
+        speed_df, on='id', how='inner',
+    ) 
     return vehs_df
+
 
 def get_routes(emissions_df):
     """Returns route data
@@ -96,7 +114,58 @@ def get_routes(emissions_df):
 
 
 if __name__ == '__main__':
+
+    # 120 seconds version
+    # intersection_id = \
+    #     "intersection_20191029-1153521572350032.090861-emission.csv"
+
+    # 900 seconds version
     intersection_id = \
-        "intersection_20191029-1153521572350032.090861-emission.csv"
+        "intersection_20191029-2030101572381010.8449962-emission.csv"
+
+
+    # 24 hours  version
+    intersection_id = \
+    "intersection_20191029-2043371572381817.619804-emission.csv"
+
     df = get_emissions(intersection_id)
     vehs_df = get_vehicles(df)
+    print(vehs_df)
+
+    loops_df = get_induction_loops(('3:9',), workdays=True)
+    loops_df = groupby_induction_loops(loops_df, width=5)
+
+    # Convert time stamps into hours
+    loops_df.reset_index(inplace=True)
+    loops_df['hour'] = loops_df['Date'].apply(lambda x: x.hour)
+    source_df = pd.pivot_table(
+        loops_df,
+        columns='hour',
+        values='Count',
+        aggfunc=sum
+    ).melt(). \
+    sort_values('hour'). \
+    rename(columns={'value': 'source'}, inplace=False). \
+    set_index('hour')
+     
+    # Compare emissions vs source
+    vehs_df['hour'] = vehs_df['start'].apply(lambda x: int(x / 3600))
+    emitted_df = pd.pivot_table(
+        vehs_df.reset_index(),
+        columns='hour',
+        values='id',
+        aggfunc=len
+    ).melt(). \
+    sort_values('hour'). \
+    rename(columns={'value': 'emitted'}, inplace=False). \
+    set_index('hour')
+
+
+    df = source_df.join(
+        emitted_df,
+        on='hour',
+        how='inner'
+    )
+    print(df.head(24))
+
+
