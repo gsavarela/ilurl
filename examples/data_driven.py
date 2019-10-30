@@ -6,6 +6,7 @@ __date__ = '2019-10-08'
 import time
 import os
 
+import pandas as pd
 from flow.controllers import GridRouter
 from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
@@ -18,7 +19,7 @@ from ilurl.core.experiment import Experiment
 from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
-EMISSION_PATH = '/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/'
+EMISSION_PATH = '/home/gsavarela/Work/py/ilu/ilurl/data/emissions/'
 HORIZON = 24 * 3600 * 10
 NUM_ITERATIONS = 1
 
@@ -111,19 +112,34 @@ def get_flow_params(additional_net_params, df=None):
         else:
             edge_df = df[df['edge_id'] == edge_id]
             del edge_df['edge_id']
+            # Consolidate per hours
+            edge_df.reset_index(inplace=True)
+
+            edge_df['hour'] = edge_df['Date'].dt.hour
+            table = pd.pivot_table(
+                edge_df.set_index('hour'),
+                columns='hour',
+                values='Count',
+                aggfunc=sum).melt().rename(columns={'value': 'count'})
+
+            # del edge_df['Date']
+            # del edge_df['ID_Loop']
             # TODO: Read start from DataFrame
             start = 1
-            for idx, count in edge_df.iterrows():
+            for i, col in table.iterrows():
                 # Data is given every 15 minutes
-                flow_id, vehs_per_hour = str(idx[0]), count['Count'] * 4
+                print(col)
+                flow_id, vehs_per_hour = i, col['count']
+                print(flow_id, vehs_per_hour)
+
                 inflow.add(veh_type='human',
                            edge=edge_id,
                            depart_lane='free',
                            depart_speed=20,
                            vehs_per_hour=int(vehs_per_hour),
                            begin=start,
-                           end=start + 9000)
-                start += 9000
+                           end=start + 3599)
+                start += 3600
     net = NetParams(inflows=inflow,
                     template=f'{os.getcwd()}/data/networks/intersection.net.xml',
                     additional_params=additional_net_params)

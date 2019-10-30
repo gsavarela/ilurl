@@ -128,6 +128,9 @@ if __name__ == '__main__':
     intersection_id = \
     "intersection_20191029-2043371572381817.619804-emission.csv"
 
+    # 3 HOURS
+    intersection_id = \
+    "intersection_20191030-1512441572448364.6724672-emission.csv"
     df = get_emissions(intersection_id)
     vehs_df = get_vehicles(df)
     print(vehs_df)
