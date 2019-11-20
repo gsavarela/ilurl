@@ -19,15 +19,20 @@ from ilurl.core.experiment import Experiment
 from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
-EMISSION_PATH = '/home/gsavarela/Work/py/ilu/ilurl/data/emissions/'
-HORIZON = 24 * 3600 * 10
+EMISSION_PATH = '/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/'
+SIM_HOURS = 3
+HORIZON = SIM_HOURS * 3600 * 10
 NUM_ITERATIONS = 1
 
 # feed SOURCES to InitialConfig
 # on edges distribution
 # EDGES_DISTRIBUTION = ["309265401#0", "-306967025#2", "96864982#0",  "-238059324#1"]
-
 EDGES_DISTRIBUTION = ["309265401#0"]
+
+
+# This dictionary maps ID_LOOPS (espiras)
+# graph edges
+LOOP_TO_EDGE = {"3:9": "309265401#0"}
 
 SOURCES = EDGES_DISTRIBUTION
 
@@ -51,7 +56,20 @@ class IntersectionScenario(Scenario):
 
     def specify_routes(self, net_params):
         rts = {
-            "309265401#0": ["309265401#0", "238059328#0", "306967025#0"],
+            "309265401#0": [(["309265401#0", "238059328#0",
+                              "306967025#0"], 0.8),
+                            (["309265401#0", "238059324#0"], 0.20)],
+             #                (["309265401#0", "238059328#0",
+             #                  "309265399#0", "96864982#1",
+             #                  "392619842", "238059324#0"], 0.30)],
+            # "309265401#0": [(["309265401#0",
+            #                   "238059328#0", "306967025#0"], 0.5), 
+            #                 (["309265401#0", "-238059324#1"], 0.20),
+            #                 (["309265401#0", "238059328#0",
+            #                   "309265398#0"], 0.20),
+            #                 (["309265401#0", "238059328#0",
+            #                   "309265399#0", "96864982#1",
+            #                   "392619842", "238059324#0"], 0.10)],
             "-306967025#2": ["-306967025#2", "-238059328#2", "-309265401#2"],
             "96864982#0": ["96864982#0", "96864982#1", "392619842",
                            "238059324#0"],
@@ -73,7 +91,8 @@ class IntersectionScenario(Scenario):
             ("-238059328#2", 81.22), ("-309265401#2", 77.4),
             ("96864982#0", 46.05), ("96864982#1", 82.63),
             ("392619842", 22.22), ("238059324#0", 418.00),
-            ("-238059324#1", 418.00), ("309265398#0",117.82)
+            ("-238059324#1", 418.00), ("309265398#0", 117.82),
+            ("309265399#0", 104.56)
         ]
 
         return sts
@@ -110,36 +129,24 @@ def get_flow_params(additional_net_params, df=None):
                        vehs_per_hour=200)
 
         else:
-            edge_df = df[df['edge_id'] == edge_id]
-            del edge_df['edge_id']
-            # Consolidate per hours
-            edge_df.reset_index(inplace=True)
-
-            edge_df['hour'] = edge_df['Date'].dt.hour
-            table = pd.pivot_table(
-                edge_df.set_index('hour'),
-                columns='hour',
-                values='Count',
-                aggfunc=sum).melt().rename(columns={'value': 'count'})
-
-            # del edge_df['Date']
-            # del edge_df['ID_Loop']
             # TODO: Read start from DataFrame
             start = 1
-            for i, col in table.iterrows():
+            for idx, count in df.iterrows():
                 # Data is given every 15 minutes
-                print(col)
-                flow_id, vehs_per_hour = i, col['count']
-                print(flow_id, vehs_per_hour)
-
+                dt, loop_id = idx
+                print(dt.hour)
+                if dt.hour == SIM_HOURS:
+                    break
+                vehs_per_hour = count['Count']
                 inflow.add(veh_type='human',
-                           edge=edge_id,
+                           edge=LOOP_TO_EDGE[loop_id],
                            depart_lane='free',
                            depart_speed=20,
-                           vehs_per_hour=int(vehs_per_hour),
+                           vehs_per_hour=vehs_per_hour,
                            begin=start,
                            end=start + 3599)
                 start += 3600
+
     net = NetParams(inflows=inflow,
                     template=f'{os.getcwd()}/data/networks/intersection.net.xml',
                     additional_params=additional_net_params)

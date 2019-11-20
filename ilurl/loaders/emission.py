@@ -123,10 +123,13 @@ if __name__ == '__main__':
     intersection_id = \
         "intersection_20191029-2030101572381010.8449962-emission.csv"
 
+    # 4 hours version
+    intersection_id = \
+        "intersection_20191031-1217351572524255.1619358-emission.csv"
 
     # 24 hours  version
-    intersection_id = \
-    "intersection_20191029-2043371572381817.619804-emission.csv"
+    # intersection_id = \
+    #     "intersection_20191029-2043371572381817.619804-emission.csv"
 
     # 3 HOURS
     intersection_id = \

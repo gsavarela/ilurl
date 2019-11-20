@@ -117,7 +117,7 @@ def get_induction_loops(induction_loops=None, workdays=False):
     return df
 
 
-def groupby_induction_loops(df, anchor_date=None, width=5):
+def groupby_induction_loops(df, anchor_date=None, width=5, by_hour=True):
     """Groups by sensor data count for having time and id
  
 
@@ -135,7 +135,11 @@ def groupby_induction_loops(df, anchor_date=None, width=5):
 
     * anchor_date: datetime
         This is the datetime (inclusive) which is the newest observation
+
     * width: integer
+
+    * by_hour: boolean
+        if true groups data by hours
 
     RETURNS:
     --------
@@ -167,8 +171,11 @@ def groupby_induction_loops(df, anchor_date=None, width=5):
     index = df.index.get_level_values("Date")
     search_index = (index >= oldest) & (index < newest)
     df = df.iloc[search_index, :]
-    df['Time'] = \
-        df.index.get_level_values("Date").time
+
+    # refresh index & create timeonly column
+    index = df.index.get_level_values("Date")
+    df.loc[:, 'Time'] = \
+        [dt - np.datetime64(dt, 'D') for dt in index.values]
     df.reset_index(inplace=True)
 
     # aggregates "Count" per "Time" while preserving "ID_Loop"
@@ -181,6 +188,21 @@ def groupby_induction_loops(df, anchor_date=None, width=5):
     df.index.name = 'Date'
     df = df.stack().to_frame()
     df.rename({0: 'Count'}, axis=1, inplace=True)
+
+    if by_hour:
+        # removes minutes and seconds from timestamps
+        def to_hour(dt):
+            return dt.replace(minute=0, second=0, microsecond=0)
+
+        new_index = ('Date', 'ID_Loop')
+        df = df.reset_index()
+        df['Date'] = df['Date'].apply(to_hour)
+        df = pd.pivot_table(
+            df,
+            index=new_index,
+            values='Count'
+        )
+
     return df
 
 if __name__ == '__main__':
