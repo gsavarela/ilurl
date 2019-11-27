@@ -4,15 +4,13 @@
 *flow/
 *sumo_binaries/
 
-#macos nonsensical files
+# macos nonsensical files
 *.DS_Store
 
-#prevent sensitive data to into repo
-*data/
-!data/calendar/*
-!tests/data
+# prevent sensitive data to into repo
+data/sensors/
 
-#Flow's emission files
+# Flow's emission files
 *emission.xml
 *emission.csv
 

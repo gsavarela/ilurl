@@ -20,7 +20,7 @@ from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
 EMISSION_PATH = '/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/'
-SIM_HOURS = 3
+SIM_HOURS = 6
 HORIZON = SIM_HOURS * 3600 * 10
 NUM_ITERATIONS = 1
 
@@ -57,19 +57,11 @@ class IntersectionScenario(Scenario):
     def specify_routes(self, net_params):
         rts = {
             "309265401#0": [(["309265401#0", "238059328#0", "306967025#0"], 0.8),
-                            (["309265401#0", "238059324#0"], 0.20)],
-             #                (["309265401#0", "238059328#0",
-             #                  "309265399#0", "96864982#1",
-             #                  "392619842", "238059324#0"], 0.30)],
-            # "309265401#0": [(["309265401#0",
-            #                   "238059328#0", "306967025#0"], 0.5), 
-            #                 (["309265401#0", "-238059324#1"], 0.20),
-            #                 (["309265401#0", "238059328#0",
-            #                   "309265398#0"], 0.20),
-            #                 (["309265401#0", "238059328#0",
-            #                   "309265399#0", "96864982#1",
-            #                   "392619842", "238059324#0"], 0.10)],
-            # "-306967025#2": ["-306967025#2", "-238059328#2", "-309265401#2"],
+                            (["309265401#0", "238059324#0"], 0.10),
+                            (["309265401#0", "238059328#0",
+                              "309265399#0", "96864982#1",
+                              "392619842", "238059324#0"], 0.10)],
+            "-306967025#2": ["-306967025#2", "-238059328#2", "-309265401#2"],
             # "96864982#0": ["96864982#0", "96864982#1", "392619842", "238059324#0"],
             # "-238059324#1": [(["-238059324#1", "-309265401#2"], 0.5), (["-238059324#1", "238059328#0", "306967025#0"], 0.5)],
             # "309265398#0": [(["309265398#0", "306967025#0"], 0.33)#, (["309265399#0", "96864982#1", "392619842", "-309265401#2"], 0.33), (["309265399#0", "96864982#1", "392619842", "238059324#0"], 0.34)]
@@ -126,11 +118,12 @@ def get_flow_params(additional_net_params, df=None):
             for idx, count in df.iterrows():
                 # Data is given every 15 minutes
                 dt, loop_id = idx
-                print(dt.hour)
                 if dt.hour == SIM_HOURS:
                     break
+                print(dt.hour)
                 vehs_per_hour = count['Count']
-                inflow.add(name='flow_{loop_id:s}_{idx}',
+                flow_name = f'loop_{loop_id:s}_{dt.hour:02d}'
+                inflow.add(name=flow_name,
                            veh_type='human',
                            edge=LOOP_TO_EDGE[loop_id],
                            depart_lane='best',
@@ -140,6 +133,15 @@ def get_flow_params(additional_net_params, df=None):
                            end=start + 3599)
                 start += 3600
 
+            flow_name = 'random'
+            inflow.add(name=flow_name,
+                       veh_type='human',
+                       edge="-306967025#2",
+                       depart_lane='first',
+                       depart_speed=20,
+                       vehs_per_hour=200,
+                       begin=1,
+                       end=SIM_HOURS * 3600)
     net = NetParams(inflows=inflow,
                     template=f'{os.getcwd()}/data/networks/intersection.net.xml',
                     additional_params=additional_net_params)

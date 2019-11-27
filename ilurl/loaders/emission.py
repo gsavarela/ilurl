@@ -120,20 +120,25 @@ if __name__ == '__main__':
     #     "intersection_20191029-1153521572350032.090861-emission.csv"
 
     # 900 seconds version
-    intersection_id = \
-        "intersection_20191029-2030101572381010.8449962-emission.csv"
+    # intersection_id = \
+    #     "intersection_20191029-2030101572381010.8449962-emission.csv"
 
     # 4 hours version
-    intersection_id = \
-        "intersection_20191031-1217351572524255.1619358-emission.csv"
+    # intersection_id = \
+    #     "intersection_20191031-1217351572524255.1619358-emission.csv"
 
     # 24 hours  version
     # intersection_id = \
     #     "intersection_20191029-2043371572381817.619804-emission.csv"
 
     # 3 HOURS
+    # intersection_id = \
+    # "intersection_20191126-1649271574786967.902462-emission.csv"
+
+    # 6 HOURS
     intersection_id = \
-    "intersection_20191030-1512441572448364.6724672-emission.csv"
+    "intersection_20191127-0909171574845757.020673-emission.csv"
+    # "intersection_20191126-1655111574787311.310213-emission.csv"
     df = get_emissions(intersection_id)
     vehs_df = get_vehicles(df)
     print(vehs_df)
