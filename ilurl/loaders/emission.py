@@ -1,4 +1,13 @@
-"""Help function to read emission filed"""
+"""Emission files are the default output for a simulation but have two drawbacks:
+    They are quite verbose, with a 24-hour period simulation spannig 2.3 GB emission.xml file
+    They come encoded into a even verbosy xml format which doesn't play nice with conversion tool
+    
+
+    USAGE:
+    > python /home/gsavarela/sumo/tools/xml/xml2csv.py \
+            data/emissions/intersection_20191127-1302331574859753.5029278-emission.xml -s , \
+            -o data/emissions/intersection_20191127-1302331574859753.5029278-emission.csv
+"""
 
 __author__ = 'Guilherme Varela'
 __date__ = '2019-10-29'
@@ -12,6 +21,8 @@ from ilurl.loaders.induction_loops import get_induction_loops
 
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
+EXCLUDE_EMISSION=['CO', 'CO2', 'HC', 'NOx', 'PMx', 'angle', 'eclass', 'electricity', 'fuel', 'noise']
+
 def get_emissions_dir():
     _path = dirname(abspath(__file__))
     _path = '/'.join(_path.split('/')[:-2])
@@ -19,23 +30,41 @@ def get_emissions_dir():
     return _path
 
 
-def get_emissions(scenario_id, emission_dir=None):
+def get_emissions(scenario_id, emission_dir=None, exclude_emissions=EXCLUDE_EMISSION):
     """Gets an emission file
 
     Parameters:
     ----------
     * scenario_id
     * emission_dir
+    * exclude_emissions
 
     Return:
     ------
     * df pandas.DataFrame
 
+    Updates:
+    -------
+    * 2019-11-29:Add Column Filter & Rename
     """
     if emission_dir is None:
         path = get_emissions_dir()
     path = join(path, scenario_id)
-    df = pd.read_csv(path, sep=',', index_col=0, header=0, encoding='utf-8')
+    df = pd.read_csv(path, sep=',', header=0, encoding='utf-8')
+    # The token 'vehicle_' comes when using SUMOS's script
+    # referece sumo/tools/xml2csv
+    df.columns = [str.replace(str(name), 'vehicle_', '') for name in df.columns]
+    df.columns = [str.replace(str(name), 'timestep_', '') for name in df.columns]
+    
+    df.set_index(['time'], inplace=True)
+
+    # Drop rows before the first second
+    df = df[ df.index >= 1.0]
+
+    # Drop columns if needed
+    if exclude_emissions is not None:
+        df = df.drop(exclude_emissions, axis=1)
+
     return df
 
 def get_vehicles(emissions_df):
@@ -103,7 +132,7 @@ def get_vehicles(emissions_df):
 
     vehs_df = vehs_df.join(
         speed_df, on='id', how='inner',
-    ) 
+    )
     return vehs_df
 
 
@@ -136,9 +165,13 @@ if __name__ == '__main__':
     # "intersection_20191126-1649271574786967.902462-emission.csv"
 
     # 6 HOURS
-    intersection_id = \
-    "intersection_20191127-0909171574845757.020673-emission.csv"
+    # intersection_id = \
+    # "intersection_20191127-1253571574859237.7474365-emission.csv"
+    # "intersection_20191127-1302331574859753.5029278-emission.csv"
+    # "intersection_20191127-0909171574845757.020673-emission.csv"
     # "intersection_20191126-1655111574787311.310213-emission.csv"
+    intersection_id = \
+        "intersection_20191127-1302331574859753.5029278-emission.csv"
     df = get_emissions(intersection_id)
     vehs_df = get_vehicles(df)
     print(vehs_df)

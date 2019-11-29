@@ -106,11 +106,11 @@ def get_induction_loops(induction_loops=None, workdays=False):
     if workdays:
         date_index = df.index.get_level_values('Date')
         # holidays: 2018 removes 2018-08-15
-        # hols_df = get_holidays()
+        hols_df = get_holidays()
 
         # filter by workdays
-        search_index = date_index.dayofweek < 5 # & \
-                      # (~date_index.isin(hols_df.index))
+        search_index = date_index.dayofweek < 5 & \
+                      (~date_index.isin(hols_df.index))
         df = df.loc[search_index, :]
 
     del df['Time']
