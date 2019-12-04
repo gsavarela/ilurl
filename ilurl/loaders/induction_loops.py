@@ -21,7 +21,7 @@ def get_holidays():
                 Description: string indicating why it's a holiday
 
     """
-    df = pd.read_csv("/home/gsavarela/Work/py/ilu/ilurl/data/calendar/pthol2018.txt", sep=",",
+    df = pd.read_csv("/Users/gsavarela/Work/py/ilu/ilurl/data/calendar/pthol2018.txt", sep=",",
                      parse_dates=True, index_col=0, header=0, encoding="utf-8")
 
     return df

@@ -19,7 +19,7 @@ from ilurl.core.experiment import Experiment
 from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
-EMISSION_PATH = '/home/gsavarela/Work/py/ilu/ilurl/data/emissions/'
+EMISSION_PATH = '/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/'
 SIM_HOURS = 24
 HORIZON = SIM_HOURS * 3600 * 10
 NUM_ITERATIONS = 1
@@ -133,15 +133,15 @@ def get_flow_params(additional_net_params, df=None):
                            end=start + 3599)
                 start += 3600
 
-            flow_name = 'random'
-            inflow.add(name=flow_name,
-                       veh_type='human',
-                       edge="-306967025#2",
-                       depart_lane='first',
-                       depart_speed=20,
-                       vehs_per_hour=200,
-                       begin=1,
-                       end=SIM_HOURS * 3600)
+            # flow_name = 'random'
+            # inflow.add(name=flow_name,
+            #            veh_type='human',
+            #            edge="-306967025#2",
+            #            depart_lane='first',
+            #            depart_speed=20,
+            #            vehs_per_hour=200,
+            #            begin=1,
+            #            end=SIM_HOURS * 3600)
 
     net = NetParams(inflows=inflow,
                     template=f'{os.getcwd()}/data/networks/intersection.net.xml',

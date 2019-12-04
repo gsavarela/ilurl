@@ -55,11 +55,11 @@ def get_emissions(scenario_id, emission_dir=None, exclude_emissions=EXCLUDE_EMIS
     # referece sumo/tools/xml2csv
     df.columns = [str.replace(str(name), 'vehicle_', '') for name in df.columns]
     df.columns = [str.replace(str(name), 'timestep_', '') for name in df.columns]
-    
+
     df.set_index(['time'], inplace=True)
 
     # Drop rows before the first second
-    df = df[ df.index >= 1.0]
+    df = df[df.index >= 1.0]
 
     # Drop columns if needed
     if exclude_emissions is not None:
@@ -67,63 +67,61 @@ def get_emissions(scenario_id, emission_dir=None, exclude_emissions=EXCLUDE_EMIS
 
     return df
 
+
 def get_vehicles(emissions_df):
     """Returns vehicle data
+
+    Parameters:
+    ----------
+    * emissions_df: pandas DataFrame
+        SEE get_emission
 
     Usage:
     -----
     ipdb> vehs_df = get_vehicles(emissions_df)
     ipdb> vehs_df.head()
-               finish  start  wait  total
+               route finish  start  wait  total
     id
-    flow_00.0    11.3    1.0   0.0   10.3
-    flow_00.1    18.4    7.1   0.0   11.3
-    flow_00.2    24.0   13.3   0.0   10.7
-    flow_00.3    29.7   19.4   0.0   10.3
-    flow_00.4    36.1   25.6   0.0   10.5
+    flow_00.0  route309265401#0_0   11.3    1.0   0.0   10.3
+    flow_00.1  route309265401#0_0   18.4    7.1   0.0   11.3
+    flow_00.2  route309265401#0_2   24.0   13.3   0.0   10.7
+    flow_00.3  route309265401#0_2   29.7   19.4   0.0   10.3
+    flow_00.4  route309265401#0_2   36.1   25.6   0.0   10.5
     """
     # Builds a dataframe with vehicle starts
     start_df = pd.pivot_table(
         emissions_df.reset_index(),
-        columns='id', values='time',
+        index=['id', 'route'], values='time',
         aggfunc=min
     ). \
-    melt().\
-    set_index('id'). \
-    rename(columns={'value': 'start'}, inplace=False)
-
+    reset_index('route'). \
+    rename(columns={'time': 'start'}, inplace=False)
 
     # Builds a dataframe with vehicle finish
     finish_df = pd.pivot_table(
         emissions_df.reset_index(),
-        columns='id', values='time',
+        index='id', values='time',
         aggfunc=max
     ).\
-    melt(). \
-    set_index('id'). \
-    rename(columns={'value': 'finish'}, inplace=False)
+    rename(columns={'time': 'finish'}, inplace=False)
 
     # Builds a dataframe with waiting times
     wait_df = pd.pivot_table(
         emissions_df.reset_index(),
-        columns='id', values='waiting',
+        index='id', values='waiting',
         aggfunc=max
     ).\
-    melt(). \
-    set_index('id'). \
-    rename(columns={'value': 'wait'}, inplace=False)
+    rename(columns={'time': 'wait'}, inplace=False)
 
     speed_df = pd.pivot_table(
         emissions_df.reset_index(),
-        columns='id', values='speed',
+        index='id', values='speed',
         aggfunc=np.mean
     ).\
-    melt(). \
-    set_index('id'). \
-    rename(columns={'value': 'speed'}, inplace=False)
+    rename(columns={'time': 'speed'}, inplace=False)
 
-    vehs_df = finish_df.join(
-        start_df, on='id', how='inner',
+    vehs_df = start_df.join(
+        finish_df, on='id', how='inner',
     ). \
     sort_values('start', inplace=False). \
     join(wait_df, on='id', how='left')
@@ -135,12 +133,68 @@ def get_vehicles(emissions_df):
     )
     return vehs_df
 
+def add_column_hour(df_emission):
+    df_emission['hour'] = \
+        df_emission['start'].apply(lambda x: int(x / 3600))
 
-def get_routes(emissions_df):
-    """Returns route data
-    """
-    raise NotImplementedError
+    return df_emission
 
+def get_intersections(df_emission):
+    """Intersection data"""
+
+    df_intersection = pd.pivot_table(
+        df_emission.reset_index(),
+        index=['route', 'edge_id'],
+        values=['id', 'time'],
+        aggfunc=min
+    ). \
+    sort_values(['route', 'time'], inplace=False)
+    return df_intersection
+
+def get_throughput(df_emission):
+    """Get throughtput per travel"""
+
+    id_junction = df_emission['edge_id'].str.startswith(':')
+
+    df_junction = pd.pivot_table(
+        df_emission[id_junction].reset_index(),
+        index=['id', 'edge_id'],
+        values='time',
+        aggfunc=max
+    ). \
+    sort_values('time', inplace=False). \
+    reset_index(inplace=False)
+
+
+    df_junction['time'] = df_junction['time'] + 0.1
+
+    df_junction.set_index(['time', 'id'], inplace=True)
+
+    df_lane = pd.pivot_table(
+        df_emission[~id_junction].reset_index(),
+        index=['id', 'edge_id'],
+        values='time',
+        aggfunc=min
+    ). \
+    sort_values('time', inplace=False). \
+    reset_index(inplace=False). \
+    set_index(['time', 'id'], inplace=False)
+
+    df_throughput = df_junction.join(
+        df_lane,
+        how='inner',
+        lsuffix='junc',
+        rsuffix='lane'
+    ). \
+    rename(
+        columns={'edge_idjunc': 'junc_id',
+                 'edge_idlane': 'lane_id'}
+    ). \
+    reset_index(). \
+    set_index(['junc_id', 'lane_id']). \
+    sort_values('time')
+
+    return df_throughput
 
 if __name__ == '__main__':
 
@@ -171,10 +225,16 @@ if __name__ == '__main__':
     # "intersection_20191127-0909171574845757.020673-emission.csv"
     # "intersection_20191126-1655111574787311.310213-emission.csv"
     intersection_id = \
-        "intersection_20191127-1302331574859753.5029278-emission.csv"
+         "intersection_20191202-1633431575304423.8852081-emission.csv"
+        # "intersection_20191127-1110501574853050.976416-emission.csv"
+
+        # "intersection_20191127-1302331574859753.5029278-emission.csv"
     df = get_emissions(intersection_id)
     vehs_df = get_vehicles(df)
     print(vehs_df)
+
+    df = get_emissions("intersection_20191202-1633431575304423.8852081.emission2.csv")
+    vehs_test_df = get_vehicles(df)
 
     loops_df = get_induction_loops(('3:9',), workdays=True)
     loops_df = groupby_induction_loops(loops_df, width=5)
@@ -191,7 +251,7 @@ if __name__ == '__main__':
     sort_values('hour'). \
     rename(columns={'value': 'source'}, inplace=False). \
     set_index('hour')
-     
+
     # Compare emissions vs source
     vehs_df['hour'] = vehs_df['start'].apply(lambda x: int(x / 3600))
     emitted_df = pd.pivot_table(
@@ -199,11 +259,10 @@ if __name__ == '__main__':
         columns='hour',
         values='id',
         aggfunc=len
-    ).melt(). \
-    sort_values('hour'). \
-    rename(columns={'value': 'emitted'}, inplace=False). \
+    ).melt().  \
+    sort_values('hour').  \
+    rename(columns={'value': 'emitted'}, inplace=False).  \
     set_index('hour')
-
 
     df = source_df.join(
         emitted_df,
