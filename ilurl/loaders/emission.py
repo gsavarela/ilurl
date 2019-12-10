@@ -225,16 +225,15 @@ if __name__ == '__main__':
     # "intersection_20191127-0909171574845757.020673-emission.csv"
     # "intersection_20191126-1655111574787311.310213-emission.csv"
     intersection_id = \
-         "intersection_20191202-1633431575304423.8852081.emission.csv"
+        "intersection_20191209-1752391575913959.248359-emission.csv"
+        # "intersection_20191209-1735131575912913.773466-emission.csv"
+         # "intersection_20191202-1633431575304423.8852081.emission.csv"
         # "intersection_20191127-1110501574853050.976416-emission.csv"
 
         # "intersection_20191127-1302331574859753.5029278-emission.csv"
     df = get_emissions(intersection_id)
     vehs_df = get_vehicles(df)
     print(vehs_df)
-
-    df = get_emissions("intersection_20191202-1633431575304423.8852081.emission3.csv")
-    vehs_test_df = get_vehicles(df)
 
     loops_df = get_induction_loops(('3:9',), workdays=True)
     loops_df = groupby_induction_loops(loops_df, width=5)

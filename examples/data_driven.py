@@ -87,17 +87,17 @@ def get_flow_params(additional_net_params, df=None):
 
     Parameters
     ----------
-    * df : pandas.DataFrame
     * additional_net_params : dict
         network-specific parameters that are unique to the grid
+
+    * df : pandas.DataFrame
 
     Returns
     -------
     flow.core.params.InitialConfig
-        parameters specifying the initial configuration of vehicles in the
-        network
+        The initial configuration of vehicles in the network
     flow.core.params.NetParams
-        network-specific parameters used to generate the scenario
+        Network-specific parameters used to generate the scenario
     """
 
     initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION)
@@ -105,12 +105,18 @@ def get_flow_params(additional_net_params, df=None):
     inflow = InFlows()
     for edge_id in EDGES_DISTRIBUTION:
         if df is None:
-            inflow.add(veh_type='human',
-                       edge=edge_id,
-                       # probability=0.25,
-                       depart_lane='free',
-                       depart_speed=20,
-                       vehs_per_hour=200)
+            vehs = (1500, 1600, 1700)
+            for i, vehs_per_hour in enumerate(vehs):
+                flow_name = f'static_{i:02d}'
+                print(i, vehs_per_hour)
+                inflow.add(name=flow_name,
+                           veh_type='human',
+                           edge=edge_id,
+                           depart_lane='best',
+                           depart_speed=20,
+                           vehs_per_hour=vehs_per_hour,
+                           begin=i * 3600 + 1,
+                           end=(i + 1) * 3600)
 
         else:
             # TODO: Read start from DataFrame
@@ -120,8 +126,8 @@ def get_flow_params(additional_net_params, df=None):
                 dt, loop_id = idx
                 if dt.hour == SIM_HOURS:
                     break
-                print(dt.hour)
                 vehs_per_hour = count['Count']
+                print(dt.hour, vehs_per_hour)
                 flow_name = f'loop_{loop_id:s}_{dt.hour:02d}'
                 inflow.add(name=flow_name,
                            veh_type='human',
@@ -133,15 +139,6 @@ def get_flow_params(additional_net_params, df=None):
                            end=start + 3599)
                 start += 3600
 
-            # flow_name = 'random'
-            # inflow.add(name=flow_name,
-            #            veh_type='human',
-            #            edge="-306967025#2",
-            #            depart_lane='first',
-            #            depart_speed=20,
-            #            vehs_per_hour=200,
-            #            begin=1,
-            #            end=SIM_HOURS * 3600)
 
     net = NetParams(inflows=inflow,
                     template=f'{os.getcwd()}/data/networks/intersection.net.xml',
@@ -150,45 +147,9 @@ def get_flow_params(additional_net_params, df=None):
     return initial, net
 
 
-def get_non_flow_params(enter_speed, add_net_params):
-    """Define the network and initial params in the absence of inflows.
-
-    Note that when a vehicle leaves a network in this case, it is immediately
-    returns to the start of the row/column it was traversing, and in the same
-    direction as it was before.
-
-    Parameters
-    ----------
-    enter_speed : float
-        initial speed of vehicles as they enter the network.
-    add_net_params: dict
-        additional network-specific parameters (unique to the grid)
-
-    Returns
-    -------
-    flow.core.params.InitialConfig
-        parameters specifying the initial configuration of vehicles in the
-        network
-    flow.core.params.NetParams
-        network-specific parameters used to generate the scenario
-    """
-    add_net_params.update({'enter_speed': enter_speed})
-
-    initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION)
-
-    # initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION,
-    #                         lanes_distribution=float('inf'),
-    #                         shuffle=True)
-
-    net = NetParams(
-        template=f'{os.getcwd()}/data/networks/intersection.net.xml',
-        additional_params=add_net_params)
-
-    return initial, net
-
 
 def network_example(render=None,
-                    use_inflows=False,
+                    use_induction_loops=False,
                     additional_env_params=None,
                     emission_path=None,
                     sim_step=0.1):
@@ -200,33 +161,36 @@ def network_example(render=None,
     render: bool, optional
         specifies whether to use the gui during execution
 
-    use_inflows : bool, optional
-        set to True if you would like to run the experiment with inflows of
-        vehicles from the edges, and False otherwise
+    use_induction_loops : bool, optional
+        set to True if you would like to run the experiment with sensor data use False to choose a fixed traffic demand
 
     Returns
     -------
     exp: flow.core.experiment.Experiment
         A non-rl experiment demonstrating the performance of human-driven
         vehicles and balanced traffic lights on a grid.
+
+    Update
+    ------
+    2019-12-09: Add restart_instance;
+    Should prevent the following warning:
+    WARNING: Inflows will cause computational performance to
+    significantly decrease after large number of rollouts. In
+    order to avoid this, set SumoParams(restart_instance=True).
     """
-    v_enter = 10
-    # tot_cars = 160
-    tot_cars = 0
     if render is None:
         sim_params = SumoParams(sim_step=sim_step,
                                 render=False,
                                 print_warnings=False,
-                                emission_path=emission_path)
+                                emission_path=emission_path,
+                                restart_instance=True)
 
     else:
         sim_params = SumoParams(sim_step=sim_step,
                                 render=render,
                                 print_warnings=False,
-                                emission_path=emission_path)
-
-    if render is not None:
-        sim_params.render = render
+                                emission_path=emission_path,
+                                restart_instance=True)
 
     vehicles = VehicleParams()
     vehicles.add(
@@ -235,8 +199,8 @@ def network_example(render=None,
         car_following_params=SumoCarFollowingParams(
             min_gap=2.5,
             decel=7.5,  # avoid collisions at emergency stops
-        ),
-        num_vehicles=tot_cars)
+        )
+    )
 
     env_params = EnvParams(horizon=HORIZON,
                            additional_params=ADDITIONAL_ENV_PARAMS)
@@ -276,15 +240,14 @@ def network_example(render=None,
         "speed_limit": 35
     }
 
-    if use_inflows:
+    if use_induction_loops:
         df = get_induction_loops(('3:9',), workdays=True)
         df = groupby_induction_loops(df, width=5)
         df['edge_id'] = EDGES_DISTRIBUTION[0]
 
         initial_config, net_params = get_flow_params(additional_net_params, df)
     else:
-        initial_config, net_params = get_non_flow_params(
-            enter_speed=v_enter, add_net_params=additional_net_params)
+        initial_config, net_params = get_flow_params(additional_net_params)
 
     # TODO: template should be an input variable
     # assumption project gets run from root
@@ -311,7 +274,7 @@ if __name__ == "__main__":
     start = time.time()
     exp = network_example(
         render=False,
-        use_inflows=True,
+        use_induction_loops=True,
         emission_path=EMISSION_PATH
     )
 
