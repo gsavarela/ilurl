@@ -4,16 +4,16 @@
     Extends the flow's green wave environmenets
 '''
 __author__ = "Guilherme Varela"
+__date__ = "2019-12-10"
 from collections import defaultdict
 
 import numpy as np
-import pdb
 
 from flow.core import rewards
-from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
+from flow.envs.base_env import Env
+
 from ilurl.core.ql.dpq import DPQ
 from ilurl.core.ql.reward import RewardCalculator
-from ilurl.utils.decorators import logger
 from ilurl.utils.serialize import Serializer
 
 QL_PARAMS = {
@@ -39,7 +39,7 @@ ADDITIONAL_TLS_PARAMS = {
 }
 
 
-class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
+class TrafficLightQLEnv(TrafficLightGridEnv, Serializer):
     """Environment used to train traffic lights.
 
     This is a single TFLQLAgent controlling a variable number of
