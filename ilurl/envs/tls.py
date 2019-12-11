@@ -39,7 +39,7 @@ ADDITIONAL_TLS_PARAMS = {
 }
 
 
-class TrafficLightQLEnv(TrafficLightGridEnv, Serializer):
+class TrafficLightQLEnv(Env, Serializer):
     """Environment used to train traffic lights.
 
     This is a single TFLQLAgent controlling a variable number of
@@ -133,7 +133,7 @@ class TrafficLightQLEnv(TrafficLightGridEnv, Serializer):
                  simulator='traci'):
 
 
-        #THIS IS FROM ACCELL ENV
+        #THIS IS FROM ACCEL ENV
         # variables used to sort vehicles by their initial position plus
         # distance traveled
         self.prev_pos = dict()
@@ -160,7 +160,7 @@ class TrafficLightQLEnv(TrafficLightGridEnv, Serializer):
                 val = env_params.additional_params[p]
                 setattr(self, p, val)
 
-        super(TrafficLightQLGridEnv, self).__init__(env_params,
+        super(TrafficLightQLEnv, self).__init__(env_params,
                                                     sim_params,
                                                     scenario,
                                                     simulator=simulator)
@@ -182,6 +182,46 @@ class TrafficLightQLEnv(TrafficLightGridEnv, Serializer):
         # keeps the internal value of sim step
         self.sim_step = sim_params.sim_step
 
+        self.num_traffic_lights = 1
+
+        #TODO: evaluate from TrafficLightGridEnv
+        ##### TrafficLightGridEnv ######
+        self.steps = env_params.horizon
+        self.obs_var_labels = {
+            'edges': np.zeros((self.steps, self.k.vehicle.num_vehicles)),
+            'velocities': np.zeros((self.steps, self.k.vehicle.num_vehicles)),
+            'positions': np.zeros((self.steps, self.k.vehicle.num_vehicles))
+        }
+
+        # Keeps track of the last time the traffic lights in an intersection
+        # were allowed to change (the last time the lights were allowed to
+        # change from a red-green state to a red-yellow state.)
+        self.last_change = np.zeros((self.num_traffic_lights, 1))
+        # Keeps track of the direction of the intersection (the direction that
+        # is currently being allowed to flow. 0 indicates flow from top to
+        # bottom, and 1 indicates flow from left to right.)
+        self.direction = np.zeros((self.num_traffic_lights, 1))
+        # Value of 1 indicates that the intersection is in a red-yellow state.
+        # value 0 indicates that the intersection is in a red-green state.
+        self.currently_yellow = np.zeros((self.num_traffic_lights, 1))
+
+        # when this hits min_switch_time we change from yellow to red
+        # the second column indicates the direction that is currently being
+        # allowed to flow. 0 is flowing top to bottom, 1 is left to right
+        # For third column, 0 signifies yellow and 1 green or red
+        self.min_switch_time = env_params.additional_params["switch_time"]
+
+        self.tl_type = env_params.additional_params.get('tl_type')
+        if self.tl_type != "actuated":
+            for i in range(self.num_traffic_lights):
+                self.k.traffic_light.set_state(
+                    node_id='GS_247123161'.format(i), state="GGgrrrrGGGrrr")
+                    #node_id='center' + str(i), state="GrGr")
+                self.currently_yellow[i] = 0
+
+
+        self.discrete = env_params.additional_params.get("discrete", False)
+        #####
         # initializes the observable scope
         self.incoming = {
             tls: defaultdict(list)
@@ -227,24 +267,119 @@ class TrafficLightQLEnv(TrafficLightGridEnv, Serializer):
         an option.
 
         """
+        # TODO: Replace hard coded edges with scenario data
         for n in range(self.num_traffic_lights):
-            i = int(n / self.grid_array["col_num"])  # row counter
-            j = n - i * self.grid_array["col_num"]  # column counter
+            # RIGHT to LEFT
+            self.incoming_edge_ids[n].append('309265401#0')
+            self.incoming_edge_ids[n].append('309265401#0')
 
-            import pdb
-            pdb.set_trace()
-            # handles left and right of the n-th traffic light
-            self.incoming_edge_ids[n].append('right{}_{}'.format(i, j))
-            self.incoming_edge_ids[n].append('top{}_{}'.format(i, j + 1))
-            self.incoming_edge_ids[n].append('bot{}_{}'.format(i, j))
-            self.incoming_edge_ids[n].append('left{}_{}'.format(i + 1, j))
+            # TOP DOWN
+            self.incoming_edge_ids[n].append('392619842#0')
 
-            self.outgoing_edge_ids[n].append('right{}_{}'.format(i + 1, j))
-            self.outgoing_edge_ids[n].append('top{}_{}'.format(i, j))
-            self.outgoing_edge_ids[n].append('bot{}_{}'.format(i, j + 1))
-            self.outgoing_edge_ids[n].append('left{}_{}'.format(i, j))
+            # LEFT to RIGHT
+            self.incoming_edge_ids[n].append('-238059328#2')
+            self.incoming_edge_ids[n].append('-238059328#2')
 
+            # BOTTOM UP
+            self.incoming_edge_ids[n].append('-238059324#1')
 
+            # RIGHT to LEFT
+            self.outgoing_edge_ids[n].append('238059328#0')
+            self.outgoing_edge_ids[n].append('238059328#0')
+
+            # TOP DOWN
+            self.outgoing_edge_ids[n].append('-383432312#1')
+
+            # LEFT to RIGHT
+            self.outgoing_edge_ids[n].append('-309265401#2')
+            self.outgoing_edge_ids[n].append('-309265401#2')
+
+            # BOTTOM UP
+            self.outgoing_edge_ids[n].append('238059324#0')
+
+    ### TrafficLightGridEnv
+    def get_state(self):
+        """See class definition."""
+        # compute the normalizers
+        max_dist = 132
+        # max_dist = max(grid_array["short_length"],
+        #                grid_array["long_length"],
+        #                grid_array["inner_length"])
+
+        # get the state arrays
+        speeds = [
+            self.k.vehicle.get_speed(veh_id) / self.k.scenario.max_speed()
+            for veh_id in self.k.vehicle.get_ids()
+        ]
+        dist_to_intersec = [
+            self.get_distance_to_intersection(veh_id) / max_dist
+            for veh_id in self.k.vehicle.get_ids()
+        ]
+        edges = [
+            self._convert_edge(self.k.vehicle.get_edge(veh_id)) /
+            (self.k.scenario.network.num_edges - 1)
+            for veh_id in self.k.vehicle.get_ids()
+        ]
+
+        state = [
+            speeds, dist_to_intersec, edges,
+            self.last_change.flatten().tolist(),
+            self.direction.flatten().tolist(),
+            self.currently_yellow.flatten().tolist()
+        ]
+        return np.array(state)
+
+    def _apply_rl_actions(self, rl_actions):
+        """See class definition."""
+        # check if the action space is discrete
+        if self.discrete:
+            # convert single value to list of 0's and 1's
+            rl_mask = [int(x) for x in list('{0:0b}'.format(rl_actions))]
+            rl_mask = [0] * (self.num_traffic_lights - len(rl_mask)) + rl_mask
+        else:
+            # convert values less than 0 to zero and above 0 to 1. 0 indicates
+            # that should not switch the direction, and 1 indicates that switch
+            # should happen
+            rl_mask = rl_actions > 0.0
+
+        for i, action in enumerate(rl_mask):
+            if self.currently_yellow[i] == 1:  # currently yellow
+                self.last_change[i] += self.sim_step
+                # Check if our timer has exceeded the yellow phase, meaning it
+                # should switch to red
+                if self.last_change[i] >= self.min_switch_time:
+                    if self.direction[i] == 0:
+                        self.k.traffic_light.set_state(
+                            node_id='GS_247123161'.format(i),
+                            state='GGgrrrrGGGrrr')
+                            # node_id='center{}'.format(i),
+                            # state="GrGr")
+                    else:
+                        self.k.traffic_light.set_state(
+                            node_id='GS_247123161'.format(i),
+                            state='rrrGGggrrrGGg')
+                            # node_id='center{}'.format(i),
+                            # state='rGrG')
+                    self.currently_yellow[i] = 0
+            else:
+                if action:
+                    if self.direction[i] == 0:
+                        self.k.traffic_light.set_state(
+                            node_id='GS_247123161'.format(i),
+                            state='yyyrrrryyyrrr')
+                        # node_id='center{}'.format(i),
+                        # state='yryr')
+                    else:
+                        self.k.traffic_light.set_state(
+                            node_id='GS_247123161'.format(i),
+                            state='rrryyyyrrryyy')
+                            # node_id='center{}'.format(i),
+                            # state='ryry')
+                    self.last_change[i] = 0.0
+                    self.direction[i] = not self.direction[i]
+                    self.currently_yellow[i] = 1
+
+    #############
     def set_observation_space(self):
         """updates the observation space
 
@@ -350,13 +485,7 @@ class TrafficLightQLEnv(TrafficLightGridEnv, Serializer):
                         self.memo_flows[tls][prev] = \
                             (veh_set | prev_veh_set) - (prev_veh_set & old_veh_set)
 
-                        # mean of cum flow ?
-                        # value = np.mean([
-                        #     len(veh_ids)
-                        #     for veh_ids in self.memo_flows[tls].values()
-                        # ])
-                        value = len(self.memo_flows[tls][prev]) / t
-
+                        value = len(self.memo_flows[tls][prev]) / t 
                     elif label in ('queue',):
                         # vehicles are slowing :
                         queue = []
@@ -500,7 +629,7 @@ class TrafficLightQLEnv(TrafficLightGridEnv, Serializer):
         idx = self._to_index(self.control_actions(static=False))
 
         # updates traffic lights' control signals
-        super(TrafficLightQLGridEnv, self)._apply_rl_actions(idx)
+        self._apply_rl_actions(idx)
 
         if self.duration == 0.0 and self.step_counter > 1:
             # place q-learning here
@@ -597,3 +726,46 @@ class TrafficLightQLEnv(TrafficLightGridEnv, Serializer):
             self.prev_pos[veh_id] = self.k.vehicle.get_x_by_id(veh_id)
 
         return obs
+
+
+    # TODO: Copy & Paste dependency on TrafficLightGridEnv
+    # ===============================
+    # ============ UTILS ============
+    # ===============================
+
+    def get_distance_to_intersection(self, veh_ids):
+        """Determine the distance from a vehicle to its next intersection.
+
+        Parameters
+        ----------
+        veh_ids : str or str list
+            vehicle(s) identifier(s)
+
+        Returns
+        -------
+        float (or float list)
+            distance to closest intersection
+        """
+        if isinstance(veh_ids, list):
+            return [self.get_distance_to_intersection(veh_id)
+                    for veh_id in veh_ids]
+        return self.find_intersection_dist(veh_ids)
+
+    def find_intersection_dist(self, veh_id):
+        """Return distance from intersection.
+
+        Return the distance from the vehicle's current position to the position
+        of the node it is heading toward.
+        """
+        edge_id = self.k.vehicle.get_edge(veh_id)
+        # FIXME this might not be the best way of handling this
+        if edge_id == "":
+            return -10
+
+        # TODO: Remove reference GS_247123161
+        if 'GS_247123161' in edge_id:
+            return 0
+        edge_len = self.k.scenario.edge_length(edge_id)
+        relative_pos = self.k.vehicle.get_position(veh_id)
+        dist = edge_len - relative_pos
+        return dist

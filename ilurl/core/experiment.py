@@ -186,12 +186,11 @@ class Experiment:
             ret = round(ret, 2)
             rets.append(ret)
             vels.append(vel)
-            mean_rets.append(round(np.mean(ret_list), 2))
+            mean_rets.append(round(np.nanmean(ret_list), 2))
             ret_lists.append(ret_list)
-            mean_vels.append(round(np.mean(vel), 2))
-            std_vels.append(round(np.std(vel), 2))
+            mean_vels.append(round(np.nanmean(vel), 2))
+            std_vels.append(round(np.nanstd(vel), 2))
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
-            
             print(f"""
                     Round {i}\treturn: {ret}\tavg speed:{mean_vels[-1]}
                   """)
@@ -214,18 +213,18 @@ class Experiment:
                                                   np.std(mean_vels)))
         self.env.terminate()
 
-        if convert_to_csv:
+        # if convert_to_csv:
             # wait a short period of time to ensure the xml file is readable
-            time.sleep(0.1)
+        time.sleep(0.1)
 
-            # collect the location of the emission file
-            dir_path = self.env.sim_params.emission_path
-            emission_filename = \
-                "{0}-emission.xml".format(self.env.scenario.name)
-            emission_path = os.path.join(dir_path, emission_filename)
+        # collect the location of the emission file
+        dir_path = self.env.sim_params.emission_path
+        emission_filename = \
+            "{0}-emission.xml".format(self.env.scenario.name)
+        emission_path = os.path.join(dir_path, emission_filename)
 
-            # convert the emission file into a csv
-            emission_to_csv(emission_path)
+        # convert the emission file into a csv
+        # emission_to_csv(emission_path)
 
         if self.env.sim_params.emission_path is not None:
             # collect the location of the emission file

@@ -1,8 +1,14 @@
 """This script makes a histogram from the info.json output from experiment
-USAGE:
------
-From root directory with files saved on root
-> python analysis/hist.py
+
+    USAGE:
+    -----
+    From root directory with files saved on root
+    > python analysis/hist.py
+
+    UPDATE:
+    2019-12-11
+        * update normpdf function
+        * deprecate TrafficLightQLGridEnv in favor of TrafficQLEnv
 """
 __author__ = 'Guilherme Varela'
 __date__ = '2019-09-27'
@@ -12,22 +18,30 @@ import json
 # third-party libs
 import dill
 import numpy as np
-import matplotlib.mlab as mlab
+from scipy.stats import norm
 import matplotlib.pyplot as plt
 
 # current project dependencies
 from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
+from ilurl.envs.tls import TrafficLightQLEnv
 
 # Retrieves output data
-filename = "smart-grid_20190926-1202081569495728.407654.info.json"
+#filename = "smart-grid_20190926-1202081569495728.407654.info.json"
+filename = \
+    "intersection_20191210-2020451576009245.024394-info.json"
+
 with open(filename, 'r') as f:
-    output = json.load( f )
+    output = json.load(f)
 
 # Retrieves agent data
-filename = "smart-grid_20190926-1202081569495728.407654.pickle"
+# filename = "smart-grid_20190926-1202081569495728.407654.pickle"
+filename = \
+    "intersection_20191210-2020451576009245.024394.pickle"
+
 # with open(filename, 'rb') as f:
 #     output = json.load( f )
-env = TrafficLightQLGridEnv.load(filename)
+# env = TrafficLightQLGridEnv.load(filename)
+env = TrafficLightQLEnv.load(filename)
 
 # observation spaces
 observation_spaces_per_cycle = output['observation_spaces']
@@ -41,7 +55,7 @@ for observation_space in observation_spaces_per_cycle:
         states[label] += values
 
 # plot building
-num_bins = 10
+num_bins = 50
 # percentile separators: low, medium and high
 percentile_separators = (0.0, 20.0, 75.0, 100.0)
 perceptile_colors = ('yellow', 'green')
@@ -61,16 +75,29 @@ for label, values in states.items():
     quantiles = np.percentile(values_normalized, percentile_separators)
     for i, q in enumerate(quantiles[1:-1]):
         color = perceptile_colors[i]
-        plt.axvline(x=float(q), markerfacecoloralt=color)
-    n, bins, patches = plt.hist(values_normalized, num_bins,density=mu, facecolor='blue', alpha= 0.5)
+        p = percentile_separators[i]
+        label = f'p {int(p)} %'
+        plt.axvline(x=float(q),
+                    markerfacecoloralt=color,
+                    label=label)
+
+    n, bins, patches = plt.hist(
+        values_normalized,
+        num_bins,
+        density=mu,
+        facecolor='blue',
+        alpha=0.5
+    )
 
     # add a 'best fit' line
-    y = mlab.normpdf(bins, mu, sigma)
+    y = norm.pdf(bins, mu, sigma)
     plt.plot(bins, y, 'r--')
     plt.xlabel(label)
     plt.ylabel('Probability')
-    plt.title(f"""Histogram of {label}
-              $\mu$={round(mu, 2)}, $\sigma$={round(sigma,2)}""")
+    plt.title(
+        f"""Histogram of {label}
+            $\mu$={round(mu, 2)}, $\sigma$={round(sigma,2)}""")
+
     # Tweak spacing to prevent clipping of ylabel
     plt.subplots_adjust(left=0.15)
 plt.show()

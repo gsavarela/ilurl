@@ -7,14 +7,19 @@ from glob import glob
 import pdb
 import dill
 
-from examples.smart_grid import smart_grid_example
 from ilurl.core.experiment import Experiment
 from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
+from ilurl.envs.tls import TrafficLightQLEnv
 
 def evaluate(envs):
     for i, env in enumerate(envs):
         # HACK: This should be handled by the proper loader
-        env_eval = TrafficLightQLGridEnv(env.env_params,
+        # env_eval = TrafficLightQLGridEnv(env.env_params,
+        #                                  env.sim_params,
+        #                                  env.ql_params,
+        #                                  env.scenario)
+
+        env_eval = TrafficLightQLEnv(env.env_params,
                                          env.sim_params,
                                          env.ql_params,
                                          env.scenario)

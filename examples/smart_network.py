@@ -15,17 +15,17 @@ from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
                               SumoCarFollowingParams, SumoParams,
                               TrafficLightParams, VehicleParams)
 
-from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 from flow.scenarios import Scenario
 
-from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
+from ilurl.envs.tls import TrafficLightQLEnv
+from ilurl.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
 from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
 EMISSION_PATH = '/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/'
-SIM_HOURS = 24
+SIM_HOURS = 4
 HORIZON = SIM_HOURS * 3600 * 10
 NUM_ITERATIONS = 1
 SHORT_CYCLE_TIME = 31
@@ -114,7 +114,7 @@ def get_flow_params(additional_net_params, df=None):
     inflow = InFlows()
     for edge_id in EDGES_DISTRIBUTION:
         if df is None:
-            vehs = (1500, 1600, 1700)
+            vehs = (324, 2615.75, 2764.25, 1352.75)
             for i, vehs_per_hour in enumerate(vehs):
                 flow_name = f'static_{i:02d}'
                 print(i, vehs_per_hour)
@@ -229,29 +229,23 @@ def network_example(render=None,
 
 
     tl_logic = TrafficLightParams(baseline=False)
-    # phases = [{
-    #     "duration": "31",
-    #     "minDur": "8",
-    #     "maxDur": "45",
-    #     "state": "GrGrGrGrGrGr"
-    # }, {
-    #     "duration": "6",
-    #     "minDur": "3",
-    #     "maxDur": "6",
-    #     "state": "yryryryryryr"
-    # }, {
-    #     "duration": "31",
-    #     "minDur": "8",
-    #     "maxDur": "45",
-    #     "state": "rGrGrGrGrGrG"
-    # }, {
-    #     "duration": "6",
-    #     "minDur": "3",
-    #     "maxDur": "6",
-    #     "state": "ryryryryryry"
-    # }]
-    # # Junction ids
-    # tl_logic.add("247123161", phases=phases, programID=1)
+
+    phases = [{
+        "duration": "39",
+        "state": "GGgrrrrGGGrrr"
+    }, {
+        "duration": "6",
+        "state": "yyyrrrryyyrrr"
+    }, {
+        "duration": "39",
+        "state": "rrrGGggrrrGGg"
+    }, {
+        "duration": "6",
+        "state": "rrryyyyrrryyy"
+    }]
+    # Junction ids
+    # tl_logic.add("GS_247123161", phases=phases, programID=1)
+    tl_logic.add("GS_247123161", programID=0)
     # tl_logic.add("247123374", phases=phases, programID=1)
     # tl_logic.add("center2", phases=phases, programID=1, tls_type="actuated")
 
@@ -281,24 +275,18 @@ def network_example(render=None,
 
 
     ql_params = QLParams(epsilon=0.10, alpha=0.05,
-                         states=('flow', 'queue'),
+                         states=('flow', 'queue', 'speed', 'count'),
                          rewards={'type': 'score', 'costs': None},
                          num_traffic_lights=1,
                          c=10,
                          choice_type='ucb')
 
-    env = TrafficLightQLGridEnv(
+    env = TrafficLightQLEnv(
         env_params,
         sim_params,
         ql_params,
         scenario
     )
-    # env = AccelEnv(
-    #     env_params=env_params,
-    #     sim_params=sim_params,
-    #     scenario=scenario)
-
-    # exp = Experiment(env)
 
     return Experiment(env)
 
@@ -309,7 +297,7 @@ if __name__ == "__main__":
     start = time.time()
     exp = network_example(
         render=False,
-        use_induction_loops=True,
+        use_induction_loops=False,
         emission_path=EMISSION_PATH
     )
 
