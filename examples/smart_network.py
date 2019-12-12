@@ -7,125 +7,67 @@ __author__ = 'Guilherme Varela'
 __date__ = '2019-12-10'
 
 import time
-import os
+# import os
 
 import pandas as pd
 from flow.controllers import GridRouter
-from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
-                              SumoCarFollowingParams, SumoParams,
-                              TrafficLightParams, VehicleParams)
+from flow.core.params import (EnvParams, InFlows, SumoParams,
+                              SumoCarFollowingParams, VehicleParams,
+                              TrafficLightParams)
 
-from flow.scenarios import Scenario
 
 from ilurl.envs.tls import TrafficLightQLEnv
 from ilurl.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
+
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
+from ilurl.scenarios.intersection import (IntersectionScenario,
+                                          SOURCES)
+
 from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
 EMISSION_PATH = '/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/'
-SIM_HOURS = 4
+SIM_HOURS = 3
 HORIZON = SIM_HOURS * 3600 * 10
 NUM_ITERATIONS = 1
-SHORT_CYCLE_TIME = 31
-LONG_CYCLE_TIME = 45
+SHORT_CYCLE_TIME = 15
+LONG_CYCLE_TIME = 60
 SWITCH_TIME = 6
-
-# feed SOURCES to InitialConfig
-# on edges distribution
-# EDGES_DISTRIBUTION = ["309265401#0", "-306967025#2", "96864982#0",  "-238059324#1"]
-EDGES_DISTRIBUTION = ["309265401#0"]
-
 
 # This dictionary maps ID_LOOPS (espiras)
 # graph edges
 LOOP_TO_EDGE = {"3:9": "309265401#0"}
 
-SOURCES = EDGES_DISTRIBUTION
 
-SINKS = [
-    "-309265401#2",
-    "306967025#0",
-    "238059324#0",
-]
-
-EDGES = ["212788159_0", "247123161_0", "247123161_1", "247123161_3",
-         "247123161_14", "247123161_4", "247123161_5", "247123161_6",
-         "247123161_15", "247123161_7", "247123161_8", "247123161_10",
-         "247123161_16", "247123161_11", "247123161_12", "247123161_13",
-         "247123161_17", "247123367_0", "247123367_1", "247123374_0",
-         "247123374_1", "247123374_3", "247123374_9", "247123374_4",
-         "247123374_5", "247123374_6", "247123374_7", "247123449_0",
-         "247123449_2", "247123449_1", "247123464_0", "3928875116_0"]
-
-
-class IntersectionScenario(Scenario):
-
-    def specify_routes(self, net_params):
-        rts = {
-            "309265401#0": [(["309265401#0", "238059328#0", "306967025#0"], 0.8),
-                            (["309265401#0", "238059324#0"], 0.10),
-                            (["309265401#0", "238059328#0",
-                              "309265399#0", "96864982#1",
-                              "392619842", "238059324#0"], 0.10)],
-            "-306967025#2": ["-306967025#2", "-238059328#2", "-309265401#2"],
-            # "96864982#0": ["96864982#0", "96864982#1", "392619842", "238059324#0"],
-            # "-238059324#1": [(["-238059324#1", "-309265401#2"], 0.5), (["-238059324#1", "238059328#0", "306967025#0"], 0.5)],
-            # "309265398#0": [(["309265398#0", "306967025#0"], 0.33)#, (["309265399#0", "96864982#1", "392619842", "-309265401#2"], 0.33), (["309265399#0", "96864982#1", "392619842", "238059324#0"], 0.34)]
-        }
-        return rts
-
-    def specify_edge_starts(self):
-        sts = [
-            ("309265401#0", 77.4), ("238059328#0", 81.22),
-            ("306967025#0", 131.99), ("-306967025#2", 131.99),
-            ("-238059328#2", 81.22), ("-309265401#2", 77.4),
-            ("96864982#0", 46.05), ("96864982#1", 82.63),
-            ("392619842", 22.22), ("238059324#0", 418.00),
-            ("-238059324#1", 418.00), ("309265398#0", 117.82),
-            ("309265399#0", 104.56)
-        ]
-
-        return sts
-
-
-def get_flow_params(additional_net_params, df=None):
+def build_flow_params(df=None):
     """Define the network and initial params in the presence of inflows.
 
     Parameters
     ----------
-    * additional_net_params : dict
-        network-specific parameters that are unique to the grid
-
     * df : pandas.DataFrame
 
     Returns
     -------
-    flow.core.params.InitialConfig
-        The initial configuration of vehicles in the network
-
-    flow.core.params.NetParams
-        Network-specific parameters used to generate the scenario
+    flow.core.params.InFlows
+        Cars distributions to be placed at sources
     """
 
-    initial = InitialConfig(edges_distribution=EDGES_DISTRIBUTION)
-
-    inflow = InFlows()
-    for edge_id in EDGES_DISTRIBUTION:
+    inflows = InFlows()
+    for edge_id in SOURCES:
         if df is None:
-            vehs = (324, 2615.75, 2764.25, 1352.75)
+            vehs = (324, 200, 2764.25, 1352.75)
             for i, vehs_per_hour in enumerate(vehs):
                 flow_name = f'static_{i:02d}'
                 print(i, vehs_per_hour)
-                inflow.add(name=flow_name,
-                           veh_type='human',
-                           edge=edge_id,
-                           depart_lane='best',
-                           depart_speed=20,
-                           vehs_per_hour=vehs_per_hour,
-                           begin=i * 3600 + 1,
-                           end=(i + 1) * 3600)
+                inflows.add(name=flow_name,
+                            veh_type='human',
+                            edge=edge_id,
+                            depart_lane='best',
+                            depart_speed=20,
+                            vehs_per_hour=vehs_per_hour,
+                            begin=i * 3600 + 1,
+                            end=(i + 1) * 3600)
 
         else:
             # TODO: Read start from DataFrame
@@ -138,22 +80,17 @@ def get_flow_params(additional_net_params, df=None):
                 vehs_per_hour = count['Count']
                 print(dt.hour, vehs_per_hour)
                 flow_name = f'loop_{loop_id:s}_{dt.hour:02d}'
-                inflow.add(name=flow_name,
-                           veh_type='human',
-                           edge=LOOP_TO_EDGE[loop_id],
-                           depart_lane='best',
-                           depart_speed=20,
-                           vehs_per_hour=vehs_per_hour,
-                           begin=start,
-                           end=start + 3599)
+                inflows.add(name=flow_name,
+                            veh_type='human',
+                            edge=LOOP_TO_EDGE[loop_id],
+                            depart_lane='best',
+                            depart_speed=20,
+                            vehs_per_hour=vehs_per_hour,
+                            begin=start,
+                            end=start + 3599)
                 start += 3600
 
-
-    net = NetParams(inflows=inflow,
-                    template=f'{os.getcwd()}/data/networks/intersection.net.xml',
-                    additional_params=additional_net_params)
-
-    return initial, net
+    return inflows
 
 
 
@@ -167,11 +104,12 @@ def network_example(render=None,
 
     Parameters
     ----------
-    render: bool, optional
+    * render: bool, optional
         specifies whether to use the gui during execution
 
-    use_induction_loops : bool, optional
-        set to True if you would like to run the experiment with sensor data use False to choose a fixed traffic demand
+    * use_induction_loops : bool, optional
+        set to True if you would like to run the experiment with sensor
+        data use False to choose a fixed traffic demand
 
     Returns
     -------
@@ -193,6 +131,7 @@ def network_example(render=None,
                                 print_warnings=False,
                                 emission_path=emission_path,
                                 restart_instance=True)
+
 
     else:
         sim_params = SumoParams(sim_step=sim_step,
@@ -245,40 +184,33 @@ def network_example(render=None,
     }]
     # Junction ids
     # tl_logic.add("GS_247123161", phases=phases, programID=1)
+    # this thing here is also bound by the scenario
     tl_logic.add("GS_247123161", programID=0)
     # tl_logic.add("247123374", phases=phases, programID=1)
     # tl_logic.add("center2", phases=phases, programID=1, tls_type="actuated")
 
-    # Define flow
-    # lookup ids
-    additional_net_params = {
-        "speed_limit": 35
-    }
 
     if use_induction_loops:
         df = get_induction_loops(('3:9',), workdays=True)
         df = groupby_induction_loops(df, width=5)
-        df['edge_id'] = EDGES_DISTRIBUTION[0]
+        df['edge_id'] = SOURCES[0]
 
-        initial_config, net_params = get_flow_params(additional_net_params, df)
+        inflows = build_flow_params(df)
     else:
-        initial_config, net_params = get_flow_params(additional_net_params)
+        inflows = build_flow_params()
 
-    # TODO: template should be an input variable
-    # assumption project gets run from root
     scenario = IntersectionScenario(
         name="intersection",
         vehicles=vehicles,
-        net_params=net_params,
-        initial_config=initial_config,
-        traffic_lights=tl_logic)
+        traffic_lights=tl_logic,
+        inflows=inflows)
 
 
     ql_params = QLParams(epsilon=0.10, alpha=0.05,
-                         states=('flow', 'queue', 'speed', 'count'),
-                         rewards={'type': 'score', 'costs': None},
-                         num_traffic_lights=1,
-                         c=10,
+                         states=('speed', 'count'),
+                         rewards={'type': 'weighted_average',
+                                  'costs': None},
+                         num_traffic_lights=1, c=10,
                          choice_type='ucb')
 
     env = TrafficLightQLEnv(
@@ -297,7 +229,7 @@ if __name__ == "__main__":
     start = time.time()
     exp = network_example(
         render=False,
-        use_induction_loops=False,
+        use_induction_loops=True,
         emission_path=EMISSION_PATH
     )
 

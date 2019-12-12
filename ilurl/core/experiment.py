@@ -155,13 +155,13 @@ class Experiment:
         std_vels = []
         outflows = []
         observation_spaces = []
-
+        actions_lists = []
         for i in range(num_runs):
             vel = np.zeros(num_steps)
             logging.info("Iter #" + str(i))
             ret = 0
             ret_list = []
-
+            actions_list = []
             # This feature is disabled since it requires
             # that the sumo server is down
             # if save_interval is not None and (i + 1) % save_interval == 0:
@@ -176,7 +176,7 @@ class Experiment:
                 vel[j] = round(np.mean(speeds), 2)
                 ret += reward
                 ret_list.append(round(reward, 2))
-
+                actions_list.append(list(self.env.rl_action)) 
                 if is_synch and self.env.duration == 0.0 and j > 0:
                     observation_spaces.append(list(self.env.get_observation_space()))
 
@@ -188,6 +188,7 @@ class Experiment:
             vels.append(vel)
             mean_rets.append(round(np.nanmean(ret_list), 2))
             ret_lists.append(ret_list)
+            actions_lists.append(actions_list)
             mean_vels.append(round(np.nanmean(vel), 2))
             std_vels.append(round(np.nanstd(vel), 2))
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
@@ -206,7 +207,7 @@ class Experiment:
         info_dict["per_step_returns"] = ret_lists
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
         info_dict["observation_spaces"] = observation_spaces
-
+        info_dict["rl_actions"] = actions_lists
         print("Average, std return: {}, {}".format(np.mean(rets),
                                                    np.std(rets)))
         print("Average, std speed: {}, {}".format(np.mean(mean_vels),
