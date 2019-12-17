@@ -28,11 +28,11 @@ from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
 EMISSION_PATH = '/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/'
-SIM_HOURS = 3
+SIM_HOURS = 24
 HORIZON = SIM_HOURS * 3600 * 10
 NUM_ITERATIONS = 1
-SHORT_CYCLE_TIME = 15
-LONG_CYCLE_TIME = 60
+SHORT_CYCLE_TIME = 30
+LONG_CYCLE_TIME = 150
 SWITCH_TIME = 6
 
 # This dictionary maps ID_LOOPS (espiras)
@@ -170,24 +170,21 @@ def network_example(render=None,
     tl_logic = TrafficLightParams(baseline=False)
 
     phases = [{
-        "duration": "39",
-        "state": "GGgrrrrGGGrrr"
+        "duration": str(LONG_CYCLE_TIME - SWITCH_TIME),
+        "state": "GGGGrrrrGG"
     }, {
-        "duration": "6",
-        "state": "yyyrrrryyyrrr"
+        "duration": str(SWITCH_TIME),
+        "state": "yyyrrrryy"
     }, {
-        "duration": "39",
-        "state": "rrrGGggrrrGGg"
+        "duration": str(SHORT_CYCLE_TIME - SWITCH_TIME),
+        "state": "rrrGGGGrr"
     }, {
-        "duration": "6",
-        "state": "rrryyyyrrryyy"
+        "duration": str(SWITCH_TIME),
+        "state": "rrryyyyrr"
     }]
     # Junction ids
-    # tl_logic.add("GS_247123161", phases=phases, programID=1)
     # this thing here is also bound by the scenario
-    tl_logic.add("GS_247123161", programID=0)
-    # tl_logic.add("247123374", phases=phases, programID=1)
-    # tl_logic.add("center2", phases=phases, programID=1, tls_type="actuated")
+    tl_logic.add("GS_247123374", phases=phases, programID=1)
 
 
     if use_induction_loops:
@@ -206,6 +203,7 @@ def network_example(render=None,
         inflows=inflows)
 
 
+    print(f'scenario: {scenario.name}')
     ql_params = QLParams(epsilon=0.10, alpha=0.05,
                          states=('speed', 'count'),
                          rewards={'type': 'weighted_average',

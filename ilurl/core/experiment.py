@@ -176,7 +176,8 @@ class Experiment:
                 vel[j] = round(np.mean(speeds), 2)
                 ret += reward
                 ret_list.append(round(reward, 2))
-                actions_list.append(list(self.env.rl_action)) 
+                if hasattr(self.env, 'rl_action'):
+                    actions_list.append(list(self.env.rl_action)) 
                 if is_synch and self.env.duration == 0.0 and j > 0:
                     observation_spaces.append(list(self.env.get_observation_space()))
 
@@ -214,18 +215,19 @@ class Experiment:
                                                   np.std(mean_vels)))
         self.env.terminate()
 
-        # if convert_to_csv:
+        if convert_to_csv:
             # wait a short period of time to ensure the xml file is readable
-        time.sleep(0.1)
+            time.sleep(0.1)
 
-        # collect the location of the emission file
-        dir_path = self.env.sim_params.emission_path
-        emission_filename = \
-            "{0}-emission.xml".format(self.env.scenario.name)
-        emission_path = os.path.join(dir_path, emission_filename)
+            # collect the location of the emission file
+            dir_path = self.env.sim_params.emission_path
+            emission_filename = \
+                "{0}-emission.xml".format(self.env.scenario.name)
+            emission_path = os.path.join(dir_path, emission_filename)
 
-        # convert the emission file into a csv
-        # emission_to_csv(emission_path)
+            # convert the emission file into a csv
+            if convert_to_csv:
+                emission_to_csv(emission_path)
 
         if self.env.sim_params.emission_path is not None:
             # collect the location of the emission file
@@ -247,8 +249,6 @@ class Experiment:
             with open(info_path, 'w') as fj:
                 json.dump(info_dict, fj)
 
-        if hasattr(self.env, 'dump'):
-            self.env.dump(os.getcwd())
         return info_dict
 
 

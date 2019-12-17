@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime
 from datetime import timedelta
 
-
+# pd.set_option('mode.chained_assignment', 'raise')
 def get_holidays():
     """Returns the Portugal's Holidays table
 

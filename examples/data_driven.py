@@ -141,7 +141,7 @@ def get_flow_params(additional_net_params, df=None):
 
 
     net = NetParams(inflows=inflow,
-                    template=f'{os.getcwd()}/data/networks/intersection.net.xml',
+                    template=f'{os.getcwd()}/data/networks/intersection/intersection.net.xml',
                     additional_params=additional_net_params)
 
     return initial, net
@@ -258,6 +258,8 @@ def network_example(render=None,
         initial_config=initial_config,
         traffic_lights=tl_logic)
 
+    print(f'scenario: {scenario.name}')
+           
     env = AccelEnv(
         env_params=env_params,
         sim_params=sim_params,
