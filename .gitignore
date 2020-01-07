@@ -1,0 +1,14 @@
+# macos
+*.DS_Store
+
+# python
+*.pyc
+
+# vim
+*.swp
+
+# sumo output data
+*emission.csv
+*emission.xml
+*summary.xml
+*tripinfo.xml
