@@ -21,7 +21,7 @@ from ilurl.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
 
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
-from ilurl.scenarios.intersection import (IntersectionScenario,
+from ilurl.scenarios.sample_intersection import (SampleIntersectionScenario,
                                           SOURCES)
 
 from ilurl.loaders.induction_loops import get_induction_loops
@@ -196,8 +196,8 @@ def network_example(render=None,
     else:
         inflows = build_flow_params()
 
-    scenario = IntersectionScenario(
-        name="intersection",
+    scenario = SampleIntersectionScenario(
+        name="sample_intersection",
         vehicles=vehicles,
         traffic_lights=tl_logic,
         inflows=inflows)

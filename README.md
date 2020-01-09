@@ -1,1 +1,1 @@
-# iLU: Integrative Learning from Urban Data and Situational Context for City Mobility for City Mobility Optimization
+# ILU: (I)ntegrative (L)earning from (U)rban Data

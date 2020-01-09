@@ -52,7 +52,7 @@ EDGES = ["212788159_0", "247123161_0", "247123161_1", "247123161_3",
          "247123449_2", "247123449_1", "247123464_0", "3928875116_0"]
 
 
-class IntersectionScenario(Scenario):
+class SampleIntersectionScenario(Scenario):
 
     def specify_routes(self, net_params):
         rts = {
@@ -141,7 +141,7 @@ def get_flow_params(additional_net_params, df=None):
 
 
     net = NetParams(inflows=inflow,
-                    template=f'{os.getcwd()}/data/networks/intersection/intersection.net.xml',
+                    template=f'{os.getcwd()}/data/networks/sample_intersection/intersection.net.xml',
                     additional_params=additional_net_params)
 
     return initial, net
@@ -251,8 +251,8 @@ def network_example(render=None,
 
     # TODO: template should be an input variable
     # assumption project gets run from root
-    scenario = IntersectionScenario(
-        name="intersection",
+    scenario = SampleIntersectionScenario(
+        name="sample_intersection",
         vehicles=vehicles,
         net_params=net_params,
         initial_config=initial_config,

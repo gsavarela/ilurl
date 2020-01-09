@@ -215,39 +215,31 @@ class Experiment:
                                                   np.std(mean_vels)))
         self.env.terminate()
 
-        if convert_to_csv:
+        if self.env.sim_params.emission_path is not None:
             # wait a short period of time to ensure the xml file is readable
             time.sleep(0.1)
 
             # collect the location of the emission file
             dir_path = self.env.sim_params.emission_path
-            emission_filename = \
-                "{0}-emission.xml".format(self.env.scenario.name)
-            emission_path = os.path.join(dir_path, emission_filename)
 
-            # convert the emission file into a csv
-            if convert_to_csv:
-                emission_to_csv(emission_path)
+            # this is the pickle version
+            if hasattr(self.env, 'dump'):
+                self.env.dump(dir_path)
 
-        if self.env.sim_params.emission_path is not None:
-            # collect the location of the emission file
-            dir_path = self.env.sim_params.emission_path
-
-            if hasattr(self.env, 'log'):
-                log_filename = \
-                "{0}-log.json".format(self.env.scenario.name)
-
-                log_path = os.path.join(dir_path, log_filename)
-
-                with open(log_path, 'w') as fj:
-                    json.dump(self.env.log, fj)
-
+            # general process information
             info_filename = \
                 "{0}-info.json".format(self.env.scenario.name)
 
             info_path = os.path.join(dir_path, info_filename)
             with open(info_path, 'w') as fj:
                 json.dump(info_dict, fj)
+
+            if convert_to_csv:
+                emission_filename = \
+                    "{0}-emission.xml".format(self.env.scenario.name)
+                emission_path = os.path.join(dir_path, emission_filename)
+
+                emission_to_csv(emission_path)
 
         return info_dict
 
