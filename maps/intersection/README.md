@@ -1,6 +1,6 @@
 # Intersection Scenario
 
-![alt text](pics/intersection.png)
+![alt text](figs/intersection.png)
 
 ## Recipe
 
@@ -18,7 +18,7 @@ The image was a selected zone in the city of Lisbon. The intersection choosen is
 
 - Save file as intersection.raw.net.
 
-### 3. Edit intersection.raw.net using [netconvert](https://sumo.dlr.de/docs/NETEDIT.html).
+### 3. Edit intersection.raw.net using [netedit](https://sumo.dlr.de/docs/NETEDIT.html).
 
 - Remove U turns using connections editor.
 - Save file as intersection.net.xml

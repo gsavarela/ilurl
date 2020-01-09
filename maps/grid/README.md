@@ -1,6 +1,6 @@
 # Grid Scenario
 
-![alt text](pics/grid.png)
+![alt text](figs/grid.png)
 
 ## Recipe
 
