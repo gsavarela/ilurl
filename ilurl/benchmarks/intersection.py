@@ -5,11 +5,10 @@ __date__ = '2020-01-08'
 import os
 
 from flow.core.params import SumoParams, EnvParams 
-# from flow.core.params import InFlows
 
-# from flow.envs import TestEnv
 from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
-from flow.core.experiment import Experiment
+from ilurl.core.experiment import Experiment
+# from flow.core.experiment import Experiment
 
 from ilurl.scenarios.intersection import IntersectionScenario
 
@@ -21,9 +20,10 @@ HORIZON = 360
 SIM_STEP = 1
 if __name__ == '__main__':
     sim_params = SumoParams(render=True,
+                            print_warnings=False,
                             sim_step=SIM_STEP,
-                            restart_instance=True,
-                            emission_path=DIR)
+                            restart_instance=True)
+                            # emission_path=DIR)
 
     env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)
 
@@ -41,4 +41,4 @@ if __name__ == '__main__':
 
     exp = Experiment(env=env)
 
-    _ = exp.run(1, HORIZON * SIM_STEP)
+    _ = exp.run(5, HORIZON * SIM_STEP)

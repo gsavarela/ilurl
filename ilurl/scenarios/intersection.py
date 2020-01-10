@@ -22,6 +22,7 @@ DIR = \
 TEMPLATE_PATH = \
     os.path.join(DIR, 'intersection/intersection.net.xml')
 
+
 def get_routes():
     # Parse xml to recover all generated routes
     rou_path = f'{DIR}/intersection/intersection.rou.xml'
@@ -96,8 +97,16 @@ class IntersectionScenario(Scenario):
             )
 
         if traffic_lights is None:
-            # TODO: collect from generated data
-            traffic_lights = TrafficLightParams()
+            prog_list = get_tl_logic()
+            if prog_list:
+                traffic_lights = TrafficLightParams(baseline=False)
+                for prog in prog_list:
+                    prog_id = prog.pop('id')
+                    prog['tls_type'] = prog.pop('type')
+                    prog['programID'] = int(prog.pop('programID')) + 1
+                    traffic_lights.add(prog_id, **prog)
+            else:
+                traffic_lights = TrafficLightParams(baseline=False)
 
         super(IntersectionScenario, self).__init__(
                  name,
@@ -111,5 +120,21 @@ class IntersectionScenario(Scenario):
         return get_routes()
 
 
+def get_tl_logic():
+    # Parse xml to recover all programs
+    tls_path = f'{DIR}/intersection/intersection.tls.prog.xml'
+    prog_list = []
+
+    if os.path.isfile(tls_path):
+        root = ET.parse(tls_path).getroot()
+        for prog in root.findall('tlLogic'):
+            prog_list.append(prog.attrib)
+            prog_list[-1]['phases'] = \
+                [phase.attrib for phase in prog.findall('phase')]
+
+    return prog_list
+
 if __name__ == '__main__':
-    print(get_routes())
+    #print(get_routes())
+    print(get_tl_logic())
+
