@@ -50,5 +50,3 @@ This script generates a trips.xml which is consumed by duarouter application. By
 
 # References
 <sup>1</sup>L. Codeca, R. Frank, S. Faye and T. Engel, "Luxembourg SUMO Traffic (LuST) Scenario: Traffic Demand Evaluation" in IEEE Intelligent Transportation Systems Magazine, vol. 9, no. 2, pp. 52-63, Summer 2017. DOI: 10.1109/MITS.2017.2666585
-
->>>>>>> ilusim/master
