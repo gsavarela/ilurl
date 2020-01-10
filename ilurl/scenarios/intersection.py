@@ -6,7 +6,12 @@ import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
+# Vehicle definition stuff
+from flow.controllers import GridRouter
+from flow.core.params import SumoCarFollowingParams, VehicleParams
+
 from flow.core.params import NetParams, InitialConfig, TrafficLightParams
+
 from flow.scenarios import Scenario
 
 DIR = \
@@ -43,10 +48,23 @@ class IntersectionScenario(Scenario):
 
     def __init__(self,
                  name,
-                 vehicles,
+                 vehicles=None,
                  net_params=None,
                  initial_config=None,
                  traffic_lights=None):
+
+        #TODO: check vtype
+        if vehicles is None:
+            vehicles = VehicleParams()
+            vehicles.add(
+                veh_id="human",
+                routing_controller=(GridRouter, {}),
+                car_following_params=SumoCarFollowingParams(
+                    min_gap=2.5,
+                    decel=7.5,  # avoid collisions at emergency stops
+                ),
+                num_vehicles=4
+            )
 
         if net_params is None:
             net_params = NetParams(
@@ -73,7 +91,6 @@ class IntersectionScenario(Scenario):
         )
 
     def specify_routes(self, net_params):
-        # TODO: Parse route file and extract the routes
         return get_routes()
 
 
