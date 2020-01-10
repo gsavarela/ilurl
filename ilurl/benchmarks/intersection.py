@@ -5,7 +5,8 @@ __date__ = '2020-01-08'
 import os
 
 from flow.core.params import SumoParams, VehicleParams, EnvParams
-from flow.envs import TestEnv
+# from flow.envs import TestEnv
+from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 from flow.core.experiment import Experiment
 
 from ilurl.scenarios.intersection import IntersectionScenario
@@ -18,7 +19,7 @@ if __name__ == '__main__':
 
     veh_params = VehicleParams()
     veh_params.add('human', num_vehicles=3)
-    env_params = EnvParams()
+    env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)
 
     scenario = IntersectionScenario(
         name='intersection',
@@ -26,7 +27,7 @@ if __name__ == '__main__':
     )
 
 
-    env = TestEnv(
+    env = AccelEnv(
         env_params=env_params,
         sim_params=sim_params,
         scenario=scenario
