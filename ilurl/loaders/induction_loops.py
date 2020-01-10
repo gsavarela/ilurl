@@ -2,11 +2,17 @@
 __author__ = 'Guilherme Varela'
 __date__ = '2019-10-08'
 
+import os
 import numpy as np
 import pandas as pd
 
 from datetime import datetime
 from datetime import timedelta
+
+
+ILURL_HOME = os.environ['ILURL_HOME']
+DIR = \
+    f'{ILURL_HOME}/data/'
 
 # pd.set_option('mode.chained_assignment', 'raise')
 def get_holidays():
@@ -21,7 +27,7 @@ def get_holidays():
                 Description: string indicating why it's a holiday
 
     """
-    df = pd.read_csv("/Users/gsavarela/Work/py/ilu/ilurl/data/calendar/pthol2018.txt", sep=",",
+    df = pd.read_csv(f"{DIR}/calendar/pthol2018.txt", sep=",",
                      parse_dates=True, index_col=0, header=0, encoding="utf-8")
 
     return df

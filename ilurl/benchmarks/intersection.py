@@ -3,27 +3,30 @@ __author__ = 'Guilherme Varela'
 __date__ = '2020-01-08'
 
 import os
+import json
 
 from flow.core.params import SumoParams, EnvParams 
 
 from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 from ilurl.core.experiment import Experiment
-# from flow.core.experiment import Experiment
 
 from ilurl.scenarios.intersection import IntersectionScenario
 
 # TODO: Generalize for any parameter
-DIR = \
-    '/Users/gsavarela/Work/py/ilu/ilurl/data/networks/'
 
-HORIZON = 360
-SIM_STEP = 1
+ILURL_HOME = os.environ['ILURL_HOME']
+DIR = \
+    f'{ILURL_HOME}/data/networks/'
+
+NUM_ITERATIONS = 24
+HORIZON = 3600
+SIM_STEP = 0.1
 if __name__ == '__main__':
-    sim_params = SumoParams(render=True,
+    sim_params = SumoParams(render=False,
                             print_warnings=False,
                             sim_step=SIM_STEP,
-                            restart_instance=True)
-                            # emission_path=DIR)
+                            restart_instance=True,
+                            emission_path=DIR)
 
     env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)
 
@@ -41,4 +44,10 @@ if __name__ == '__main__':
 
     exp = Experiment(env=env)
 
-    _ = exp.run(5, HORIZON * SIM_STEP)
+    import time
+    start = time.time()
+    info_dict = exp.run(NUM_ITERATIONS, int(HORIZON / SIM_STEP))
+    print(f'Elapsed time {time.time() - start}')
+    infoname = '{}.info.json'.format(env.scenario.name)
+    with open(infoname, 'w') as f:
+        json.dump(info_dict, f)

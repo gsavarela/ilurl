@@ -16,8 +16,11 @@ from flow.core.params import NetParams, InitialConfig, TrafficLightParams
 
 from flow.scenarios import Scenario
 
+
+ILURL_HOME = os.environ['ILURL_HOME']
+
 DIR = \
-    '/Users/gsavarela/Work/py/ilu/ilurl/data/networks/'
+    f'{ILURL_HOME}/data/networks/'
 
 TEMPLATE_PATH = \
     os.path.join(DIR, 'intersection/intersection.net.xml')

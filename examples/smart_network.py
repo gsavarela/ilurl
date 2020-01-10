@@ -7,7 +7,7 @@ __author__ = 'Guilherme Varela'
 __date__ = '2019-12-10'
 
 import time
-# import os
+import os
 
 import pandas as pd
 from flow.controllers import GridRouter
@@ -27,7 +27,9 @@ from ilurl.scenarios.sample_intersection import (SampleIntersectionScenario,
 from ilurl.loaders.induction_loops import get_induction_loops
 from ilurl.loaders.induction_loops import groupby_induction_loops
 
-EMISSION_PATH = '/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/'
+
+ILURL_HOME = os.environ['ILURL_HOME']
+EMISSION_PATH = 'f{ILURL_HOME}ilurl/data/emissions/'
 SIM_HOURS = 24
 HORIZON = SIM_HOURS * 3600 * 10
 NUM_ITERATIONS = 1

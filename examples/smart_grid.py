@@ -14,7 +14,9 @@ from ilurl.core.experiment import Experiment
 from ilurl.core.params import QLParams
 from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
 
-EMISSION_PATH = '/Users/gsavarela/sumo_data/'
+
+ILURL_HOME = os.environ['ILURL_HOME']
+EMISSION_PATH = 'f{ILURL_HOME}ilurl/data/emissions/'
 HORIZON = 1500
 NUM_ITERATIONS = 5
 SHORT_CYCLE_TIME = 31

@@ -7,9 +7,10 @@
    be restarting every 400 steps, the rewards are being changed
    radically after each restart
 
-   * extend outputs to custumized reward functions
+   * extend outputs to costumized reward functions
    * fix bug of averaging speeds when no cars are on the simulation
    """
+import warnings
 import datetime
 import json
 import logging
@@ -21,6 +22,8 @@ from collections import defaultdict
 import numpy as np
 from flow.core.util import emission_to_csv
 
+# TODO: Track those anoying warning
+warnings.filterwarnings('ignore')
 
 class Experiment:
     """
