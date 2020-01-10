@@ -5,7 +5,7 @@ __date__ = '2020-01-08'
 import os
 
 from flow.core.params import SumoParams, EnvParams 
-from flow.core.params import InFlows
+# from flow.core.params import InFlows
 
 # from flow.envs import TestEnv
 from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
@@ -17,30 +17,19 @@ from ilurl.scenarios.intersection import IntersectionScenario
 DIR = \
     '/Users/gsavarela/Work/py/ilu/ilurl/data/networks/'
 
-HORIZON = 270
-
+HORIZON = 360
+SIM_STEP = 1
 if __name__ == '__main__':
-    sim_params = SumoParams(render=True, sim_step=1, emission_path=DIR)
+    sim_params = SumoParams(render=True,
+                            sim_step=SIM_STEP,
+                            restart_instance=True,
+                            emission_path=DIR)
 
-    inflows = InFlows()
-    
-    # def add(self,
-    #         edge,
-    #         veh_type,
-    #         vehs_per_hour=None,
-    #         probability=None,
-    #         period=None,
-    #         depart_lane="first",
-    #         depart_speed=0,
-    #         name="flow",
-    #         begin=1,
-    #         end=86400,
-    #         number=None,
-    #         **kwargs):
     env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)
 
     scenario = IntersectionScenario(
-        name='intersection'
+        name='intersection',
+        horizon=HORIZON,
     )
 
 
@@ -52,4 +41,4 @@ if __name__ == '__main__':
 
     exp = Experiment(env=env)
 
-    _ = exp.run(1, 300)
+    _ = exp.run(1, HORIZON * SIM_STEP)

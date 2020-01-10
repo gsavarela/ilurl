@@ -9,7 +9,9 @@ from collections import defaultdict
 # Vehicle definition stuff
 from flow.controllers import GridRouter
 from flow.core.params import SumoCarFollowingParams, VehicleParams
-
+# InFlows
+from flow.core.params import InFlows
+# Network related parameters
 from flow.core.params import NetParams, InitialConfig, TrafficLightParams
 
 from flow.scenarios import Scenario
@@ -17,6 +19,8 @@ from flow.scenarios import Scenario
 DIR = \
     '/Users/gsavarela/Work/py/ilu/ilurl/data/networks/'
 
+TEMPLATE_PATH = \
+    os.path.join(DIR, 'intersection/intersection.net.xml')
 
 def get_routes():
     # Parse xml to recover all generated routes
@@ -48,6 +52,7 @@ class IntersectionScenario(Scenario):
 
     def __init__(self,
                  name,
+                 horizon=360,
                  vehicles=None,
                  net_params=None,
                  initial_config=None,
@@ -63,14 +68,26 @@ class IntersectionScenario(Scenario):
                     min_gap=2.5,
                     decel=7.5,  # avoid collisions at emergency stops
                 ),
-                num_vehicles=4
             )
 
         if net_params is None:
+
+            inflows = InFlows()
+            for edge in get_routes():
+                inflows.add(
+                    edge,
+                    'human',
+                    probability=0.1,
+                    depart_lane='best',
+                    depart_speed='random',
+                    name=f'flow_{edge}',
+                    begin=1,
+                    end=0.9 * horizon
+                )
+
             net_params = NetParams(
-                template={
-                    'net': os.path.join(DIR, 'intersection/intersection.net.xml'),
-                },
+                inflows,
+                template=TEMPLATE_PATH
             )
 
         if initial_config is None:
