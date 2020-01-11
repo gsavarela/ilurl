@@ -1,7 +1,7 @@
-"""This module defines a Flow scenario from network data"""
-
+"""This module acts as a wrapper for scenarios generated from network data"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-10'
+
 import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
@@ -22,13 +22,30 @@ ILURL_HOME = os.environ['ILURL_HOME']
 DIR = \
     f'{ILURL_HOME}/data/networks/'
 
-TEMPLATE_PATH = \
-    os.path.join(DIR, 'intersection/intersection.net.xml')
+
+def get_path(network_id, file_type):
+    return \
+        os.path.join(DIR, f'{network_id}/{network_id}.{file_type}.xml')
 
 
-def get_routes():
+def get_tl_logic(network_id):
+    # Parse xml to recover all programs
+    tls_path = get_path(network_id, 'net')
+    prog_list = []
+
+    if os.path.isfile(tls_path):
+        root = ET.parse(tls_path).getroot()
+        for prog in root.findall('tlLogic'):
+            prog_list.append(prog.attrib)
+            prog_list[-1]['phases'] = \
+                [phase.attrib for phase in prog.findall('phase')]
+
+    return prog_list
+
+
+def get_routes(network_id):
     # Parse xml to recover all generated routes
-    rou_path = f'{DIR}/intersection/intersection.rou.xml'
+    rou_path = get_path(network_id, 'rou')
     root = ET.parse(rou_path).getroot()
     route_list = []
     for it in root.findall('vehicle/route'):
@@ -51,17 +68,19 @@ def get_routes():
     return specify_routes_dict
 
 
-class IntersectionScenario(Scenario):
+class BaseScenario(Scenario):
     """This class leverages on specs created by SUMO"""
 
     def __init__(self,
-                 name,
+                 network_id,
                  horizon=360,
+                 inflows=None,
                  vehicles=None,
                  net_params=None,
                  initial_config=None,
                  traffic_lights=None):
 
+        self.network_id = network_id
         #TODO: check vtype
         if vehicles is None:
             vehicles = VehicleParams()
@@ -75,32 +94,31 @@ class IntersectionScenario(Scenario):
             )
 
         if net_params is None:
-
-            inflows = InFlows()
-            for edge in get_routes():
-                inflows.add(
-                    edge,
-                    'human',
-                    probability=0.1,
-                    depart_lane='best',
-                    depart_speed='random',
-                    name=f'flow_{edge}',
-                    begin=1,
-                    end=0.9 * horizon
-                )
-
+            if not inflows:
+                inflows = InFlows()
+                for edge in get_routes(network_id):
+                    inflows.add(
+                        edge,
+                        'human',
+                        probability=0.2,
+                        depart_lane='best',
+                        depart_speed='random',
+                        name=f'flow_{edge}',
+                        begin=1,
+                        end=0.9 * horizon
+                    )
             net_params = NetParams(
                 inflows,
-                template=TEMPLATE_PATH
+                template=get_path(network_id, 'net')
             )
 
         if initial_config is None:
             initial_config = InitialConfig(
-                edges_distribution=get_routes().keys()
+                edges_distribution=get_routes(network_id).keys()
             )
 
         if traffic_lights is None:
-            prog_list = get_tl_logic()
+            prog_list = get_tl_logic(network_id)
             if prog_list:
                 traffic_lights = TrafficLightParams(baseline=False)
                 for prog in prog_list:
@@ -111,8 +129,8 @@ class IntersectionScenario(Scenario):
             else:
                 traffic_lights = TrafficLightParams(baseline=False)
 
-        super(IntersectionScenario, self).__init__(
-                 name,
+        super(BaseScenario, self).__init__(
+                 network_id,
                  vehicles,
                  net_params,
                  initial_config=initial_config,
@@ -120,24 +138,10 @@ class IntersectionScenario(Scenario):
         )
 
     def specify_routes(self, net_params):
-        return get_routes()
+        return get_routes(self.network_id)
 
 
-def get_tl_logic():
-    # Parse xml to recover all programs
-    tls_path = f'{DIR}/intersection/intersection.tls.prog.xml'
-    prog_list = []
-
-    if os.path.isfile(tls_path):
-        root = ET.parse(tls_path).getroot()
-        for prog in root.findall('tlLogic'):
-            prog_list.append(prog.attrib)
-            prog_list[-1]['phases'] = \
-                [phase.attrib for phase in prog.findall('phase')]
-
-    return prog_list
 
 if __name__ == '__main__':
-    #print(get_routes())
-    print(get_tl_logic())
+    print(get_routes('grid'))
 
