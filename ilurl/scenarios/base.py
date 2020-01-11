@@ -43,29 +43,49 @@ def get_tl_logic(network_id):
     return prog_list
 
 
+def get_generic_element(network_id, target,
+                        file_type='net', ignore=None, key=None):
+    """Parses the {network_id}.{file_type}.xml in search for target
+
+    Usage:
+    -----
+    > # Returns a list of dicts representing the nodes
+    > elements = get_generic_element('grid', 'junctions')
+    """
+    # Parse xml recover target elements
+    file_path = get_path(network_id, file_type)
+    elements = []
+
+    if os.path.isfile(file_path):
+        root = ET.parse(file_path).getroot()
+        for elem in root.findall(target):
+            if ignore not in elem.attrib:
+                if key in elem.attrib:
+                    elements.append(elem.attrib[key])
+                else:
+                    elements.append(elem.attrib)
+
+    return elements
+
+
 def get_routes(network_id):
     # Parse xml to recover all generated routes
-    rou_path = get_path(network_id, 'rou')
-    root = ET.parse(rou_path).getroot()
-    route_list = []
-    for it in root.findall('vehicle/route'):
-        route_list.append(it.attrib['edges'])
+    routes = get_generic_element(network_id, 'vehicle/route',
+                                 file_type='rou', key='edges')
 
-    # Convert routes into a dictionary
-    route_dict = defaultdict(list)
-    for rou in set(route_list):
-        rou = rou.split(' ')
-        key = rou[0]
-        route_dict[key].append(rou)
+    # unique routes as array of arrays
+    routes = [rou.split(' ') for rou in set(routes)]
 
-    # If there is more than one route starting from an edge
-    # then specify the probability -- equiprobable
-    specify_routes_dict = {}
-    for start, routes in route_dict.items():
-        n = len(routes)
-        specify_routes_dict[start] = \
-            [(rou, 1 / n) for rou in routes]
-    return specify_routes_dict
+    # starting edges
+    keys = {rou[0] for rou in routes}
+
+    # match routes to it's starting edges
+    routes = {k: [r for r in routes if k == r[0]] for k in keys}
+
+    # convert to equipropable array of tuples: (routes, probability)
+    routes = {k: [(r, 1 / len(rou)) for r in rou] for k, rou in routes.items()}
+
+    return routes
 
 
 class BaseScenario(Scenario):
@@ -137,11 +157,28 @@ class BaseScenario(Scenario):
                  traffic_lights=traffic_lights
         )
 
+        self.nodes = self.specify_nodes(net_params)
+        self.edges = self.specify_edges(net_params)
+        self.connections = self.specify_connections(net_params)
+        self.types = self.specify_types(net_params)
+
+    def specify_nodes(self, net_params):
+        return get_generic_element(self.network_id, 'junction')
+
+    def specify_edges(self, net_params):
+        return get_generic_element(self.network_id, 'edge', ignore='function')
+
+    def specify_connections(self, net_params):
+        return get_generic_element(self.network_id, 'connection')
+
     def specify_routes(self, net_params):
         return get_routes(self.network_id)
+
+    def specify_types(self, net_params):
+        return get_generic_element(self.network_id, 'type')
 
 
 
 if __name__ == '__main__':
-    print(get_routes('grid'))
+    print(get_routes('intersection'))
 
