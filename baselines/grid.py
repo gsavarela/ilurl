@@ -7,31 +7,27 @@ import json
 
 from flow.core.params import SumoParams, EnvParams 
 
-# from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
-from flow.envs import TestEnv
-# from ilurl.core.experiment import Experiment
-from flow.core.experiment import Experiment
+from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
+from ilurl.core.experiment import Experiment
 
 from ilurl.scenarios.grid import GridScenario
 
 # TODO: Generalize for any parameter
-
 ILURL_HOME = os.environ['ILURL_HOME']
 DIR = \
     f'{ILURL_HOME}/data/networks/'
 
-NUM_ITERATIONS = 5
+NUM_ITERATIONS = 100
 HORIZON = 3600
-SIM_STEP = 1
+SIM_STEP = 0.1
 if __name__ == '__main__':
     sim_params = SumoParams(render=True,
-                            #print_warnings=False,
+                            print_warnings=False,
                             sim_step=SIM_STEP,
                             restart_instance=True,
                             emission_path=DIR)
 
-    # env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)
-    env_params = EnvParams()
+    env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)
 
     scenario = GridScenario(
         name='grid',
@@ -39,7 +35,7 @@ if __name__ == '__main__':
     )
 
 
-    env = TestEnv(
+    env = AccelEnv(
         env_params=env_params,
         sim_params=sim_params,
         scenario=scenario
@@ -51,6 +47,6 @@ if __name__ == '__main__':
     start = time.time()
     info_dict = exp.run(NUM_ITERATIONS, int(HORIZON / SIM_STEP))
     print(f'Elapsed time {time.time() - start}')
-    # infoname = '{}.info.json'.format(env.scenario.name)
-    # with open(infoname, 'w') as f:
-    #     json.dump(info_dict, f)
+    infoname = '{}.info.json'.format(env.scenario.name)
+    with open(infoname, 'w') as f:
+        json.dump(info_dict, f)

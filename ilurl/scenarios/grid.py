@@ -11,7 +11,6 @@ from flow.controllers import GridRouter
 from flow.core.params import SumoCarFollowingParams, VehicleParams
 # InFlows
 from flow.core.params import InFlows
-
 # Network related parameters
 from flow.core.params import NetParams, InitialConfig, TrafficLightParams
 
@@ -76,12 +75,13 @@ class GridScenario(Scenario):
             )
 
         if net_params is None:
+
             inflows = InFlows()
             for edge in get_routes():
                 inflows.add(
                     edge,
                     'human',
-                    probability=0.05,
+                    probability=0.2,
                     depart_lane='best',
                     depart_speed='random',
                     name=f'flow_{edge}',
@@ -138,6 +138,6 @@ def get_tl_logic():
     return prog_list
 
 if __name__ == '__main__':
-    #print(get_routes())
-    print(get_tl_logic())
+    print(get_routes())
+    #print(get_tl_logic())
 

@@ -13,12 +13,11 @@ from ilurl.core.experiment import Experiment
 from ilurl.scenarios.intersection import IntersectionScenario
 
 # TODO: Generalize for any parameter
-
 ILURL_HOME = os.environ['ILURL_HOME']
 DIR = \
     f'{ILURL_HOME}/data/networks/'
 
-NUM_ITERATIONS = 24
+NUM_ITERATIONS = 100
 HORIZON = 3600
 SIM_STEP = 0.1
 if __name__ == '__main__':
