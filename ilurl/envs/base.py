@@ -10,7 +10,8 @@ from collections import defaultdict
 import numpy as np
 
 from flow.core import rewards
-from flow.envs.base_env import Env
+# from flow.envs.base_env import Env
+from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 
 from ilurl.core.ql.dpq import DPQ
 from ilurl.core.ql.reward import RewardCalculator
@@ -30,16 +31,16 @@ ADDITIONAL_TLS_PARAMS = {
     # short_cycle_time is the time it takes for a direction to enter
     # the yellow state e.g
     # GrGr -> yryr or rGrG -> yGyG
-    'short_cycle_time': 39,
+    'short_cycle_time': 45,
     # slow_time same effect as short_cycle_time but taking longer
-    'long_cycle_time': 39,
+    'long_cycle_time': 45,
     # switch_time is the time it takes to exit the yellow state e.g
     # yryr -> rGrG or ryry -> GrGr
     'switch_time': 6
 }
 
 
-class TrafficLightQLEnv(Env, Serializer):
+class TrafficLightQLEnv(AccelEnv, Serializer):
     """Environment used to train traffic lights.
 
     This is a single TFLQLAgent controlling a variable number of
@@ -136,8 +137,8 @@ class TrafficLightQLEnv(Env, Serializer):
         #THIS IS FROM ACCEL ENV
         # variables used to sort vehicles by their initial position plus
         # distance traveled
-        self.prev_pos = dict()
-        self.absolute_position = dict()
+        # self.prev_pos = dict()
+        # self.absolute_position = dict()
 
         # those parameters are going to be forwarded to learning engine
         for p in QL_PARAMS:
@@ -234,8 +235,8 @@ class TrafficLightQLEnv(Env, Serializer):
                 self.currently_yellow[i] = 1 if state0[0].lower() == 'y' else 0
                 i += 1
 
-                self.incoming[node_id] = defaultdict(list)
-                self.outgoing[node_id] = defaultdict(list)
+                self.incoming[node_id] = {}
+                self.outgoing[node_id] = {}
 
                 self.memo_speeds[node_id] = {}
                 self.memo_counts[node_id] = {}
@@ -677,11 +678,13 @@ class TrafficLightQLEnv(Env, Serializer):
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition.
         """
+        # TODO: enable access to parcial observable
+        reward = super(TrafficLightQLEnv, self).compute_reward(rl_actions, **kwargs)
         if self.duration not in self.memo_rewards:
             # rew = rewards.average_velocity(self, fail=False)
-            rew = self.reward_calculator.calculate(
-                self.get_observation_space())
-            self.memo_rewards[self.duration] = rew
+            # rew = self.reward_calculator.calculate(
+            #     self.get_observation_space())
+            self.memo_rewards[self.duration] = reward
         return self.memo_rewards[self.duration]
 
     def _to_index(self, action):
@@ -721,40 +724,40 @@ class TrafficLightQLEnv(Env, Serializer):
                     % self.k.scenario.length()
                 self.prev_pos[veh_id] = this_pos
 
-    @property
-    def sorted_ids(self):
-        """Sort the vehicle ids of vehicles in the network by position.
+    # @property
+    # def sorted_ids(self):
+    #     """Sort the vehicle ids of vehicles in the network by position.
 
-        This environment does this by sorting vehicles by their absolute
-        position, defined as their initial position plus distance traveled.
+    #     This environment does this by sorting vehicles by their absolute
+    #     position, defined as their initial position plus distance traveled.
 
-        Returns
-        -------
-        list of str
-            a list of all vehicle IDs sorted by position
-        """
-        if self.env_params.additional_params['sort_vehicles']:
-            return sorted(self.k.vehicle.get_ids(), key=self._get_abs_position)
-        else:
-            return self.k.vehicle.get_ids()
+    #     Returns
+    #     -------
+    #     list of str
+    #         a list of all vehicle IDs sorted by position
+    #     """
+    #     if self.env_params.additional_params['sort_vehicles']:
+    #         return sorted(self.k.vehicle.get_ids(), key=self._get_abs_position)
+    #     else:
+    #         return self.k.vehicle.get_ids()
 
-    def _get_abs_position(self, veh_id):
-        """Return the absolute position of a vehicle."""
-        return self.absolute_position.get(veh_id, -1001)
+    # def _get_abs_position(self, veh_id):
+    #     """Return the absolute position of a vehicle."""
+    #     return self.absolute_position.get(veh_id, -1001)
 
-    def reset(self):
-        """See parent class.
+    # def reset(self):
+    #     """See parent class.
 
-        This also includes updating the initial absolute position and previous
-        position.
-        """
-        obs = super().reset()
+    #     This also includes updating the initial absolute position and previous
+    #     position.
+    #     """
+    #     obs = super().reset()
 
-        for veh_id in self.k.vehicle.get_ids():
-            self.absolute_position[veh_id] = self.k.vehicle.get_x_by_id(veh_id)
-            self.prev_pos[veh_id] = self.k.vehicle.get_x_by_id(veh_id)
+    #     for veh_id in self.k.vehicle.get_ids():
+    #         self.absolute_position[veh_id] = self.k.vehicle.get_x_by_id(veh_id)
+    #         self.prev_pos[veh_id] = self.k.vehicle.get_x_by_id(veh_id)
 
-        return obs
+    #     return obs
 
 
     # TODO: Copy & Paste dependency on TrafficLightGridEnv

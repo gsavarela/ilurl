@@ -7,9 +7,9 @@ import json
 import argparse
 from flow.core.params import SumoParams, EnvParams 
 
-# from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
+from flow.envs.loop.loop_accel import ADDITIONAL_ENV_PARAMS
 from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS
-from ilurl.envs.base import ADDITIONAL_TLS_PARAMS as ADDITIONAL_ENV_PARAMS
+from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
 
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
@@ -21,11 +21,6 @@ ILURL_HOME = os.environ['ILURL_HOME']
 
 EMISSION_PATH = \
     f'{ILURL_HOME}/data/emissions/'
-
-NUM_ITERATIONS = 1
-HORIZON = 3600
-SIM_STEP = 0.1
-
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -88,8 +83,15 @@ if __name__ == '__main__':
         sumo_args['emission_path'] = EMISSION_PATH
 
     sim_params = SumoParams(**sumo_args)
-                            
-    env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)
+
+    additional_params = {}
+    additional_params.update(ADDITIONAL_ENV_PARAMS)
+    additional_params.update(ADDITIONAL_TLS_PARAMS)
+    additional_params['long_cycle_time'] = 45
+    additional_params['short_cycle_time'] = 45
+
+    env_params = EnvParams(evaluate=True,
+                           additional_params=additional_params)
 
     scenario = BaseScenario(
         network_id=pargs.scenario,
@@ -115,6 +117,3 @@ if __name__ == '__main__':
     start = time.time()
     info_dict = exp.run(pargs.num_iterations, int(pargs.time / pargs.step))
     print(f'Elapsed time {time.time() - start}')
-    infoname = '{}.info.json'.format(env.scenario.name)
-    with open(infoname, 'w') as f:
-        json.dump(info_dict, f)

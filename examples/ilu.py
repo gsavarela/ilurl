@@ -18,10 +18,6 @@ ILURL_HOME = os.environ['ILURL_HOME']
 EMISSION_PATH = \
     f'{ILURL_HOME}/data/emissions/'
 
-NUM_ITERATIONS = 1
-HORIZON = 3600
-SIM_STEP = 0.1
-
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -83,8 +79,9 @@ if __name__ == '__main__':
         sumo_args['emission_path'] = EMISSION_PATH
 
     sim_params = SumoParams(**sumo_args)
-                            
-    env_params = EnvParams(additional_params=ADDITIONAL_ENV_PARAMS)
+
+    env_params = EnvParams(evaluate=True,
+                           additional_params=ADDITIONAL_ENV_PARAMS)
 
     scenario = BaseScenario(
         network_id=pargs.scenario,
@@ -104,6 +101,3 @@ if __name__ == '__main__':
     start = time.time()
     info_dict = exp.run(pargs.num_iterations, int(pargs.time / pargs.step))
     print(f'Elapsed time {time.time() - start}')
-    infoname = '{}.info.json'.format(env.scenario.name)
-    with open(infoname, 'w') as f:
-        json.dump(info_dict, f)

@@ -212,10 +212,10 @@ class Experiment:
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions_lists
-        print("Average, std return: {}, {}".format(np.mean(rets),
-                                                   np.std(rets)))
-        print("Average, std speed: {}, {}".format(np.mean(mean_vels),
-                                                  np.std(mean_vels)))
+        print("Average, std return: {}, {}".format(np.nanmean(rets),
+                                                   np.nanstd(rets)))
+        print("Average, std speed: {}, {}".format(np.nanmean(mean_vels),
+                                                  np.nanstd(mean_vels)))
         self.env.terminate()
 
         if self.env.sim_params.emission_path is not None:
@@ -225,9 +225,6 @@ class Experiment:
             # collect the location of the emission file
             dir_path = self.env.sim_params.emission_path
 
-            # this is the pickle version
-            if hasattr(self.env, 'dump'):
-                self.env.dump(dir_path)
 
             # general process information
             info_filename = \
@@ -236,6 +233,11 @@ class Experiment:
             info_path = os.path.join(dir_path, info_filename)
             with open(info_path, 'w') as fj:
                 json.dump(info_dict, fj)
+
+            # TODO: TypeError: can't pickle dict_keys objects in python
+            # this is the pickle version
+            # if hasattr(self.env, 'dump'):
+            #     self.env.dump(dir_path)
 
             if convert_to_csv:
                 emission_filename = \
