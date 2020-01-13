@@ -234,10 +234,8 @@ class Experiment:
             with open(info_path, 'w') as fj:
                 json.dump(info_dict, fj)
 
-            # TODO: TypeError: can't pickle dict_keys objects in python
-            # this is the pickle version
-            # if hasattr(self.env, 'dump'):
-            #     self.env.dump(dir_path)
+            if hasattr(self.env, 'dump'):
+                self.env.dump(dir_path)
 
             if convert_to_csv:
                 emission_filename = \

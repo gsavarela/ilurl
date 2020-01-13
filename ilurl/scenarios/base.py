@@ -16,7 +16,6 @@ from flow.core.params import NetParams, InitialConfig, TrafficLightParams
 
 from flow.scenarios.base_scenario import Scenario
 
-
 ILURL_HOME = os.environ['ILURL_HOME']
 
 DIR = \
@@ -212,7 +211,7 @@ class BaseScenario(Scenario):
 
         if initial_config is None:
             initial_config = InitialConfig(
-                edges_distribution=get_routes(network_id).keys()
+                edges_distribution=tuple(get_routes(network_id).keys())
             )
 
         if traffic_lights is None:
@@ -255,12 +254,3 @@ class BaseScenario(Scenario):
 
     def specify_types(self, net_params):
         return get_generic_element(self.network_id, 'type')
-
-
-
-if __name__ == '__main__':
-    # routes = get_routes('intersection')
-    edges = get_generic_element('intersection', 'edge', ignore='function', child_key='lane')
-    print(edges)
-
-    print(get_edges('intersection'))

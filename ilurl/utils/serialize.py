@@ -48,7 +48,7 @@ class Serializer(object):
 
         file_path = '{:}{:}'.format(file_dir, filename)
         with open(file_path, 'wb') as f:
-            dill.dump(self, f)
+            dill.dump(self, f, protocol=dill.HIGHEST_PROTOCOL)
 
 
 def convert(name):
