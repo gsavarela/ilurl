@@ -182,18 +182,18 @@ class QLParams:
 
     def _categorize_speed(self, speed):
         """Converts a float speed into a category"""
-        if speed >= .66 * self.max_speed:
+        if speed >= 2.2:
             return 2
-        elif speed <= .25 * self.max_speed:
+        elif speed <= 1.85:
             return 0
         else:
             return 1
 
     def _categorize_count(self, count):
         """Converts a int count into a category"""
-        if count >= 6:
+        if count >= 13.22:
             return 2
-        elif count == 0:
+        elif count <= 10.88:
             return 0
         else:
             return 1

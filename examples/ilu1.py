@@ -62,7 +62,7 @@ def get_arguments():
 
 def str2bool(v):
     if isinstance(v, bool):
-       return v
+        return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
@@ -113,8 +113,7 @@ if __name__ == '__main__':
     )
     exp = Experiment(env=env)
 
-    exp, args = get_experiment()
     import time
     start = time.time()
-    info_dict = exp.run(args.num_iterations, int(args.time / args.step))
+    info_dict = exp.run(pargs.num_iterations, int(pargs.time / pargs.step))
     print(f'Elapsed time {time.time() - start}')
