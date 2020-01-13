@@ -10,7 +10,6 @@ from collections import defaultdict
 import numpy as np
 
 from flow.core import rewards
-# from flow.envs.base_env import Env
 from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
 
 from ilurl.core.ql.dpq import DPQ
@@ -60,6 +59,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
     3. Each k-TFL can only observe it's subjacent edges -
         meaning the state is described by the cars locally
         available on the neighborhood of K-TFL.
+        
 
     4. The state Sk for each of the K-TFL can be represented by
        a tuple such that Sk = (vk, nk) where:
@@ -134,12 +134,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                  simulator='traci'):
 
 
-        #THIS IS FROM ACCEL ENV
-        # variables used to sort vehicles by their initial position plus
-        # distance traveled
-        # self.prev_pos = dict()
-        # self.absolute_position = dict()
-
         # those parameters are going to be forwarded to learning engine
         for p in QL_PARAMS:
             if not hasattr(ql_params, p):
@@ -186,16 +180,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # assumption every traffic light will be controlled
         self.num_traffic_lights = len(scenario.traffic_lights.get_properties())
 
-        #TODO: evaluate from TrafficLightGridEnv
-        ##### TrafficLightGridEnv ######
         self.steps = env_params.horizon
-        # import pdb
-        # pdb.set_trace()
-        # self.obs_var_labels = {
-        #     'edges': np.zeros((self.steps, self.k.vehicle.num_vehicles)),
-        #     'velocities': np.zeros((self.steps, self.k.vehicle.num_vehicles)),
-        #     'positions': np.zeros((self.steps, self.k.vehicle.num_vehicles))
-        # }
 
         # Keeps track of the last time the traffic lights in an intersection
         # were allowed to change (the last time the lights were allowed to
@@ -365,8 +350,9 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
             self.incoming[node_id][self.duration] = \
                                 extract(self.incoming_edge_ids[node_id])
 
-            self.outgoing[node_id][self.duration] = \
-                                extract(self.outgoing_edge_ids[node_id])
+            # TODO: Add parameter to control
+            # self.outgoing[node_id][self.duration] = \
+            #                     extract(self.outgoing_edge_ids[node_id])
 
     def get_observation_space(self):
         """consolidates the observation space
@@ -402,8 +388,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                         count = 0
                         count += len(self.incoming[nid][prev][1]) \
                                  if prev in self.incoming[nid] else 0.0
-                        count += len(self.outgoing[nid][prev][1]) \
-                                 if prev in self.outgoing[nid] else 0.0
+                        # count += len(self.outgoing[nid][prev][1]) \
+                        #          if prev in self.outgoing[nid] else 0.0
                         self.memo_counts[nid][prev] = count
                         value = np.mean(list(self.memo_counts[nid].values()))
 
@@ -443,8 +429,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                         speeds = []
                         speeds += self.incoming[nid][prev][1] \
                                  if prev in self.incoming[nid] else []
-                        speeds += self.outgoing[nid][prev][1] \
-                                 if prev in self.outgoing[nid] else []
+                        # speeds += self.outgoing[nid][prev][1] \
+                        #          if prev in self.outgoing[nid] else []
 
                         self.memo_speeds[nid][prev] = \
                             0.0 if not any(speeds) else round(np.mean(speeds), 2)
@@ -588,13 +574,13 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition.
         """
-        # TODO: enable access to parcial observable
-        reward = super(TrafficLightQLEnv, self).compute_reward(rl_actions, **kwargs)
+        # enable this computation to match with AccelEnv reward
+        # reward = super(TrafficLightQLEnv, self).compute_reward(rl_actions, **kwargs)
         if self.duration not in self.memo_rewards:
             # rew = rewards.average_velocity(self, fail=False)
-            # rew = self.reward_calculator.calculate(
-            #     self.get_observation_space())
-            self.memo_rewards[self.duration] = reward
+            rew = self.reward_calculator.calculate(
+                self.get_observation_space())
+            self.memo_rewards[self.duration] = rew
         return self.memo_rewards[self.duration]
 
     def _to_index(self, action):
@@ -650,3 +636,4 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         relative_pos = self.k.vehicle.get_position(veh_id)
         dist = edge_len - relative_pos
         return dist
+

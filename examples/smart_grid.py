@@ -9,7 +9,6 @@ from flow.core.params import (EnvParams, InFlows, InitialConfig, NetParams,
 
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS
 from flow.scenarios.grid import SimpleGridScenario
-from ilurl.benchmarks.grid import grid_example
 from ilurl.core.experiment import Experiment
 from ilurl.core.params import QLParams
 from ilurl.envs.green_wave_env import TrafficLightQLGridEnv

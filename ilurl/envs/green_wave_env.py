@@ -7,7 +7,6 @@ __author__ = "Guilherme Varela"
 from collections import defaultdict
 
 import numpy as np
-import pdb
 
 from flow.core import rewards
 from flow.envs.green_wave_env import ADDITIONAL_ENV_PARAMS, TrafficLightGridEnv
@@ -231,8 +230,6 @@ class TrafficLightQLGridEnv(TrafficLightGridEnv, Serializer):
             i = int(n / self.grid_array["col_num"])  # row counter
             j = n - i * self.grid_array["col_num"]  # column counter
 
-            import pdb
-            pdb.set_trace()
             # handles left and right of the n-th traffic light
             self.incoming_edge_ids[n].append('right{}_{}'.format(i, j))
             self.incoming_edge_ids[n].append('top{}_{}'.format(i, j + 1))

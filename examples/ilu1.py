@@ -31,7 +31,7 @@ def get_arguments():
     )
 
     # TODO: validate against existing networks
-    parser.add_argument('scenario', type=str, nargs='?',
+    parser.add_argument('scenario', type=str, nargs='?', default='intersection',
                         help='Network to be simulated')
 
 
@@ -70,9 +70,9 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
+
 if __name__ == '__main__':
     pargs = get_arguments()
-    
     sumo_args = {
         'render': pargs.render,
         'print_warnings': pargs.print,
@@ -113,7 +113,8 @@ if __name__ == '__main__':
     )
     exp = Experiment(env=env)
 
+    exp, args = get_experiment()
     import time
     start = time.time()
-    info_dict = exp.run(pargs.num_iterations, int(pargs.time / pargs.step))
+    info_dict = exp.run(args.num_iterations, int(args.time / args.step))
     print(f'Elapsed time {time.time() - start}')
