@@ -14,7 +14,7 @@ from flow.core.params import InFlows
 # Network related parameters
 from flow.core.params import NetParams, InitialConfig, TrafficLightParams
 
-from flow.scenarios import Scenario
+from flow.scenarios.base_scenario import Scenario
 
 
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -28,23 +28,8 @@ def get_path(network_id, file_type):
         os.path.join(DIR, f'{network_id}/{network_id}.{file_type}.xml')
 
 
-def get_tl_logic(network_id):
-    # Parse xml to recover all programs
-    tls_path = get_path(network_id, 'net')
-    prog_list = []
-
-    if os.path.isfile(tls_path):
-        root = ET.parse(tls_path).getroot()
-        for prog in root.findall('tlLogic'):
-            prog_list.append(prog.attrib)
-            prog_list[-1]['phases'] = \
-                [phase.attrib for phase in prog.findall('phase')]
-
-    return prog_list
-
-
-def get_generic_element(network_id, target,
-                        file_type='net', ignore=None, key=None):
+def get_generic_element(network_id, target, file_type='net',
+                        ignore=None, key=None, child_key=None):
     """Parses the {network_id}.{file_type}.xml in search for target
 
     Usage:
@@ -65,14 +50,48 @@ def get_generic_element(network_id, target,
                 else:
                     elements.append(elem.attrib)
 
+                if child_key is not None:
+                    elements[-1][f'{child_key}s'] = \
+                        [chlem.attrib for chlem in elem.findall(child_key)]
+
     return elements
 
 
 def get_routes(network_id):
+    """Get routes as specified on Scenario
+
+        routes must contain length and speed (max.)
+        but those attributes belong to the lanes.
+
+        parameters:
+        ----------
+            * network_id: string
+            path data/networks/{network_id}/{network_id}.net.xml
+
+        returns:
+        -------
+            * routes: list of dictionaries
+            as specified at flow.scenarios.py
+
+        specs:
+        ------
+
+        routes : dict
+            A variable whose keys are the starting edge of a specific route, and
+            whose values are the list of edges a vehicle is meant to traverse
+            starting from that edge. These are only applied at the start of a
+            simulation; vehicles are allowed to reroute within the environment
+            immediately afterwards.
+
+        reference:
+        ----------
+        flow.scenarios.base_scenario
+    """
     # Parse xml to recover all generated routes
     routes = get_generic_element(network_id, 'vehicle/route',
                                  file_type='rou', key='edges')
 
+    
     # unique routes as array of arrays
     routes = [rou.split(' ') for rou in set(routes)]
 
@@ -86,6 +105,65 @@ def get_routes(network_id):
     routes = {k: [(r, 1 / len(rou)) for r in rou] for k, rou in routes.items()}
 
     return routes
+
+
+def get_edges(network_id):
+    """Get edges as specified on Scenario
+
+        edges must contain length and speed (max.)
+        but those attributes belong to the lanes.
+
+        parameters:
+        ----------
+            * network_id: string
+            path data/networks/{network_id}/{network_id}.net.xml
+
+        returns:
+        -------
+            * edges: list of dictionaries
+            as specified at flow.scenarios.py
+
+        specs:
+        ------
+    edges : list of dict or None
+        edges that are assigned to the scenario via the `specify_edges` method.
+        This include the shape, position, and properties of all edges in the
+        network. These properties include the following mandatory properties:
+
+        * **id**: name of the edge
+        * **from**: name of the node the edge starts from
+        * **to**: the name of the node the edges ends at
+        * **length**: length of the edge
+
+        In addition, either the following properties need to be specifically
+        defined or a **type** variable property must be defined with equivalent
+        attributes in `self.types`:
+
+        * **numLanes**: the number of lanes on the edge
+        * **speed**: the speed limit for vehicles on the edge
+
+        Moreover, the following attributes may optionally be available:
+
+        * **shape**: the positions of intermediary nodes used to define the
+          shape of an edge. If no shape is specified, then the edge will appear
+          as a straight line.
+
+        Note that, if the scenario is meant to generate the network from an
+        OpenStreetMap or template file, this variable is set to None
+
+        reference:
+        ----------
+        flow.scenarios.base_scenario
+    """
+    edges = get_generic_element(
+        'intersection', 'edge', ignore='function', child_key='lane')
+
+    for e in edges:
+        e['speed'] = max([float(lane['speed']) for lane in e['lanes']])
+        e['length'] = max([float(lane['length']) for lane in e['lanes']])
+        e['numLanes'] = len(e['lanes'])
+        del e['lanes']
+    return edges
 
 
 class BaseScenario(Scenario):
@@ -138,7 +216,8 @@ class BaseScenario(Scenario):
             )
 
         if traffic_lights is None:
-            prog_list = get_tl_logic(network_id)
+            prog_list = get_generic_element('intersection', 'tlLogic',
+                                            child_key='phase')
             if prog_list:
                 traffic_lights = TrafficLightParams(baseline=False)
                 for prog in prog_list:
@@ -166,7 +245,7 @@ class BaseScenario(Scenario):
         return get_generic_element(self.network_id, 'junction')
 
     def specify_edges(self, net_params):
-        return get_generic_element(self.network_id, 'edge', ignore='function')
+        return get_edges(self.network_id)
 
     def specify_connections(self, net_params):
         return get_generic_element(self.network_id, 'connection')
@@ -180,5 +259,8 @@ class BaseScenario(Scenario):
 
 
 if __name__ == '__main__':
-    print(get_routes('intersection'))
+    # routes = get_routes('intersection')
+    edges = get_generic_element('intersection', 'edge', ignore='function', child_key='lane')
+    print(edges)
 
+    print(get_edges('intersection'))

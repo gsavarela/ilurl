@@ -243,17 +243,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 self.memo_flows[node_id] = {}
                 self.memo_queue[node_id] = {}
 
-        #####
-        # initializes the observable scope
-        # self.incoming = {
-        #     tls: defaultdict(list)
-        #     for tls in range(self.num_traffic_lights)
-        # }
-
-        # self.outgoing = {
-        #     tls: defaultdict(list)
-        #     for tls in range(self.num_traffic_lights)
-        # }
         self.discrete = env_params.additional_params.get("discrete", False)
         # neighbouring maps neighbourhood edges
         self.init_observation_scope_filter()
@@ -263,11 +252,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.dpq = DPQ(ql_params)
         self.reward_calculator = RewardCalculator(ql_params)
         self.rl_action = None
-
-        # self.memo_speeds = {tls: {} for tls in range(self.num_traffic_lights)}
-        # self.memo_counts = {tls: {} for tls in range(self.num_traffic_lights)}
-        # self.memo_flows = {tls: {} for tls in range(self.num_traffic_lights)}
-        # self.memo_queue = {tls: {} for tls in range(self.num_traffic_lights)}
 
         self.memo_rewards = {}
         self.memo_observation_space = {}
@@ -284,16 +268,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.incoming_edge_ids = {}
         self.outgoing_edge_ids = {}
 
-        # self.incoming_edge_ids = {
-        #     tls: []
-        #     for tls in range(self.num_traffic_lights)
-        # }
-
-        # self.outgoing_edge_ids = {
-        #     tls: []
-        #     for tls in range(self.num_traffic_lights)
-        # }
-
         self.traffic_light_ids = []
         for node in self.scenario.nodes:
             if node['type'] == 'traffic_light':
@@ -306,55 +280,13 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                     [e['id'] for e in self.scenario.edges if e['from'] == nodeid]
                 self.traffic_light_ids.append(nodeid)
 
-    ### TrafficLightGridEnv
-    def get_state(self):
-        """See class definition."""
-        # compute the normalizers
-        #TODO: fix scenarios to compute length
-        max_dist = 72.14
-        # max_dist = max(grid_array["short_length"],
-        #                grid_array["long_length"],
-        #                grid_array["inner_length"])
-
-        # get the state arrays
-        speeds = [
-            self.k.vehicle.get_speed(veh_id) / self.k.scenario.max_speed()
-            for veh_id in self.k.vehicle.get_ids()
-        ]
-        dist_to_intersec = [
-            self.get_distance_to_intersection(veh_id) / max_dist
-            for veh_id in self.k.vehicle.get_ids()
-        ]
-        edges = [
-            self._convert_edge(self.k.vehicle.get_edge(veh_id)) /
-            (self.k.scenario.network.num_edges - 1)
-            for veh_id in self.k.vehicle.get_ids()
-        ]
-
-        state = [
-            speeds, dist_to_intersec, edges,
-            self.last_change.flatten().tolist(),
-            self.direction.flatten().tolist(),
-            self.currently_yellow.flatten().tolist()
-        ]
-        return np.array(state)
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
-        # check if the action space is discrete
-        # if self.discrete:
-            # convert single value to list of 0's and 1's
         rl_mask = [int(x) for x in list('{0:0b}'.format(rl_actions))]
         rl_mask = [0] * (self.num_traffic_lights - len(rl_mask)) + rl_mask
-        # else:
-        #     # convert values less than 0 to zero and above 0 to 1. 0 indicates
-        #     # that should not switch the direction, and 1 indicates that switch
-        #     # should happen
-        #     rl_mask = rl_actions > 0.0
 
         traffic_lights = self.scenario.traffic_lights.get_properties()
-        # import pdb
-        # pdb.set_trace()
         for i, action in enumerate(rl_mask):
             node_id = self.traffic_light_ids[i]
             traffic_light = traffic_lights[node_id]
@@ -364,45 +296,24 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 # should switch to red
                 if self.last_change[i] >= self.min_switch_time:
                     if self.direction[i] == 0:
-
-                        state = traffic_light['phases'][0]['state']
-                        # self.k.traffic_light.set_state(
-                        #     node_id=node_id,
-                        #     state=traffic_light['phases'][0])
+                        next_state = traffic_light['phases'][0]['state']
                     else:
-
-                        state = traffic_light['phases'][-2]['state']
-                        # self.k.traffic_light.set_state(
-                        #     node_id='GS_247123161'.format(i),
-                        #     state=traffic_light['phases'][-2])
+                        next_state = traffic_light['phases'][-2]['state']
 
                     self.k.traffic_light.set_state(
                         node_id=node_id,
-                        state=state)
+                        state=next_state)
                     self.currently_yellow[i] = 0
             else:
                 if action:
                     if self.direction[i] == 0:
-
-                        state = traffic_light['phases'][1]['state']
-                        # self.k.traffic_light.set_state(
-                        #     node_id='GS_247123161'.format(i),
-                        #     state='yyyrrrryyyrrr')
-                        # # node_id='center{}'.format(i),
-                        # # state='yryr')
+                        next_state = traffic_light['phases'][1]['state']
                     else:
-
-                        state = traffic_light['phases'][-1]['state']
-                        # self.k.traffic_light.set_state(
-                        #     node_id='GS_247123161'.format(i),
-                        #     state='rrryyyyrrryyy')
-                        #     # node_id='center{}'.format(i),
-                        #     # state='ryry')
+                        next_state = traffic_light['phases'][-1]['state']
 
                     # TODO: Check those configurations
                     self.k.traffic_light.set_state(
-                        node_id=node_id,
-                        state=state)
+                        node_id=node_id, state=next_state)
                     self.last_change[i] = 0.0
                     self.direction[i] = not self.direction[i]
                     self.currently_yellow[i] = 1
@@ -549,7 +460,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
     def get_state(self):
         """See class definition."""
         # categorize
-        # s_max = self.k.scenario.max_speed()
         return self.ql_params.categorize_space(self.get_observation_space())
 
     def rl_actions(self, state):
@@ -698,66 +608,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
             return int(k * pow(2, pwr))
 
         return sum([po2(k, n) for n, k in gen_act])
-
-    def additional_command(self):
-        """See parent class.
-
-        Define which vehicles are observed for visualization purposes, and
-        update the sorting of vehicles using the self.sorted_ids variable.
-        """
-        # specify observed vehicles
-        if self.k.vehicle.num_rl_vehicles > 0:
-            for veh_id in self.k.vehicle.get_human_ids():
-                self.k.vehicle.set_observed(veh_id)
-
-        # update the "absolute_position" variable
-        for veh_id in self.k.vehicle.get_ids():
-            this_pos = self.k.vehicle.get_x_by_id(veh_id)
-
-            if this_pos == -1001:
-                # in case the vehicle isn't in the network
-                self.absolute_position[veh_id] = -1001
-            else:
-                change = this_pos - self.prev_pos.get(veh_id, this_pos)
-                self.absolute_position[veh_id] = \
-                    (self.absolute_position.get(veh_id, this_pos) + change) \
-                    % self.k.scenario.length()
-                self.prev_pos[veh_id] = this_pos
-
-    # @property
-    # def sorted_ids(self):
-    #     """Sort the vehicle ids of vehicles in the network by position.
-
-    #     This environment does this by sorting vehicles by their absolute
-    #     position, defined as their initial position plus distance traveled.
-
-    #     Returns
-    #     -------
-    #     list of str
-    #         a list of all vehicle IDs sorted by position
-    #     """
-    #     if self.env_params.additional_params['sort_vehicles']:
-    #         return sorted(self.k.vehicle.get_ids(), key=self._get_abs_position)
-    #     else:
-    #         return self.k.vehicle.get_ids()
-
-    # def _get_abs_position(self, veh_id):
-    #     """Return the absolute position of a vehicle."""
-    #     return self.absolute_position.get(veh_id, -1001)
-
-    # def reset(self):
-    #     """See parent class.
-
-    #     This also includes updating the initial absolute position and previous
-    #     position.
-    #     """
-    #     obs = super().reset()
-
-    #     for veh_id in self.k.vehicle.get_ids():
-    #         self.absolute_position[veh_id] = self.k.vehicle.get_x_by_id(veh_id)
-    #         self.prev_pos[veh_id] = self.k.vehicle.get_x_by_id(veh_id)
-
-    #     return obs
 
 
     # TODO: Copy & Paste dependency on TrafficLightGridEnv
