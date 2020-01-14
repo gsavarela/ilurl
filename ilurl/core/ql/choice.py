@@ -7,6 +7,7 @@ from numpy import argmax, sqrt, log
 
 CHOICE_TYPES = ('eps-greedy', 'optimistic', 'ucb')
 
+
 def choice_eps_greedy(actions, values, epsilon):
     """Takes a single action using an epsilon greedy policy.
 
@@ -47,18 +48,18 @@ def choice_optimistic(actions_values):
 
         See section 2.6 of [1]
 
-    REFERENCES
+    references:
     ----------
     [1] Sutton et Barto, Reinforcement Learning 2nd Ed 2018
 
-    PARAMETERS
+    parameters:
     ----------
     actions_values : list of nested tuples
         each element of the list is a tuple containing
         action : tuple[self.num_traffic_lights]
         value : q estimate for the state and action
 
-    RETURNS
+    returns
     -------
     float
         discounted value for state and action pair
