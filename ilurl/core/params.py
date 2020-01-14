@@ -181,19 +181,27 @@ class QLParams:
         return tuple(ss)
 
     def _categorize_speed(self, speed):
-        """Converts a float speed into a category"""
-        if speed >= 2.2:
+        """Converts a float speed into a category
+        
+           Segregates into 3 categories estimated
+           from environment analysis/hist
+        """
+        if speed >= 2.2:  # hightest 25%
             return 2
-        elif speed <= 1.85:
+        elif speed <= 1.88:  # lowest 25%
             return 0
         else:
             return 1
 
     def _categorize_count(self, count):
-        """Converts a int count into a category"""
-        if count >= 13.22:
+        """Converts a int count into a category
+        
+           Segregates into 3 categories estimated
+           from environment analysis/hist
+        """
+        if count >= 13.22:    # highest 25%
             return 2
-        elif count <= 10.88:
+        elif count <= 11.33:  # lowest 25%
             return 0
         else:
             return 1

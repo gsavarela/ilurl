@@ -55,7 +55,7 @@ if __name__ == '__main__':
     # plot building
     num_bins = 50
     # percentile separators: low, medium and high
-    percentile_separators = (0.0, 20.0, 75.0, 100.0)
+    percentile_separators = (0.0, 25.0, 75.0, 100.0)
     perceptile_colors = ('yellow', 'green')
     for label, values in states.items():
         plt.figure()

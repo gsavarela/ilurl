@@ -32,7 +32,7 @@ class TestExperiment(unittest.TestCase):
         # Force flow only on horizontal edges
         scenario = BaseScenario(
             network_id='intersection',
-            horizon=3600,
+            horizon=36000,
             initial_config=InitialConfig(
                 edges_distribution=['309265401', '-238059328']
             )
@@ -63,8 +63,14 @@ class TestExperiment(unittest.TestCase):
     def test_experiment(self):
         experiment = Experiment(self.env)
 
-        info = experiment.run(1, 3600)
-        print(info)
-        print(self.env.dpq.Q)
-        import pdb
-        pdb.set_trace()
+        _  = experiment.run(1, 36000)
+        # should opt always for action 1
+        Q = self.env.dpq.Q
+        print(Q)
+        for speed in (0, 1, 2):
+            for count in (0, 1, 2):
+                S = (speed, count)
+                a0, a1 = Q[S].values()
+                # one action one at least for the state
+                assert (a0 < a1) or a1 == 0
+
