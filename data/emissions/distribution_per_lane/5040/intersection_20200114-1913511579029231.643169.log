@@ -1,0 +1,47 @@
+[I] gsavarela@hype13 ~/W/p/i/ilurl>
+python models/tlsql.py intersection -t 36000 -s 1 -i 10 -r 0 -e 1 --tls-short 40 --tls-long 50
+50 40
+Loading configuration... done.
+Loading configuration... done.
+
+                    Round 0	return: 127297.93	avg speed:3.54
+
+Loading configuration... done.
+
+                    Round 1	return: 119689.63	avg speed:3.32
+
+Loading configuration... done.
+
+                    Round 2	return: 119637.1	avg speed:3.32
+
+Loading configuration... done.
+
+                    Round 3	return: 119917.38	avg speed:3.33
+
+Loading configuration... done.
+
+                    Round 4	return: nan	avg speed:3.32
+
+Loading configuration... done.
+
+                    Round 5	return: 119804.44	avg speed:3.33
+
+Loading configuration... done.
+
+                    Round 6	return: 119717.5	avg speed:3.33
+
+Loading configuration... done.
+
+                    Round 7	return: 119410.15	avg speed:3.32
+
+Loading configuration... done.
+
+                    Round 8	return: 119581.52	avg speed:3.32
+
+Loading configuration... done.
+
+                    Round 9	return: 119553.16	avg speed:3.32
+
+Average, std return: 120512.09000000001, 2403.129285498849
+Average, std speed: 3.345, 0.06515366451704774
+Elapsed time 3849.1604788303375

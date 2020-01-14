@@ -194,8 +194,8 @@ class Experiment:
             ret_lists.append(ret_list)
             actions_lists.append(actions_list)
             mean_vels.append(round(np.nanmean(vel), 2))
-            std_vels.append(round(np.nanstd(vel), 2))
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
+            std_vels.append(round(np.nanstd(vel), 2))
             print(f"""
                     Round {i}\treturn: {ret}\tavg speed:{mean_vels[-1]}
                   """)
@@ -205,10 +205,12 @@ class Experiment:
                 plt.draw()
                 plt.pause(0.01)
 
+        info_dict["id"] = self.env.scenario.name
         info_dict["returns"] = rets
         info_dict["velocities"] = mean_vels 
         info_dict["mean_returns"] = mean_rets
         info_dict["per_step_returns"] = ret_lists
+        info_dict["outflows"] = round(np.mean(outflows).astype(float), 2)
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions_lists

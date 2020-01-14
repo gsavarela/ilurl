@@ -198,16 +198,20 @@ class BaseScenario(Scenario):
         if net_params is None:
             if not inflows:
                 inflows = InFlows()
-                for edge in get_routes(network_id):
+                edges = get_edges(network_id)
+                for eid in get_routes(network_id):
                     # use edges distribution to filter routes
-                    if edge in initial_config.edges_distribution:
+                    if eid in initial_config.edges_distribution:
+                        edge = [e for e in edges if e['id'] == eid][0]
+
+                        num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
                         inflows.add(
-                            edge,
+                            eid,
                             'human',
-                            probability=0.2,
+                            probability=0.2 * num_lanes,
                             depart_lane='best',
                             depart_speed='random',
-                            name=f'flow_{edge}',
+                            name=f'flow_{eid}',
                             begin=1,
                             end=horizon
                         )
@@ -253,10 +257,7 @@ class BaseScenario(Scenario):
         return get_generic_element(self.network_id, 'connection')
 
     def specify_routes(self, net_params):
-        # Filter routes by edge distribution
-        return {edge: route
-                for edge, route in get_routes(self.network_id).items()
-                if edge in self.initial_config.edges_distribution}
+        return get_routes(self.network_id)
 
     def specify_types(self, net_params):
         return get_generic_element(self.network_id, 'type')

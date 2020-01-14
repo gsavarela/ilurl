@@ -575,12 +575,12 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         """See class definition.
         """
         # enable this computation to match with AccelEnv reward
-        # reward = super(TrafficLightQLEnv, self).compute_reward(rl_actions, **kwargs)
+        reward = super(TrafficLightQLEnv, self).compute_reward(rl_actions, **kwargs)
         if self.duration not in self.memo_rewards:
             # rew = rewards.average_velocity(self, fail=False)
-            rew = self.reward_calculator.calculate(
-                self.get_observation_space())
-            self.memo_rewards[self.duration] = rew
+            # rew = self.reward_calculator.calculate(
+            #     self.get_observation_space())
+            self.memo_rewards[self.duration] = reward
         return self.memo_rewards[self.duration]
 
     def _to_index(self, action):

@@ -59,7 +59,7 @@ def choice_optimistic(actions_values):
         action : tuple[self.num_traffic_lights]
         value : q estimate for the state and action
 
-    returns
+    returns:
     -------
     float
         discounted value for state and action pair
@@ -78,11 +78,11 @@ def choice_ucb(actions_values, c, decision_counter, actions_counter):
 
         See section 2.7 of [1]
 
-    REFERENCES
+    references:
     ----------
     [1] Sutton et Barto, Reinforcement Learning 2nd Ed 2018
 
-    PARAMETERS
+    parameters:
     ----------
     * actions_values : list of nested tuples
         each element of the list is a tuple containing
@@ -102,7 +102,7 @@ def choice_ucb(actions_values, c, decision_counter, actions_counter):
         The number of times a given action a has been selected
         len(actions_values) == len(actions_counter)
 
-    RETURNS
+    returns:
     -------
     * action
         Returns an action

@@ -1,0 +1,45 @@
+[I] gsavarela@hype13 ~/W/p/i/ilurl> python models/baseline.py intersection -t 36000 -s 1 -i 10 -r 0 -e 1
+Loading configuration... done.
+Loading configuration... done.
+
+                    Round 0	return: 129225.65	avg speed:3.59
+
+Loading configuration... done.
+
+                    Round 1	return: 128685.5	avg speed:3.57
+
+Loading configuration... done.
+
+                    Round 2	return: 128718.59	avg speed:3.58
+
+Loading configuration... done.
+
+                    Round 3	return: 128969.95	avg speed:3.58
+
+Loading configuration... done.
+
+                    Round 4	return: 129763.28	avg speed:3.6
+
+Loading configuration... done.
+
+                    Round 5	return: nan	avg speed:3.6
+
+Loading configuration... done.
+
+                    Round 6	return: 128375.88	avg speed:3.57
+
+Loading configuration... done.
+
+                    Round 7	return: nan	avg speed:3.56
+
+Loading configuration... done.
+
+                    Round 8	return: 129059.86	avg speed:3.59
+
+Loading configuration... done.
+
+                    Round 9	return: 128216.49	avg speed:3.56
+
+Average, std return: 128876.9, 460.7449342640653
+Average, std speed: 3.5799999999999996, 0.014142135623730963
+Elapsed time 3419.188414812088
