@@ -57,6 +57,16 @@ def get_arguments():
                         dest='emission', type=str2bool, default=False, nargs='?',
                        help='Saves emission data from simulation on /data/emissions')
 
+
+    parser.add_argument('--tls-short', '-tsrt', dest='short_phase',
+                        type=int, default=45, nargs='?',
+                        help='Short phase length in seconds of the cycle')
+
+    
+    parser.add_argument('--tls-long', '-tlng', dest='long_phase',
+                        type=int, default=False, nargs='?',
+                        help='Long phase length in seconds of the cycle')
+
     return parser.parse_args()
 
 
@@ -87,9 +97,10 @@ if __name__ == '__main__':
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
     additional_params.update(ADDITIONAL_TLS_PARAMS)
-    additional_params['long_cycle_time'] = 45
-    additional_params['short_cycle_time'] = 45
+    additional_params['long_cycle_time'] = pargs.long_phase
+    additional_params['short_cycle_time'] = pargs.short_phase
 
+    print(pargs.long_phase, pargs.short_phase)
     env_params = EnvParams(evaluate=True,
                            additional_params=additional_params)
 
