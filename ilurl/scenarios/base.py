@@ -165,6 +165,13 @@ def get_edges(network_id):
     return edges
 
 
+def get_tls(network_id):
+    """Queries the traffic light installed over network"""
+
+    tls_nodes = [n for n in get_nodes(network_id)
+                 if n['type'] == 'traffic_light']
+    return tls_nodes
+
 class BaseScenario(Scenario):
     """This class leverages on specs created by SUMO"""
 
