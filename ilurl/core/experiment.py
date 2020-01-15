@@ -177,7 +177,7 @@ class Experiment:
                     self.env.k.vehicle.get_ids()
                 )
                 vel[j] = round(np.mean(speeds), 2)
-                ret += reward
+                ret += reward if not(np.isnan(reward)) else 0
                 ret_list.append(round(reward, 2))
                 if hasattr(self.env, 'rl_action'):
                     actions_list.append(list(self.env.rl_action)) 
@@ -197,7 +197,7 @@ class Experiment:
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
             std_vels.append(round(np.nanstd(vel), 2))
             print(f"""
-                    Round {i}\treturn: {ret}\tavg speed:{mean_vels[-1]}
+                    Round {i}\treturn: {mean_rets[-1]}\tavg speed:{mean_vels[-1]}
                   """)
             if show_plot:
                 self.ax1.plot(rets, 'c-')
@@ -214,6 +214,7 @@ class Experiment:
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions_lists
+
         print("Average, std return: {}, {}".format(np.nanmean(rets),
                                                    np.nanstd(rets)))
         print("Average, std speed: {}, {}".format(np.nanmean(mean_vels),

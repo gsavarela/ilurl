@@ -105,7 +105,6 @@ def make_inflows(network_id, horizon):
                 begin=1 + hr * switch,
                 end=step + hr * switch
             )
-            print(eid, prob)
 
     return inflows
 
@@ -144,8 +143,6 @@ if __name__ == '__main__':
                            additional_params=additional_params)
 
     inflows = make_inflows(args.scenario, args.time) if args.switch else None
-    import pdb
-    pdb.set_trace()
     scenario = BaseScenario(
         network_id=args.scenario,
         horizon=args.time,
