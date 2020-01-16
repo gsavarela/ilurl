@@ -71,9 +71,10 @@ def make_inflows(network_id, horizon):
     for eid in get_routes(network_id):
         # use edges distribution to filter routes
         edge = [e for e in edges if e['id'] == eid][0]
+
         # TODO: get edges that are opposite and intersecting
         num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
-        prob0 = 0.2    # default emission prob (veh/s)
+        prob0 = 0.2     # default emission prob (veh/s)
         num_flows = max(math.ceil(horizon / switch), 1)
         for hr in range(num_flows):
             step = min(horizon - hr * switch, switch)

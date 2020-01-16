@@ -155,7 +155,7 @@ def get_edges(network_id):
         flow.scenarios.base_scenario
     """
     edges = get_generic_element(
-        'intersection', 'edge', ignore='function', child_key='lane')
+        network_id, 'edge', ignore='function', child_key='lane')
 
     for e in edges:
         e['speed'] = max([float(lane['speed']) for lane in e['lanes']])
