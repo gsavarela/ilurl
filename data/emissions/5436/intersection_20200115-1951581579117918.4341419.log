@@ -1,0 +1,407 @@
+[I] gsavarela@hype13 ~/W/p/i/ilurl> python models/tlsql.py intersection -t 36000 -s 1 -i 100 -r 0 -e 0 -p 1 -L 54 -S 36 -W 1
+54 36
+Loading configuration... done.
+Loading configuration... done.
+
+                    Round 0	return: 6.86	avg speed:6.86
+
+Loading configuration... done.
+
+                    Round 1	return: 5.09	avg speed:5.09
+
+Loading configuration... done.
+
+                    Round 2	return: 4.87	avg speed:4.87
+
+Loading configuration... done.
+
+                    Round 3	return: 4.85	avg speed:4.85
+
+Loading configuration... done.
+
+                    Round 4	return: 4.9	avg speed:4.9
+
+Loading configuration... done.
+
+                    Round 5	return: 4.81	avg speed:4.81
+
+Loading configuration... done.
+
+                    Round 6	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 7	return: 5.0	avg speed:5.0
+
+Loading configuration... done.
+
+                    Round 8	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 9	return: 4.96	avg speed:4.96
+
+Loading configuration... done.
+
+                    Round 10	return: 4.95	avg speed:4.95
+
+Loading configuration... done.
+
+                    Round 11	return: 4.88	avg speed:4.88
+
+Loading configuration... done.
+
+                    Round 12	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 13	return: 4.9	avg speed:4.9
+
+Loading configuration... done.
+
+                    Round 14	return: 4.94	avg speed:4.94
+
+Loading configuration... done.
+
+                    Round 15	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 16	return: 4.88	avg speed:4.88
+
+Loading configuration... done.
+
+                    Round 17	return: 4.92	avg speed:4.92
+
+Loading configuration... done.
+
+                    Round 18	return: 4.73	avg speed:4.73
+
+Loading configuration... done.
+
+                    Round 19	return: 4.86	avg speed:4.86
+
+Loading configuration... done.
+
+                    Round 20	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 21	return: 4.8	avg speed:4.8
+
+Loading configuration... done.
+
+                    Round 22	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 23	return: 4.76	avg speed:4.76
+
+Loading configuration... done.
+
+                    Round 24	return: 4.91	avg speed:4.91
+
+Loading configuration... done.
+
+                    Round 25	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 26	return: 4.91	avg speed:4.91
+
+Loading configuration... done.
+
+                    Round 27	return: 4.87	avg speed:4.87
+
+Loading configuration... done.
+
+                    Round 28	return: 4.85	avg speed:4.85
+
+Loading configuration... done.
+
+                    Round 29	return: 4.84	avg speed:4.84
+
+Loading configuration... done.
+
+                    Round 30	return: 4.7	avg speed:4.7
+
+Loading configuration... done.
+
+                    Round 31	return: 4.96	avg speed:4.96
+
+Loading configuration... done.
+
+                    Round 32	return: 4.79	avg speed:4.79
+
+Loading configuration... done.
+
+                    Round 33	return: 4.92	avg speed:4.92
+
+Loading configuration... done.
+
+                    Round 34	return: 4.81	avg speed:4.81
+
+Loading configuration... done.
+
+                    Round 35	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 36	return: 4.98	avg speed:4.98
+
+Loading configuration... done.
+
+                    Round 37	return: 4.87	avg speed:4.87
+
+Loading configuration... done.
+
+                    Round 38	return: 4.81	avg speed:4.81
+
+Loading configuration... done.
+
+                    Round 39	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 40	return: 4.97	avg speed:4.97
+
+Loading configuration... done.
+
+                    Round 41	return: 4.86	avg speed:4.86
+
+Loading configuration... done.
+
+                    Round 42	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 43	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 44	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 45	return: 4.88	avg speed:4.88
+
+Loading configuration... done.
+
+                    Round 46	return: 4.92	avg speed:4.92
+
+Loading configuration... done.
+
+                    Round 47	return: 4.84	avg speed:4.84
+
+Loading configuration... done.
+
+                    Round 48	return: 4.85	avg speed:4.85
+
+Loading configuration... done.
+
+                    Round 49	return: 4.81	avg speed:4.81
+
+Loading configuration... done.
+
+                    Round 50	return: 4.81	avg speed:4.81
+
+Loading configuration... done.
+
+                    Round 51	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 52	return: 4.94	avg speed:4.94
+
+Loading configuration... done.
+
+                    Round 53	return: 4.84	avg speed:4.84
+
+Loading configuration... done.
+
+                    Round 54	return: 4.96	avg speed:4.96
+
+Loading configuration... done.
+
+                    Round 55	return: 4.8	avg speed:4.8
+
+Loading configuration... done.
+
+                    Round 56	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 57	return: 4.95	avg speed:4.95
+
+Loading configuration... done.
+
+                    Round 58	return: 4.85	avg speed:4.85
+
+Loading configuration... done.
+
+                    Round 59	return: 4.83	avg speed:4.83
+
+Loading configuration... done.
+
+                    Round 60	return: 4.86	avg speed:4.86
+
+Loading configuration... done.
+
+                    Round 61	return: 4.83	avg speed:4.83
+
+Loading configuration... done.
+
+                    Round 62	return: 4.87	avg speed:4.87
+
+Loading configuration... done.
+
+                    Round 63	return: 4.77	avg speed:4.77
+
+Loading configuration... done.
+
+                    Round 64	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 65	return: 4.96	avg speed:4.96
+
+Loading configuration... done.
+
+                    Round 66	return: 4.85	avg speed:4.85
+
+Loading configuration... done.
+
+                    Round 67	return: 4.86	avg speed:4.86
+
+Loading configuration... done.
+
+                    Round 68	return: 4.96	avg speed:4.96
+
+Loading configuration... done.
+
+                    Round 69	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 70	return: 4.91	avg speed:4.91
+
+Loading configuration... done.
+
+                    Round 71	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 72	return: 4.89	avg speed:4.89
+
+Loading configuration... done.
+
+                    Round 73	return: 4.93	avg speed:4.93
+
+Loading configuration... done.
+
+                    Round 74	return: 4.93	avg speed:4.93
+
+Loading configuration... done.
+
+                    Round 75	return: 4.93	avg speed:4.93
+
+Loading configuration... done.
+
+                    Round 76	return: 4.88	avg speed:4.88
+
+Loading configuration... done.
+
+                    Round 77	return: 4.92	avg speed:4.92
+
+Loading configuration... done.
+
+                    Round 78	return: 4.92	avg speed:4.92
+
+Loading configuration... done.
+
+                    Round 79	return: 4.88	avg speed:4.88
+
+Loading configuration... done.
+
+                    Round 80	return: 4.76	avg speed:4.76
+
+Loading configuration... done.
+
+                    Round 81	return: 4.95	avg speed:4.95
+
+Loading configuration... done.
+
+                    Round 82	return: 4.81	avg speed:4.81
+
+Loading configuration... done.
+
+                    Round 83	return: 4.87	avg speed:4.87
+
+Loading configuration... done.
+
+                    Round 84	return: 4.86	avg speed:4.86
+
+Loading configuration... done.
+
+                    Round 85	return: 4.93	avg speed:4.93
+
+Loading configuration... done.
+
+                    Round 86	return: 4.99	avg speed:4.99
+
+Loading configuration... done.
+
+                    Round 87	return: 4.84	avg speed:4.84
+
+Loading configuration... done.
+
+                    Round 88	return: 4.95	avg speed:4.95
+
+Loading configuration... done.
+
+                    Round 89	return: 4.86	avg speed:4.86
+
+Loading configuration... done.
+
+                    Round 90	return: 4.88	avg speed:4.88
+
+Loading configuration... done.
+
+                    Round 91	return: 4.85	avg speed:4.85
+
+Loading configuration... done.
+
+                    Round 92	return: 4.94	avg speed:4.94
+
+Loading configuration... done.
+
+                    Round 93	return: 4.76	avg speed:4.76
+
+Loading configuration... done.
+
+                    Round 94	return: 4.85	avg speed:4.85
+
+Loading configuration... done.
+
+                    Round 95	return: 4.91	avg speed:4.91
+
+Loading configuration... done.
+
+                    Round 96	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 97	return: 4.84	avg speed:4.84
+
+Loading configuration... done.
+
+                    Round 98	return: 4.98	avg speed:4.98
+
+Loading configuration... done.
+
+                    Round 99	return: 4.92	avg speed:4.92
+
+Average, std return: 165466.8125, 5875.72273670012
+Average, std speed: 4.8957999999999995, 0.20728328442013844
+Elapsed time 6301.533790111542
+[I] gsavarela@hype13 ~/W/p/i/ilurl>

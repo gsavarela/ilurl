@@ -230,15 +230,15 @@ class Experiment:
 
 
             # general process information
-            info_filename = \
-                "{0}-info.json".format(self.env.scenario.name)
+            # info_filename = \
+            #     "{0}-info.json".format(self.env.scenario.name)
 
-            info_path = os.path.join(dir_path, info_filename)
-            with open(info_path, 'w') as fj:
-                json.dump(info_dict, fj)
+            # info_path = os.path.join(dir_path, info_filename)
+            # with open(info_path, 'w') as fj:
+            #     json.dump(info_dict, fj)
 
-            if hasattr(self.env, 'dump'):
-                self.env.dump(dir_path)
+            # if hasattr(self.env, 'dump'):
+            #     self.env.dump(dir_path)
 
             if convert_to_csv:
                 emission_filename = \

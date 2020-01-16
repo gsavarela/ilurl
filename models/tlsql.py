@@ -46,14 +46,15 @@ def get_arguments():
                         default=1, nargs='?',
                         help='Number of times to repeat the experiment')
 
+
+    parser.add_argument('--experiment-pickle', '-p', dest='pickle', type=str2bool,
+                        default=1, nargs='?',
+                        help='Pickle the environment allowing to reproduce')
+
     parser.add_argument('--sumo-render', '-r', dest='render', type=str2bool,
                         default=False, nargs='?',
                         help='Renders the simulation')
 
-    parser.add_argument('--sumo-print', '-p',
-                        dest='print', type=str2bool, default=False, nargs='?',
-                        help='Prints warning from simulation')
-    
     parser.add_argument('--sumo-step', '-s',
                         dest='step', type=float, default=0.1, nargs='?',
                         help='Simulation\'s step size which is a fraction from horizon')
@@ -73,7 +74,7 @@ def get_arguments():
                         help='Long phase length in seconds of the cycle')
 
 
-    parser.add_argument('--inflow-switch', '-W', dest='switch',
+    parser.add_argument('--inflows-switch', '-W', dest='switch',
                         type=str2bool, default=False, nargs='?',
                         help='''Assign higher probability of spawning a vehicle every other hour on opposite sides''')
 
@@ -123,7 +124,7 @@ if __name__ == '__main__':
     args = get_arguments()
     sumo_args = {
         'render': args.render,
-        'print_warnings': args.print,
+        'print_warnings': False,
         'sim_step': args.step,
         'restart_instance': True
     }
@@ -167,4 +168,22 @@ if __name__ == '__main__':
     import time
     start = time.time()
     info_dict = exp.run(args.num_iterations, int(args.time / args.step))
+    if args.pickle:
+        # save info dict
+        # save pickle environment
+        # TODO: save with running parameters
+        path = f'{EMISSION_PATH}/{args.long_phase}{args.short_phase}'
+        if not os.path.isdir(path):
+            os.mkdir(path)
+        # general process information
+        filename = \
+            "{0}.info.json".format(env.scenario.name)
+
+        info_path = os.path.join(path, filename)
+        with open(info_path, 'w') as fj:
+            json.dump(info_dict, fj)
+
+        if hasattr(env, 'dump'):
+            env.dump(path)
+
     print(f'Elapsed time {time.time() - start}')

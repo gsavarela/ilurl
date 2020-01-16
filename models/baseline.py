@@ -138,4 +138,18 @@ if __name__ == '__main__':
     import time
     start = time.time()
     info_dict = exp.run(args.num_iterations, int(args.time / args.step))
+    # save info dict
+    # save pickle environment
+    # TODO: save with running parameters
+    # general process information
+    filename = \
+        "{0}.info.json".format(env.scenario.name)
+
+    info_path = os.path.join(EMISSION_PATH, filename)
+    with open(info_path, 'w') as fj:
+        json.dump(info_dict, fj)
+
+    if hasattr(env, 'dump'):
+        env.dump(EMISSION_PATH)
+
     print(f'Elapsed time {time.time() - start}')

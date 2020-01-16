@@ -1,0 +1,45 @@
+[I] gsavarela@hype13 ~/W/p/i/ilurl> python models/evaluate.py data/emissions/5436/ -t 360000 -i 10
+Loading configuration... done.
+Running evaluation 1
+Loading configuration... done.
+
+                    Round 0	return: 4.95	avg speed:4.95
+
+Loading configuration... done.
+
+                    Round 1	return: 4.97	avg speed:4.97
+
+Loading configuration... done.
+
+                    Round 2	return: 4.91	avg speed:4.91
+
+Loading configuration... done.
+
+                    Round 3	return: 4.98	avg speed:4.98
+
+Loading configuration... done.
+
+                    Round 4	return: 4.82	avg speed:4.82
+
+Loading configuration... done.
+
+                    Round 5	return: 4.87	avg speed:4.87
+
+Loading configuration... done.
+
+                    Round 6	return: 4.87	avg speed:4.87
+
+Loading configuration... done.
+
+                    Round 7	return: 4.86	avg speed:4.86
+
+Loading configuration... done.
+
+                    Round 8	return: 4.87	avg speed:4.87
+
+Loading configuration... done.
+
+                    Round 9	return: 4.76	avg speed:4.76
+
+Average, std return: 165599.44199999998, 2169.306260876046
+Average, std speed: 4.886, 0.06499230723708772
