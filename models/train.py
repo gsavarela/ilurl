@@ -19,6 +19,9 @@ from ilurl.core.experiment import Experiment
 
 from ilurl.scenarios.base import BaseScenario, get_edges, get_routes
 
+# test
+from ilurl.loaders.routes import inflows2vehicles
+
 # TODO: Generalize for any parameter
 ILURL_HOME = os.environ['ILURL_HOME']
 
@@ -144,6 +147,11 @@ if __name__ == '__main__':
                            additional_params=additional_params)
 
     inflows = make_inflows(args.scenario, args.time) if args.switch else None
+    vehs = inflows2vehicles(inflows,
+                            get_routes(args.scenario),
+                            get_edges(args.scenario))
+
+    pdb.set_trace()
     scenario = BaseScenario(
         network_id=args.scenario,
         horizon=args.time,
