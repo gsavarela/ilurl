@@ -1,0 +1,12 @@
+[I] gsavarela@hype13 ~/W/p/i/ilurl>
+time python models/baseline.py grid -t 36000 -s 1 -i 1 -r 0 -e 1 -p 0 -W 0
+Loading configuration... done.
+Loading configuration... done.
+
+                    Round 0	return: 3.5	avg speed:3.5
+
+Average, std return: 126166.65, 0.0
+Average, std speed: 3.5, 0.0
+/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/
+Elapsed time 1446.4963579177856
+     1452.70 real      1359.13 user        36.00 sys

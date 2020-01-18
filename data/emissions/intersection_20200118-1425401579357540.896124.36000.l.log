@@ -1,0 +1,11 @@
+time python models/baseline.py intersection -t 36000 -s 1 -i 1 -r 0 -e 1 -p 0 -W 0
+Loading configuration... done.
+Loading configuration... done.
+
+                    Round 0	return: 5.84	avg speed:5.84
+
+Average, std return: 210320.14, 0.0
+Average, std speed: 5.84, 0.0
+/Users/gsavarela/Work/py/ilu/ilurl/data/emissions/
+Elapsed time 368.39378118515015
+      372.00 real       344.19 user        18.30 sys
