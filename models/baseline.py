@@ -64,35 +64,6 @@ def get_arguments():
     return parser.parse_args()
 
 
-def make_inflows(network_id, horizon):
-    inflows = InFlows()
-    edges = get_edges(network_id)
-    switch = 3600   # switches flow every 3600 seconds
-    for eid in get_routes(network_id):
-        # use edges distribution to filter routes
-        edge = [e for e in edges if e['id'] == eid][0]
-
-        # TODO: get edges that are opposite and intersecting
-        num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
-        prob0 = 0.2     # default emission prob (veh/s)
-        num_flows = max(math.ceil(horizon / switch), 1)
-        for hr in range(num_flows):
-            step = min(horizon - hr * switch, switch)
-            # switches in accordance to the number of lanes
-            prob = prob0 - 0.1 if (hr + num_lanes) % 2 == 1 else prob0
-            inflows.add(
-                eid,
-                'human',
-                probability=prob,
-                depart_lane='best',
-                depart_speed='random',
-                name=f'flow_{eid}',
-                begin=1 + hr * switch,
-                end=step + hr * switch
-            )
-
-    return inflows
-
 def str2bool(v):
     if isinstance(v, bool):
        return v
@@ -120,11 +91,12 @@ if __name__ == '__main__':
     env_params = EnvParams(evaluate=True,
                            additional_params=ADDITIONAL_ENV_PARAMS)
 
-    inflows = make_inflows(args.scenario, args.time) if args.switch else None
+    # inflows = make_inflows(args.scenario, args.time) if args.switch else None
+    inflows_type = 'switch' if args.switch else 'lane'
     scenario = BaseScenario(
         network_id=args.scenario,
         horizon=args.time,
-        inflows=inflows
+        inflows_type=inflows_type
     )
 
 
@@ -143,8 +115,9 @@ if __name__ == '__main__':
     # save pickle environment
     # TODO: save with running parameters
     # general process information
+    x = 'l' if inflows_type == 'lane' else 'w'
     filename = \
-        "{0}.info.json".format(env.scenario.name)
+        f"{env.scenario.name}.{args.time}.{x}.info.json"
 
     info_path = os.path.join(EMISSION_PATH, filename)
     with open(info_path, 'w') as fj:

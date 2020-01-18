@@ -1,0 +1,5 @@
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+	<vTypeDistribution id="private">
+		<vType accel="2.6" carFollowModel="IDM" decel="7.5" id="human" impatience="0.5" laneChangeModel="LC2013" lcCooperative="1.0" lcKeepRight="1.0" lcSpeedGain="1.0" lcStrategic="1.0" maxSpeed="30" minGap="2.5" sigma="0.5" speedDev="0.1" speedFactor="1.0" tau="1.0" vClass="passager" />
+	</vTypeDistribution>
+</routes>

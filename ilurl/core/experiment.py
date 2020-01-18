@@ -221,6 +221,7 @@ class Experiment:
                                                   np.nanstd(mean_vels)))
         self.env.terminate()
 
+        print(self.env.sim_params.emission_path)
         if self.env.sim_params.emission_path is not None:
             # wait a short period of time to ensure the xml file is readable
             time.sleep(0.1)

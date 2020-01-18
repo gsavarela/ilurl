@@ -36,7 +36,7 @@ def is_route(network_id, horizon, distribution='lane'):
 def _get_path(network_id, horizon, distribution='lane'):
     path = f'{XML_PATH}{network_id}/{network_id}'
 
-    if distribuition not in ('lane', 'switch'):
+    if distribution not in ('lane', 'switch'):
         raise ValueError(f'distribution not implemented {distribution}')
     else:
         x = 'l' if distribution == 'lane' else 'w'
@@ -45,8 +45,8 @@ def _get_path(network_id, horizon, distribution='lane'):
 
     return path
 
-def inflows2vehicles(network_id, inflows,
-                     routes, edges, distribution='lane'):
+def inflows2route(network_id, inflows,
+                  routes, edges, distribution='lane'):
     """
 
     EXAMPLE:
@@ -112,7 +112,8 @@ def inflows2vehicles(network_id, inflows,
                         'id': f'{veh_id:04d}',
                         'type': inflow['vtype'],
                         'depart': str(depart),
-                        'departSpeed': f'{speed:0.2f}'  # TODO: check
+                        'departSpeed': f'{speed:0.2f}',  # TODO: check
+                        'departPos': '0.0', # TODO: check if it should set edge starts
                     })
 
                 route = ET.SubElement(

@@ -3,18 +3,19 @@ __author__ = 'Guilherme Varela'
 __date__ = '2020-01-10'
 
 import os
+import math
 import xml.etree.ElementTree as ET
-from collections import defaultdict
 
-# Vehicle definition stuff
-from flow.controllers import GridRouter
-from flow.core.params import SumoCarFollowingParams, VehicleParams
 # InFlows
 from flow.core.params import InFlows
 # Network related parameters
 from flow.core.params import NetParams, InitialConfig, TrafficLightParams
+from flow.core.params import VehicleParams
 
 from flow.scenarios.base_scenario import Scenario
+
+from ilurl.loaders.routes import is_route, inflows2route
+from ilurl.loaders.vtypes import get_vehicle_types
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
@@ -178,7 +179,7 @@ class BaseScenario(Scenario):
     def __init__(self,
                  network_id,
                  horizon=360,
-                 inflows=None,
+                 inflows_type='lane',
                  vehicles=None,
                  net_params=None,
                  initial_config=None,
@@ -187,15 +188,16 @@ class BaseScenario(Scenario):
         self.network_id = network_id
         #TODO: check vtype
         if vehicles is None:
-            vehicles = VehicleParams()
-            vehicles.add(
-                veh_id="human",
-                routing_controller=(GridRouter, {}),
-                car_following_params=SumoCarFollowingParams(
-                    min_gap=2.5,
-                    decel=7.5,  # avoid collisions at emergency stops
-                ),
-            )
+            vtypes_path = get_vehicle_types()
+            # vehicles = VehicleParams()
+            # vehicles.add(
+            #     veh_id="human",
+            #     routing_controller=(GridRouter, {}),
+            #     car_following_params=SumoCarFollowingParams(
+            #         min_gap=2.5,
+            #         decel=7.5,  # avoid collisions at emergency stops
+            #     ),
+            # )
 
         if initial_config is None:
             initial_config = InitialConfig(
@@ -203,29 +205,30 @@ class BaseScenario(Scenario):
             )
 
         if net_params is None:
-            if not inflows:
-                inflows = InFlows()
-                edges = get_edges(network_id)
-                for eid in get_routes(network_id):
-                    # use edges distribution to filter routes
-                    if eid in initial_config.edges_distribution:
-                        edge = [e for e in edges if e['id'] == eid][0]
+            rou_path = is_route(network_id, horizon, inflows_type)
+            if not rou_path:
+                if inflows_type == 'lane':
+                    inflows = make_lane(network_id, horizon, initial_config)
+                elif inflows_type == 'switch':
+                    inflows = make_switch(network_id, horizon)
 
-                        num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
-                        inflows.add(
-                            eid,
-                            'human',
-                            probability=0.2 * num_lanes,
-                            depart_lane='best',
-                            depart_speed='random',
-                            name=f'flow_{eid}',
-                            begin=1,
-                            end=horizon
-                        )
+                else:
+                    raise ValueError(f'Unknown inflows_type {inflows_type}')
+
+                rou_path = inflows2route(
+                    network_id,
+                    inflows,
+                    get_routes(network_id),
+                    get_edges(network_id),
+                    distribution=inflows_type
+                )
 
             net_params = NetParams(
-                inflows,
-                template=get_path(network_id, 'net')
+                template={
+                    'net': get_path(network_id, 'net'),
+                    'vtype': vtypes_path,
+                    'rou': [rou_path]
+                }
             )
 
         if traffic_lights is None:
@@ -243,7 +246,7 @@ class BaseScenario(Scenario):
 
         super(BaseScenario, self).__init__(
                  network_id,
-                 vehicles,
+                 VehicleParams(),
                  net_params,
                  initial_config=initial_config,
                  traffic_lights=traffic_lights
@@ -268,3 +271,55 @@ class BaseScenario(Scenario):
 
     def specify_types(self, net_params):
         return get_generic_element(self.network_id, 'type')
+
+
+def make_lane(network_id, horizon, initial_config):
+    inflows = InFlows()
+    edges = get_edges(network_id)
+    for eid in get_routes(network_id):
+        # use edges distribution to filter routes
+        if eid in initial_config.edges_distribution:
+            edge = [e for e in edges if e['id'] == eid][0]
+
+            num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
+            inflows.add(
+                eid,
+                'human',
+                probability=0.2 * num_lanes,
+                depart_lane='best',
+                depart_speed='random',
+                name=f'flow_{eid}',
+                begin=1,
+                end=horizon
+            )
+
+    return inflows
+
+def make_switch(network_id, horizon):
+    inflows = InFlows()
+    edges = get_edges(network_id)
+    switch = 3600   # switches flow every 3600 seconds
+    for eid in get_routes(network_id):
+        # use edges distribution to filter routes
+        edge = [e for e in edges if e['id'] == eid][0]
+        # TODO: get edges that are opposite and intersecting
+        num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
+        prob0 = 0.2    # default emission prob (veh/s)
+        num_flows = max(math.ceil(horizon / switch), 1)
+        for hr in range(num_flows):
+            step = min(horizon - hr * switch, switch)
+            # switches in accordance to the number of lanes
+            prob = prob0 - 0.1 if (hr + num_lanes) % 2 == 1 else prob0
+            inflows.add(
+                eid,
+                'human',
+                probability=prob,
+                depart_lane='best',
+                depart_speed='random',
+                name=f'flow_{eid}',
+                begin=1 + hr * switch,
+                end=step + hr * switch
+            )
+
+    return inflows
+

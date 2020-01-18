@@ -12,12 +12,14 @@ import numpy as np
 from scipy.stats import ks_2samp
 
 EMISSION_PATH = f"{os.environ['ILURL_HOME']}/data/emissions/"
-baseline_path = f"{EMISSION_PATH}intersection_20200112-1758511578851931.3494809-info.json" 
+# baseline_path = f"{EMISSION_PATH}intersection_20200112-1758511578851931.3494809-info.json" 
+
+baseline_path = f"{EMISSION_PATH}intersection_20200117-2058001579294680.783177.info.json" 
 
 # This is the true test
 # test_path = f"{EMISSION_PATH}intersection_20200112-1817011578853021.163328-info.json" 
 # This is another baseline test
-test_path = f"{EMISSION_PATH}intersection_20200112-1856151578855375.840138-info.json"
+test_path = f"{EMISSION_PATH}intersection_20200117-2109501579295390.89992.info.json"
 with open(baseline_path, 'r') as f:
     baseline = json.load(f)
 
