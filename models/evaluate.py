@@ -32,7 +32,7 @@ def get_arguments():
                         default=f'{EMISSION_PATH}', help='Path to pickle')
 
     parser.add_argument('--experiment-time', '-t', dest='time', type=int,
-                        default=360, nargs='?',
+                        default=36000, nargs='?',
                         help='Simulation\'s real world time in seconds')
 
     parser.add_argument('--experiment-iterations', '-i',
@@ -58,9 +58,6 @@ def evaluate(envs, num_iterations, horizon, path):
         ipath = os.path.join(path, f'{env_eval.scenario.name}.eval.info.json')
         with open(ipath, 'w') as f:
             json.dump(info, f)
-
-
-        
 
 
 if __name__ == '__main__':

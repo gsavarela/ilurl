@@ -10,6 +10,11 @@
 # prevent sensitive data to into repo
 data/sensors/
 
+# prevent experiments batches to 
+# be tracked and avoid .git file
+# growth
+data/experiments/0x*
+
 # Flow's emission files
 *emission.xml
 *emission.csv
