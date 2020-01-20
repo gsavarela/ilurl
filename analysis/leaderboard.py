@@ -20,6 +20,7 @@ paths = (
     '6030/intersection_20200115-1950341579117834.795777.eval.info.json',
 )
 
+
 if __name__ == '__main__':
     series = []
     labels = []

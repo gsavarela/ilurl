@@ -13,7 +13,8 @@ data/sensors/
 # prevent experiments batches to 
 # be tracked and avoid .git file
 # growth
-data/experiments/0x*
+data/experiments/0x??/**
+!data/experiments/0x??/README.md
 
 # Flow's emission files
 *emission.xml

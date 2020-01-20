@@ -48,9 +48,11 @@ def get_emissions(scenario_id, emission_dir=None, exclude_emissions=EXCLUDE_EMIS
     * 2019-11-29:Add Column Filter & Rename
     """
     if emission_dir is None:
-        path = get_emissions_dir()
-    path = join(path, scenario_id)
-    df = pd.read_csv(path, sep=',', header=0, encoding='utf-8')
+        emission_dir = get_emissions_dir()
+    path = join(emission_dir, scenario_id)
+
+    df = pd.read_csv(path, sep=';', header=0, encoding='utf-8')
+
     # The token 'vehicle_' comes when using SUMOS's script
     # referece sumo/tools/xml2csv
     df.columns = [str.replace(str(name), 'vehicle_', '') for name in df.columns]
@@ -58,12 +60,12 @@ def get_emissions(scenario_id, emission_dir=None, exclude_emissions=EXCLUDE_EMIS
 
     df.set_index(['time'], inplace=True)
 
-    # Drop rows before the first second
-    df = df[df.index >= 1.0]
+    # Drop rows where there's no vehicle
+    df = df.dropna(axis=0, how='all')
 
     # Drop columns if needed
     if exclude_emissions is not None:
-        df = df.drop(exclude_emissions, axis=1)
+        df = df.drop(exclude_emissions, axis=1, errors='ignore')
 
     return df
 
@@ -133,32 +135,49 @@ def get_vehicles(emissions_df):
     )
     return vehs_df
 
-def add_column_hour(df_emission):
+def add_column_hour(df_emission, time_column='start'):
     df_emission['hour'] = \
-        df_emission['start'].apply(lambda x: int(x / 3600))
+        df_emission[time_column].apply(lambda x: int(x / 3600))
 
     return df_emission
 
 def get_intersections(df_emission):
     """Intersection data"""
 
+    # depending on the conversion options
+    # and net configurations the field
+    # might change labels.
+    if 'edge_id' in df_emission.columns:
+        col_edge = 'edge_id'
+    else:
+        col_edge = 'lane'
+
     df_intersection = pd.pivot_table(
         df_emission.reset_index(),
-        index=['route', 'edge_id'],
+        index=['route', col_edge],
         values=['id', 'time'],
         aggfunc=min
     ). \
     sort_values(['route', 'time'], inplace=False)
+
     return df_intersection
 
 def get_throughput(df_emission):
     """Get throughtput per travel"""
 
-    id_junction = df_emission['edge_id'].str.startswith(':')
+    # depending on the conversion options
+    # and net configurations the field
+    # might change labels.
+    if 'edge_id' in df_emission.columns:
+        col_edge = 'edge_id'
+    else:
+        col_edge = 'lane'
+
+    id_junction = df_emission[col_edge].str.startswith(':')
 
     df_junction = pd.pivot_table(
         df_emission[id_junction].reset_index(),
-        index=['id', 'edge_id'],
+        index=['id', 'lane'],
         values='time',
         aggfunc=max
     ). \
@@ -166,13 +185,14 @@ def get_throughput(df_emission):
     reset_index(inplace=False)
 
 
-    df_junction['time'] = df_junction['time'] + 0.1
+    # TODO: discover step size here hard-coded as 1 second
+    df_junction['time'] = df_junction['time'] + 1
 
     df_junction.set_index(['time', 'id'], inplace=True)
 
     df_lane = pd.pivot_table(
         df_emission[~id_junction].reset_index(),
-        index=['id', 'edge_id'],
+        index=['id', 'lane'],
         values='time',
         aggfunc=min
     ). \
@@ -187,8 +207,8 @@ def get_throughput(df_emission):
         rsuffix='lane'
     ). \
     rename(
-        columns={'edge_idjunc': 'junc_id',
-                 'edge_idlane': 'lane_id'}
+        columns={f'{col_edge}junc': 'junc_id',
+                 f'{col_edge}lane': 'lane_id'}
     ). \
     reset_index(). \
     set_index(['junc_id', 'lane_id']). \
