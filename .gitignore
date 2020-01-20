@@ -15,6 +15,7 @@ data/sensors/
 # growth
 data/experiments/0x??/**
 !data/experiments/0x??/README.md
+!data/experiments/0x??/*.png
 
 # Flow's emission files
 *emission.xml

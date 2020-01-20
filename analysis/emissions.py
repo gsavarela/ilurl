@@ -17,14 +17,19 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
+from tabulate import tabulate
 
 from ilurl.loaders.emission import (get_emissions, get_vehicles,
                                     get_throughput, add_column_hour)
 
-from ilurl.utils.markdown import dataframe2markdown
 
 EXPERIMENTS_DIR = \
     "data/experiments/0x00"
+
+
+
+def dataframe2markdown(df, showindex=False):
+    return tabulate(df, headers="keys", showindex=showindex, tablefmt="github")
 
 def build_table_flow(emission_df, scenario, cycle, demand):
 
