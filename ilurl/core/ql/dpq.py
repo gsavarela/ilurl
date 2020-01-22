@@ -30,10 +30,7 @@ class DPQ(object):
             }
 
     def rl_actions(self, s):
-        if self.stop:
-            choosen = max(self.Q[s].items(), key=operator.itemgetter(1))[0]
-
-        elif self.choice_type in ('eps-greedy',):
+        if self.choice_type in ('eps-greedy',):
             actions, values = zip(*self.Q[s].items())
             choosen = choice_eps_greedy(actions, values, self.epsilon)
 
@@ -41,12 +38,12 @@ class DPQ(object):
             raise NotImplementedError
 
         elif self.choice_type in ('ucb',):
-            self.decision_counter += 1
+            self.decision_counter += 1 if not self.stop else 0
             choosen = choice_ucb(self.Q[s].items(),
                                  self.c,
                                  self.decision_counter,
                                  self.actions_counter[s])
-            self.actions_counter[s][choosen] += 1
+            self.actions_counter[s][choosen] += 1 if not self.stop else 0
         else:
             raise NotImplementedError
 

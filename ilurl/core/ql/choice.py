@@ -3,10 +3,13 @@ __author__ = "Guilherme Varela"
 __date__ = "2019-07-25"
 
 from numpy.random import choice, rand
-from numpy import argmax, sqrt, log
+from numpy import argmax, sqrt, log, isnan
 
 CHOICE_TYPES = ('eps-greedy', 'optimistic', 'ucb')
 
+def all_eq(values):
+    # returns True if every element of values is the same
+    return all(isnan(values)) or max(values) - min(values) < 1e-6
 
 def choice_eps_greedy(actions, values, epsilon):
     """Takes a single action using an epsilon greedy policy.
@@ -32,11 +35,13 @@ def choice_eps_greedy(actions, values, epsilon):
     action
         An element from the actions element array
     """
-    # greedy action
-    idx = argmax(values)
-    if rand() <= epsilon:
+    # greedy action -- handles the case where
+    # all values are zero: or are equal.
+    if rand() <= epsilon or all_eq(values):
         # Take a random action
         idx = choice(len(values))
+    else:
+        idx = argmax(values)
 
     # Take action A observe R and S'
     action = actions[idx]
@@ -65,12 +70,16 @@ def choice_optimistic(actions_values):
         discounted value for state and action pair
     """
 
-    # direction are the current values for traffic lights
-    action_value = max(actions_values, key=lambda x: x[1])
+    if all_eq([v for _, v in actions_values]):
+        idx = choice(len(actions_values))
+        action = [a for a, _ in actions_values][idx]
+    else:
+        # direction are the current values for traffic lights
+        action_value = max(actions_values, key=lambda x: x[1])
 
-    # Take action A observe R and S'
-    A = action_value[0]
-    return A
+        # Take action A observe R and S'
+        action = action_value[0]
+    return action
 
 
 def choice_ucb(actions_values, c, decision_counter, actions_counter):
@@ -111,12 +120,18 @@ def choice_ucb(actions_values, c, decision_counter, actions_counter):
     c1 = log(decision_counter)
 
     ucb_actions_values = \
-        [(a, v + c * sqrt(c1 / actions_counter[a]))
-         for a, v in actions_values]
+    [(a, v + c * sqrt(c1 / actions_counter[a]))
+     for a, v in actions_values]
 
-    # direction are the current values for traffic lights
-    action_value = max(ucb_actions_values, key=lambda x: x[1])
 
-    # Take action A observe R and S'
-    A = action_value[0]
-    return A
+    if all_eq([v for _, v in ucb_actions_values]):
+        idx = choice(len(ucb_actions_values))
+        action = [a for a, _ in actions_values][idx]
+
+    else:
+        # direction are the current values for traffic lights
+        action_value = max(ucb_actions_values, key=lambda x: x[1])
+
+        # Take action A observe R and S'
+        action = action_value[0]
+    return action

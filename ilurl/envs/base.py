@@ -644,7 +644,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.memo_rewards = {}
         self.memo_observation_space = {}
         node_id = self.traffic_light_ids[0]
-        print(f'reset: {self.duration}\t{self.memo_speeds[node_id]}')
 
     # TODO: Copy & Paste dependency on TrafficLightGridEnv
     # ===============================
