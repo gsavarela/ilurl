@@ -170,10 +170,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         self.cycle_time = self.long_cycle_time + self.short_cycle_time
 
-        # duration measures the amount of time the current
-        # configuration has been going on
-        self.duration = 0.0
-
         # keeps the internal value of sim step
         self.sim_step = sim_params.sim_step
 
@@ -182,55 +178,41 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         self.steps = env_params.horizon
 
-        # Keeps track of the last time the traffic lights in an intersection
-        # were allowed to change (the last time the lights were allowed to
-        # change from a red-green state to a red-yellow state.)
-        self.last_change = np.zeros((self.num_traffic_lights, 1))
-        # Keeps track of the direction of the intersection (the direction that
-        # is currently being allowed to flow. 0 indicates flow from top to
-        # bottom, and 1 indicates flow from left to right.)
-        self.direction = np.zeros((self.num_traffic_lights, 1))
-        # Value of 1 indicates that the intersection is in a red-yellow state.
-        # value 0 indicates that the intersection is in a red-green state.
-        self.currently_yellow = np.zeros((self.num_traffic_lights, 1))
-
-        # when this hits min_switch_time we change from yellow to red
-        # the second column indicates the direction that is currently being
-        # allowed to flow. 0 is flowing top to bottom, 1 is left to right
-        # For third column, 0 signifies yellow and 1 green or red
         self.min_switch_time = env_params.additional_params["switch_time"]
+
+        # neighbouring maps neighbourhood edges
+        self.init_observation_scope_filter()
 
         # TODO: Allow for mixed scenarios with actuated, controlled and static
         # traffic light configurations
         self.tl_type = env_params.additional_params.get('tl_type')
         if self.tl_type != "actuated":
-            tls_configs = scenario.traffic_lights.get_properties()
+            self._init()
+            # tls_configs = scenario.traffic_lights.get_properties()
 
-            i = 0
-            self.incoming = {}
-            self.outgoing = {}
+            # i = 0
+            # self.incoming = {}
+            # self.outgoing = {}
 
-            self.memo_speeds = {}
-            self.memo_counts = {}
-            self.memo_flows = {}
-            self.memo_queue = {}
-            for node_id, config in tls_configs.items():
-                state0 = config['phases'][0]['state']
-                self.k.traffic_light.set_state(node_id=node_id, state=state0)
-                self.currently_yellow[i] = 1 if state0[0].lower() == 'y' else 0
-                i += 1
+            # self.memo_speeds = {}
+            # self.memo_counts = {}
+            # self.memo_flows = {}
+            # self.memo_queue = {}
+            # for node_id, config in tls_configs.items():
+            #     state0 = config['phases'][0]['state']
+            #     self.k.traffic_light.set_state(node_id=node_id, state=state0)
+            #     self.currently_yellow[i] = 1 if state0[0].lower() == 'y' else 0
+            #     i += 1
 
-                self.incoming[node_id] = {}
-                self.outgoing[node_id] = {}
+            #     self.incoming[node_id] = {}
+            #     self.outgoing[node_id] = {}
 
-                self.memo_speeds[node_id] = {}
-                self.memo_counts[node_id] = {}
-                self.memo_flows[node_id] = {}
-                self.memo_queue[node_id] = {}
+            #     self.memo_speeds[node_id] = {}
+            #     self.memo_counts[node_id] = {}
+            #     self.memo_flows[node_id] = {}
+            #     self.memo_queue[node_id] = {}
 
         self.discrete = env_params.additional_params.get("discrete", False)
-        # neighbouring maps neighbourhood edges
-        self.init_observation_scope_filter()
 
         # Q learning stuff
         self.ql_params = ql_params
@@ -238,8 +220,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.reward_calculator = RewardCalculator(ql_params)
         self.rl_action = None
 
-        self.memo_rewards = {}
-        self.memo_observation_space = {}
+        # self.memo_rewards = {}
+        # self.memo_observation_space = {}
 
     def init_observation_scope_filter(self):
         """Returns edges attached to the node center#{node_id}
@@ -330,14 +312,17 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         RETURNS:
         --------
         """
+        # TODO: insert paramter to control the observable distance
+        # TODO: each intersection is claiming all edge -- this
+        # is an error
         def extract(edge_ids):
             veh_ids = []
             for edge_id in edge_ids:
                 veh_ids += \
                     [veh_id
-                     for veh_id in self.k.vehicle.get_ids_by_edge(edge_id)
-                     if self.get_distance_to_intersection(veh_id) <
-                        0.5 * self.k.scenario.edge_length(edge_id)]
+                     for veh_id in self.k.vehicle.get_ids_by_edge(edge_id)]
+                     #if self.get_distance_to_intersection(veh_id) <
+                     #   0.5 * self.k.scenario.edge_length(edge_id)]
             speeds = [
                 self.k.vehicle.get_speed(veh_id)
                 for veh_id in veh_ids
@@ -351,8 +336,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                                 extract(self.incoming_edge_ids[node_id])
 
             # TODO: Add parameter to control
-            # self.outgoing[node_id][self.duration] = \
-            #                     extract(self.outgoing_edge_ids[node_id])
+            self.outgoing[node_id][self.duration] = \
+                                extract(self.outgoing_edge_ids[node_id])
 
     def get_observation_space(self):
         """consolidates the observation space
@@ -575,12 +560,12 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         """See class definition.
         """
         # enable this computation to match with AccelEnv reward
-        reward = super(TrafficLightQLEnv, self).compute_reward(rl_actions, **kwargs)
+        # reward = super(TrafficLightQLEnv, self).compute_reward(rl_actions, **kwargs)
         if self.duration not in self.memo_rewards:
             # rew = rewards.average_velocity(self, fail=False)
-            # rew = self.reward_calculator.calculate(
-            #     self.get_observation_space())
-            self.memo_rewards[self.duration] = reward
+            rew = self.reward_calculator.calculate(
+                self.get_observation_space())
+            self.memo_rewards[self.duration] = rew
         return self.memo_rewards[self.duration]
 
     def _to_index(self, action):
@@ -595,6 +580,62 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         return sum([po2(k, n) for n, k in gen_act])
 
+
+    def reset(self):
+        super(TrafficLightQLEnv, self).reset()
+        self._init()
+
+    def _init(self):
+
+        # duration measures the amount of time the current
+        # configuration has been going on
+        self.duration = 0.0
+
+        # Keeps track of the last time the traffic lights in an intersection
+        # were allowed to change (the last time the lights were allowed to
+        # change from a red-green state to a red-yellow state.)
+        self.last_change = np.zeros((self.num_traffic_lights, 1))
+        # Keeps track of the direction of the intersection (the direction that
+        # is currently being allowed to flow. 0 indicates flow from top to
+        # bottom, and 1 indicates flow from left to right.)
+        self.direction = np.zeros((self.num_traffic_lights, 1))
+        # Value of 1 indicates that the intersection is in a red-yellow state.
+        # value 0 indicates that the intersection is in a red-green state.
+        self.currently_yellow = np.zeros((self.num_traffic_lights, 1))
+
+        # when this hits min_switch_time we change from yellow to red
+        # the second column indicates the direction that is currently being
+        # allowed to flow. 0 is flowing top to bottom, 1 is left to right
+        # For third column, 0 signifies yellow and 1 green or red
+        # initialize parameters which must be  reset between trials
+        tls_configs = self.scenario.traffic_lights.get_properties()
+
+        i = 0
+        self.incoming = {}
+        self.outgoing = {}
+
+        self.memo_speeds = {}
+        self.memo_counts = {}
+        self.memo_flows = {}
+        self.memo_queue = {}
+        for node_id, config in tls_configs.items():
+            state0 = config['phases'][0]['state']
+            self.k.traffic_light.set_state(node_id=node_id, state=state0)
+            self.currently_yellow[i] = 1 if state0[0].lower() == 'y' else 0
+            i += 1
+
+            self.incoming[node_id] = {}
+            self.outgoing[node_id] = {}
+
+            self.memo_speeds[node_id] = {}
+            self.memo_counts[node_id] = {}
+            self.memo_flows[node_id] = {}
+            self.memo_queue[node_id] = {}
+
+        self.memo_rewards = {}
+        self.memo_observation_space = {}
+        node_id = self.traffic_light_ids[0]
+        print(f'reset: {self.duration}\t{self.memo_speeds[node_id]}')
 
     # TODO: Copy & Paste dependency on TrafficLightGridEnv
     # ===============================

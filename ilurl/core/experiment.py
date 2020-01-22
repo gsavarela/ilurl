@@ -154,6 +154,7 @@ class Experiment:
         mean_rets = []
         ret_lists = []
         vels = []
+        vehs = []
         mean_vels = []
         std_vels = []
         outflows = []
@@ -161,6 +162,7 @@ class Experiment:
         actions_lists = []
         for i in range(num_runs):
             vel = np.zeros(num_steps)
+            veh = np.zeros(num_steps)
             logging.info("Iter #" + str(i))
             ret = 0
             ret_list = []
@@ -176,7 +178,9 @@ class Experiment:
                 speeds = self.env.k.vehicle.get_speed(
                     self.env.k.vehicle.get_ids()
                 )
-                vel[j] = round(np.mean(speeds), 2)
+                vel[j] = round(np.nanmean(speeds), 2)
+                veh[j] = len(speeds)
+
                 ret += reward if not(np.isnan(reward)) else 0
                 ret_list.append(round(reward, 2))
                 if hasattr(self.env, 'rl_action'):
@@ -190,6 +194,8 @@ class Experiment:
             ret = round(ret, 2)
             rets.append(ret)
             vels.append(vel)
+            vehs.append(veh)
+
             mean_rets.append(round(np.nanmean(ret_list), 2))
             ret_lists.append(ret_list)
             actions_lists.append(actions_list)
@@ -214,6 +220,7 @@ class Experiment:
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions_lists
+        info_dict["vehicles"] = vehs
 
         print("Average, std return: {}, {}".format(np.nanmean(rets),
                                                    np.nanstd(rets)))
