@@ -223,6 +223,16 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # self.memo_rewards = {}
         # self.memo_observation_space = {}
 
+    # delegates properties to dpq
+    @property
+    def stop(self):
+        """Stops exploring"""
+        return self.dpq.stop
+
+    @stop.setter
+    def stop(self, stop):
+        self.dpq.stop = stop
+
     def init_observation_scope_filter(self):
         """Returns edges attached to the node center#{node_id}
 
@@ -246,7 +256,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 self.outgoing_edge_ids[nodeid] = \
                     [e['id'] for e in self.scenario.edges if e['from'] == nodeid]
                 self.traffic_light_ids.append(nodeid)
-
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
@@ -542,7 +551,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # updates traffic lights' control signals
         self._apply_rl_actions(idx)
 
-        if self.duration == 0.0 and self.step_counter > 1:
+        if self.duration == 0.0 and self.step_counter > 1 and not self.stop:
             # place q-learning here
             reward = self.compute_reward(rl_actions)
 

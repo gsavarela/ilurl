@@ -10,7 +10,8 @@ import xml.etree.ElementTree as ET
 from flow.core.params import InFlows
 # Network related parameters
 from flow.core.params import NetParams, InitialConfig, TrafficLightParams
-from flow.core.params import VehicleParams
+from flow.core.params import VehicleParams, SumoCarFollowingParams
+from flow.controllers.routing_controllers import GridRouter
 
 from flow.scenarios.base_scenario import Scenario
 
@@ -176,28 +177,84 @@ def get_tls(network_id):
 class BaseScenario(Scenario):
     """This class leverages on specs created by SUMO"""
 
+    @classmethod
+    def make(cls, network_id, horizon, demand_type):
+        """Builds a new scenario from rou.xml file -- the resulting
+        vehicle trips will be almost-deterministic use it for validation
+        
+        Params:
+        ------
+        *   network_id: string
+            identification of net.xml file, ex: `intersection`
+        *   horizon: integer
+            maximum emission time in seconds
+        *   demand_type: string
+            string
+        *   num: integer
+
+        Returns:
+        -------
+        *   scenario(s): ilurl.scenario.BaseScenario or list
+            n = 0  attempts to load one scenario,
+            n > 0  attempts to load n+1 scenarios returning a list
+        """
+        # checks if route exists -- returning the path
+        rou_path = inflows2route(
+            network_id,
+            inflows,
+            get_routes(network_id),
+            get_edges(network_id),
+            distribution=demand_type
+        )
+        template_args = {
+                'net': get_path(network_id, 'net'),
+                'vtype': get_vehicle_types(),
+                'rou': [rou_path],
+        }
+        net_params = NetParams(template=template_args)
+        return BaseScenario(network_id,
+                            horizon,
+                            net_params, 
+                            vehicles=VehicleParams())
+
+    @classmethod
+    def load(cls, network_id, horizon, demand_type, num=0):
+        """Attempts to load a new scenario from rou.xml and 
+        vtypes.add.xml -- if it fails will call `make`
+        the resulting vehicle trips will be stochastic use 
+        it for training
+
+        Params:
+        ------
+        *   network_id: string
+            identification of net.xml file, ex: `intersection`
+        *   horizon: integer
+            maximum emission time in seconds
+        *   demand_type: string
+            string
+        *   num: integer
+
+        Returns:
+        -------
+        *   scenario(s): ilurl.scenario.BaseScenario or list
+            n = 0  attempts to load one scenario,
+            n > 0  attempts to load n+1 scenarios returning a list
+        """
+        raise NotImplementedError
+
     def __init__(self,
                  network_id,
                  horizon=360,
-                 inflows_type='lane',
-                 vehicles=None,
                  net_params=None,
+                 vehicles=None,
+                 inflows_type='lane',
                  initial_config=None,
                  traffic_lights=None):
 
+
+        """Builds a new scenario from inflows -- the resulting
+        vehicle trips will be stochastic use it for training"""
         self.network_id = network_id
-        #TODO: check vtype
-        if vehicles is None:
-            vtypes_path = get_vehicle_types()
-            # vehicles = VehicleParams()
-            # vehicles.add(
-            #     veh_id="human",
-            #     routing_controller=(GridRouter, {}),
-            #     car_following_params=SumoCarFollowingParams(
-            #         min_gap=2.5,
-            #         decel=7.5,  # avoid collisions at emergency stops
-            #     ),
-            # )
 
         if initial_config is None:
             initial_config = InitialConfig(
@@ -205,34 +262,53 @@ class BaseScenario(Scenario):
             )
 
         if net_params is None:
-            rou_path = is_route(network_id, horizon, inflows_type)
-            if not rou_path:
-                if inflows_type == 'lane':
-                    inflows = make_lane(network_id, horizon, initial_config)
-                elif inflows_type == 'switch':
-                    inflows = make_switch(network_id, horizon)
-
-                else:
-                    raise ValueError(f'Unknown inflows_type {inflows_type}')
-
-                rou_path = inflows2route(
-                    network_id,
-                    inflows,
-                    get_routes(network_id),
-                    get_edges(network_id),
-                    distribution=inflows_type
+            template_args = {
+                    'net': get_path(network_id, 'net')
+            }
+            #TODO: check vtype
+            if vehicles is None:
+                # vtypes_path = get_vehicle_types()
+                vehicles = VehicleParams()
+                vehicles.add(
+                    veh_id="human",
+                    routing_controller=(GridRouter, {}),
+                    car_following_params=SumoCarFollowingParams(
+                        min_gap=2.5,
+                        decel=7.5,  # avoid collisions at emergency stops
+                    ),
                 )
+                # template_args['vtype'] = vtypes_path
+                # vehicles = VehicleParams()
 
-            net_params = NetParams(
-                template={
-                    'net': get_path(network_id, 'net'),
-                    'vtype': vtypes_path,
-                    'rou': [rou_path]
-                }
-            )
+            # rou_path = is_route(network_id, horizon, inflows_type)
+            # if (not rou_path and inflows_static) or not inflows_static:
+            if inflows_type == 'lane':
+                inflows = make_lane(network_id, horizon, initial_config)
+            elif inflows_type == 'switch':
+                inflows = make_switch(network_id, horizon)
+
+            else:
+                raise ValueError(f'Unknown inflows_type {inflows_type}')
+
+                # if inflows_static:
+                #     rou_path = inflows2route(
+                #         network_id,
+                #         inflows,
+                #         get_routes(network_id),
+                #         get_edges(network_id),
+                #         distribution=inflows_type
+                #     )
+                #     template_args['rou'] = rou_path
+
+                #     net_params = NetParams(template=template_args)
+                # else:
+                #     net_params = NetParams(inflows, template=template_args)
+
+            net_params = NetParams(inflows,
+                                   template=get_path(network_id, 'net'))
 
         if traffic_lights is None:
-            prog_list = get_generic_element('intersection', 'tlLogic',
+            prog_list = get_generic_element(network_id, 'tlLogic',
                                             child_key='phase')
             if prog_list:
                 traffic_lights = TrafficLightParams(baseline=False)
@@ -246,7 +322,7 @@ class BaseScenario(Scenario):
 
         super(BaseScenario, self).__init__(
                  network_id,
-                 VehicleParams(),
+                 vehicles,
                  net_params,
                  initial_config=initial_config,
                  traffic_lights=traffic_lights

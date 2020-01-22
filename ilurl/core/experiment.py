@@ -156,6 +156,7 @@ class Experiment:
         vels = []
         vehs = []
         mean_vels = []
+        mean_vehs = []
         std_vels = []
         outflows = []
         observation_spaces = []
@@ -200,6 +201,7 @@ class Experiment:
             ret_lists.append(ret_list)
             actions_lists.append(actions_list)
             mean_vels.append(round(np.nanmean(vel), 2))
+            mean_vehs.append(np.mean(veh))
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
             std_vels.append(round(np.nanstd(vel), 2))
             print(f"""
@@ -220,7 +222,7 @@ class Experiment:
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions_lists
-        info_dict["vehicles"] = vehs
+        info_dict["vehicles"] = mean_vehs
 
         print("Average, std return: {}, {}".format(np.nanmean(rets),
                                                    np.nanstd(rets)))

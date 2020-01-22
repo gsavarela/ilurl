@@ -31,7 +31,8 @@ class DPQ(object):
 
     def rl_actions(self, s):
         if self.stop:
-            return max(self.Q[s].items(), key=operator.itemgetter(1))[0]
+            choosen = max(self.Q[s].items(), key=operator.itemgetter(1))[0]
+
         elif self.choice_type in ('eps-greedy',):
             actions, values = zip(*self.Q[s].items())
             choosen = choice_eps_greedy(actions, values, self.epsilon)
@@ -52,7 +53,8 @@ class DPQ(object):
         return choosen
 
     def update(self, s, a, r, s1):
-        dpq_update(self.gamma, self.alpha, self.Q, s, a, r, s1)
+        if not self.stop:
+            dpq_update(self.gamma, self.alpha, self.Q, s, a, r, s1)
 
     @property
     def stop(self):

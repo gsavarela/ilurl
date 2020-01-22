@@ -6,13 +6,19 @@ import os
 import json
 import argparse
 import math
+import time
 
-from flow.core.params import SumoParams, EnvParams, InFlows
+from flow.core.params import SumoParams, EnvParams
 
-from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
+from flow.envs.loop.loop_accel import ADDITIONAL_ENV_PARAMS
+from ilurl.envs.base import TrafficLightQLEnv
 from ilurl.core.experiment import Experiment
 
 from ilurl.scenarios.base import BaseScenario, get_edges, get_routes
+
+from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS
+from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
+from ilurl.core.params import QLParams
 
 # TODO: Generalize for any parameter
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -61,6 +67,12 @@ def get_arguments():
                         type=str2bool, default=False, nargs='?',
                         help='''Assign higher probability of spawning a vehicle every other hour on opposite sides''')
 
+
+    parser.add_argument('--inflow-static', '-T', dest='static',
+                        type=str2bool, default=False, nargs='?',
+                        help='''If true will use a fixed dataset with trips.''')
+
+
     return parser.parse_args()
 
 
@@ -88,8 +100,13 @@ if __name__ == '__main__':
 
     sim_params = SumoParams(**sumo_args)
 
+    additional_params = {}
+    additional_params.update(ADDITIONAL_ENV_PARAMS)
+    additional_params.update(ADDITIONAL_TLS_PARAMS)
+    additional_params['long_cycle_time'] = 45
+    additional_params['short_cycle_time'] = 45
     env_params = EnvParams(evaluate=True,
-                           additional_params=ADDITIONAL_ENV_PARAMS)
+                           additional_params=additional_params)
 
     # inflows = make_inflows(args.scenario, args.time) if args.switch else None
     inflows_type = 'switch' if args.switch else 'lane'
@@ -100,21 +117,31 @@ if __name__ == '__main__':
     )
 
 
-    env = AccelEnv(
+    ql_params = QLParams(epsilon=0.10, alpha=0.05,
+                         states=('speed', 'count'),
+                         rewards={'type': 'weighted_average',
+                                  'costs': None},
+                         num_traffic_lights=1, c=10,
+                         choice_type='ucb')
+
+    env = TrafficLightQLEnv(
         env_params=env_params,
         sim_params=sim_params,
+        ql_params=ql_params,
         scenario=scenario
     )
-
+    env.stop = True # prevents any learning
     exp = Experiment(env=env)
 
-    import time
     start = time.time()
     info_dict = exp.run(args.num_iterations, int(args.time / args.step))
     # save info dict
     # save pickle environment
     # TODO: save with running parameters
     # general process information
+    # learned???
+    Q = env.dpq.Q
+    print(f'Sum of Q {sum([v for s in Q for a, v in Q[s].items()])}')
     x = 'l' if inflows_type == 'lane' else 'w'
     filename = \
         f"{env.scenario.name}.{args.time}.{x}.info.json"
