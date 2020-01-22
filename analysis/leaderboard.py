@@ -237,7 +237,8 @@ def tables():
                         ascending=True,
                         inplace=False).round(2)
 
-
+    import pdb
+    pdb.set_trace()
     categories['scenarios'] = sorted(set(categories['scenarios']), reverse=True)
     categories['demands'] = sorted(set(categories['demands']), reverse=False)
 

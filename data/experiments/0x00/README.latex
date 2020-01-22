@@ -1,0 +1,156 @@
+\section{Intersection}
+
+\subsection{Trip}
+
+\begin{table}[!th] 
+	\begin{tabular}[]{@{}|l|l|l|c|c|c|c|c|c|c|@{}}
+		\toprule
+		metric & phases & demand & max & min & num & mean & median & std\tabularnewline
+		\midrule
+
+		\multirow{4}{*}{Speed (Km/h)} & 45/45 & \multirow{12}{*}{uniform} & 29.4 & 0.99 & 27439 & 10.4 & 11.5 & 5.78\tabularnewline
+		 & 50/40 &  & 29.04 & 0.28 & 27455 & 10.47 & 11.56 & 5.79\tabularnewline
+		 & 54/36 &  & 27.86 & 0.94 & 25542 & 10.27 & 11.43 & 5.85\tabularnewline
+		 & 60/30 &  & 27.99 & 1.25 & 27322 & 10.62 & 11.68 & 5.76\tabularnewline\cline{1-2}\cline{4-9}
+
+
+		\multirow{4}{*}{Travel Time (s)} & 45/45 & & 68 & 4 & 27439 & 22.73 & 10 & 22.03\tabularnewline
+		 & 50/40 &  & 71 & 0 & 27455 & 22.44 & 11 & 21.55\tabularnewline
+		 & 54/36 &  & 76 & 1 & 25542 & 23.64 & 10 & 23.69\tabularnewline
+		 & 60/30 &  & 81 & 3 & 27322 & 21.94 & 11 & 21.66\tabularnewline\cline{1-2}\cline{4-9}
+
+		\multirow{4}{*}{Wait Time (s)} & 45/45 & & 51 & 0 & 27439 & 10.76 & 0 & 17.66\tabularnewline
+		 & 50/40 &  & 56 & 0 & 27455 & 10.38 & 0 & 17.36\tabularnewline
+		 & 54/36 &  & 60 & 0 & 25542 & 11.7 & 0 & 19.19\tabularnewline
+		 & 60/30 &  & 66 & 0 & 27322 & 9.68 & 0 & 18.02\tabularnewline\hline
+		
+		\multirow{4}{*}{Speed (Km/h)} & 45/45 & \multirow{12}{*}{switch} & 29.62 & 1.57 & 21391 & 10.29 & 11.33 & 5.94\tabularnewline
+		 & 50/40 &  & 29.61 & 1.44 & 21221 & 10.48 & 11.38 & 5.94\tabularnewline
+		 & 54/36 &  & 29.55 & 1.33 & 20626 & 10.54 & 11.39 & 6.02\tabularnewline
+		 & 60/30 &  & 29.62 & 1.25 & 18815 & 10.59 & 11.38 & 6.26\tabularnewline\cline{1-2}\cline{4-9}
+		 
+		\multirow{4}{*}{Travel Time (s)} & 45/45 & & 68 & 0 & 21391 & 22.38 & 10 & 20.82\tabularnewline
+		 & 50/40 &  & 71 & 2 & 21221 & 21.6 & 10 & 20.49\tabularnewline
+		 & 54/36 &  & 75 & 0 & 20626 & 21.93 & 10 & 21.46\tabularnewline
+		 & 60/30 &  & 81 & 2 & 18815 & 23.03 & 10 & 23.53\tabularnewline\cline{1-2}\cline{4-9}
+
+		\multirow{4}{*}{Wait Time (s)} & 45/45 & & 51 & 0 & 21391 & 10.24 & 0 & 16.58\tabularnewline
+		 & 50/40 &  & 56 & 0 & 21221 & 9.57 & 0 & 16.54\tabularnewline
+		 & 54/36 &  & 60 & 0 & 20626 & 9.89 & 0 & 17.7\tabularnewline
+		 & 60/30 &  & 66 & 0 & 18815 & 10.86 & 0 & 20.02\tabularnewline\cline{1-2}\cline{4-9} 
+
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\subsection{Throughput}
+
+\begin{table}[!th]
+	
+	\begin{tabular}[]{@{}|l|l|c|c|c|c|c|c|c|c@{}}
+	\toprule
+	phases & demand & junc\_id & max & min & num & mean & median
+	& std\tabularnewline
+	\midrule
+
+	 45/45 & \multirow{4}{*}{uniform} & A & 2750 & 2 & 11 & 2463.18 & 2706 & 816.43\tabularnewline
+	 50/40 &  & A & 2732 & 2672 & 10 & 2705.7 & 2711 & 17.51\tabularnewline
+	 54/36 &  & A & 2579 & 2463 & 10 & 2529.8 & 2536.5 & 36.97\tabularnewline
+	 60/30 &  & A & 2724 & 2632 & 10 & 2685.7 & 2693.5 & 28.03\tabularnewline\hline
+
+	 45/45 & \multirow{4}{*}{switch} & A & 2208 & 1 & 11 & 1915.45 & 2094 & 640.43\tabularnewline
+	 50/40 &  & A & 2441 & 1814 & 10 & 2083.2 & 1939 & 279.36\tabularnewline
+	 54/36 &  & A & 2438 & 1677 & 10 & 2018.5 & 1870 & 353.86\tabularnewline
+	 60/30 &  & A & 2231 & 1479 & 10 & 1827 & 1758.5 & 351.88\tabularnewline
+	\bottomrule
+	\end{tabular}
+\end{table}
+
+\section{B. Grid}\label{grid}
+
+\subsection{B.1 Trip}
+
+\begin{table}[!th]
+	
+	\begin{tabular}[]{@{}|l|l|l|c|c|c|c|c|c|c|@{}}
+	\toprule
+	metric & phases & demand & max & min & num & mean & median & std\tabularnewline
+	\midrule
+
+	\multirow{4}{*}{Speed (Km/h)} & 45/45 & \multirow{12}{*}{uniform} & 25.92 & 0.23 & 33189 & 5.91 & 3.7 & 4.76\tabularnewline
+	 & 50/40 &  & 26.35 & 0.36 & 32502 & 6.02 & 3.58 & 4.91\tabularnewline
+	 & 54/36 &  & 26.16 & 0.37 & 33288 & 5.64 & 3.5 & 4.58\tabularnewline
+	 & 60/30 &  & 27.58 & 0.26 & 31927 & 5.63 & 3.42 & 4.68\tabularnewline\cline{1-2}\cline{4-9} 
+
+
+	\multirow{4}{*}{Travel Time (s)} & 45/45 & & 411 & 0 & 33189 & 61 & 63 & 42.72\tabularnewline
+	 & 50/40 &  & 406 & 0 & 32502 & 61.17 & 62 & 42.89\tabularnewline
+	 & 54/36 &  & 420 & 0 & 33288 & 63.09 & 60 & 44.57\tabularnewline
+	 & 60/30 &  & 423 & 0 & 31927 & 66.63 & 60 & 50.82\tabularnewline\cline{1-2}\cline{4-9} 
+
+
+	\multirow{4}{*}{Wait Time (s)} & 45/45 & & 72 & 0 & 33189 & 24.56 & 34 & 20.02\tabularnewline
+	 & 50/40 &  & 70 & 0 & 32502 & 24.56 & 32 & 20.42\tabularnewline
+	 & 54/36 &  & 158 & 0 & 33288 & 26.23 & 34 & 20.75\tabularnewline
+	 & 60/30 &  & 224 & 0 & 31927 & 28.41 & 34 & 23.99\tabularnewline\hline
+
+	\multirow{4}{*}{Speed (Km/h)} & 45/45 & \multirow{12}{*}{switch} & 26.87 & 0.45 & 30975 & 6.31 & 3.93 & 5.07\tabularnewline
+	 & 50/40 &  & 29.14 & 0.33 & 30138 & 6.42 & 3.85 & 5.27\tabularnewline
+	 & 54/36 &  & 28.06 & 0.27 & 29660 & 6.35 & 3.71 & 5.27\tabularnewline
+	 & 60/30 &  & 27.95 & 0.42 & 28808 & 6.31 & 3.58 & 5.38\tabularnewline\cline{1-2}\cline{4-9} 
+	 
+
+	\multirow{4}{*}{Travel Time (s)} & 45/45 & & 367 & 1 & 30975 & 58.02 & 59 & 42.42\tabularnewline
+	 & 50/40 &  & 352 & 0 & 30138 & 58.53 & 58 & 42.78\tabularnewline
+	 & 54/36 &  & 389 & 0 & 29660 & 59.76 & 59 & 43.14\tabularnewline
+	 & 60/30 &  & 359 & 0 & 28808 & 61.17 & 61 & 43.31\tabularnewline\cline{1-2}\cline{4-9} 
+
+	 
+	\multirow{4}{*}{Wait Time (s)} & 45/45 & & 68 & 0 & 30975 & 22.71 & 27 & 19.31\tabularnewline
+	 & 50/40 &  & 70 & 0 & 30138 & 22.88 & 26 & 19.78\tabularnewline
+	 & 54/36 &  & 69 & 0 & 29660 & 23.89 & 27 & 20.45\tabularnewline
+	 & 60/30 &  & 70 & 0 & 28808 & 25.55 & 30 & 21.65\tabularnewline
+	\bottomrule
+	\end{tabular}
+
+\end{table}
+
+\subsection{Throughput}
+
+\begin{table}[!th]
+	
+	\begin{tabular}[]{@{}|l|l|c|c|c|c|c|c|c|c|@{}}
+	\toprule
+	phases & demand & junc\_id & max & min & num & mean & median
+	& std\tabularnewline
+	\midrule
+
+	 \multirow{3}{*}{45/45} & \multirow{12}{*}{uniform} & A & 1847 & 1705 & 10 & 1766.4 & 1767 & 41.18\tabularnewline
+	  & & B & 2379 & 3 & 11 & 2104.91 & 2305 & 697.91\tabularnewline
+	  & & C & 2144 & 3 & 11 & 1889.55 & 2070 & 626.55\tabularnewline\cline{1-1}\cline{3-9}
+	 \multirow{3}{*}{50/40} & & A & 1767 & 1643 & 10 & 1697.3 & 1692.5 & 35.45\tabularnewline
+	  &  & B & 2365 & 4 & 11 & 2099.73 & 2300 & 695.69\tabularnewline
+	  &  & C & 2128 & 3 & 11 & 1881.09 & 2055 & 623.89\tabularnewline\cline{1-1}\cline{3-9}
+	 \multirow{3}{*}{54/36} & & A & 1767 & 1643 & 10 & 1697.3 & 1692.5 & 35.45\tabularnewline
+	  &  & B & 2261 & 3 & 11 & 2002.82 & 2191 & 663.96\tabularnewline
+	  &  & C & 2070 & 2 & 11 & 1817.27 & 1988 & 603.3\tabularnewline\cline{1-1}\cline{3-9}
+	 \multirow{3}{*}{60/30} & & A & 1840 & 1758 & 10 & 1803.5 & 1806.5 & 32.9\tabularnewline
+	  &  & B & 2080 & 2 & 11 & 1834.91 & 2007 & 608.68\tabularnewline
+	  &  & C & 1973 & 3 & 11 & 1724.18 & 1888 & 572.48\tabularnewline\hline
+
+	 \multirow{3}{*}{45/45} & \multirow{12}{*}{switch} & A & 1806 & 1395 & 10 & 1666 & 1681.5 & 110.71\tabularnewline
+	 &  & B & 2320 & 3 & 11 & 1922 & 2087 & 653.56\tabularnewline
+	 &  & C & 2059 & 4 & 11 & 1758 & 1937 & 592.52\tabularnewline\cline{1-1}\cline{3-9}
+	 \multirow{3}{*}{50/40} &  & A & 1724 & 1382 & 10 & 1596.5 & 1601 & 91.31\tabularnewline
+	 &  & B & 2281 & 4 & 11 & 1904.09 & 2093 & 647.11\tabularnewline
+	 &  & C & 2038 & 3 & 11 & 1731.91 & 1904 & 584.05\tabularnewline\cline{1-1}\cline{3-9}
+	 \multirow{3}{*}{54/36} &  & A & 1679 & 1384 & 10 & 1544.5 & 1546.5 & 78.29\tabularnewline
+	 &  & B & 2295 & 3 & 11 & 1913.27 & 2102 & 650.51\tabularnewline
+	 &  & C & 2052 & 3 & 11 & 1746.55 & 1926 & 588.13\tabularnewline\cline{1-1}\cline{3-9}
+	 \multirow{3}{*}{60/30} &  & A & 1567 & 1349 & 10 & 1457.9 & 1445.5 & 63.91\tabularnewline
+	 &  & B & 2291 & 3 & 11 & 1901.55 & 2079 & 646.69\tabularnewline
+	 &  & C & 2056 & 4 & 11 & 1728.09 & 1864 & 583.72\tabularnewline
+
+	\bottomrule
+	\end{tabular}
+\end{table}

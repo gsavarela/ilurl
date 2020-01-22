@@ -14,7 +14,7 @@ data/sensors/
 # be tracked and avoid .git file
 # growth
 data/experiments/0x??/**
-!data/experiments/0x??/README.md
+!data/experiments/0x??/README.*
 !data/experiments/0x??/*.png
 
 # Flow's emission files
