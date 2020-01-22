@@ -30,10 +30,10 @@ from ilurl.envs.base import TrafficLightQLEnv
 
 if __name__ == '__main__':
 
-    #filename = "intersection_20200113-1848021578941282.2348769"
-    filename = "grid_20200116-2052381579207958.931286"
-    path = f"{os.environ['ILURL_HOME']}/data/analysis"
-    file_path = f"{path}/{filename}.info.json"
+    filename = "intersection_20200122-2025241579724724.554257"
+    #filename = "grid_20200116-2052381579207958.931286"
+    path = f"{os.environ['ILURL_HOME']}/data/emissions"
+    file_path = f"{path}/{filename}.9000.l.info.json"
 
     # Retrieves output data
     with open(file_path, 'r') as f:

@@ -195,9 +195,9 @@ class QLParams:
         #     return 1
 
         # intersection
-        if speed >= 1.28:  # hightest 25%
+        if speed >= 2.15:  # hightest 25%
             return 2
-        elif speed <= 1.06:  # lowest 25%
+        elif speed <= 2.06:  # lowest 25%
             return 0
         else:
             return 1
@@ -208,9 +208,9 @@ class QLParams:
            Segregates into 3 categories estimated
            from environment analysis/hist
         """
-        if count >= 15.83:    # highest 25%
+        if count >= 35.21:    # highest 25%
             return 2
-        elif count <= 14.03:  # lowest 25%
+        elif count <= 33.25:  # lowest 25%
             return 0
         else:
             return 1
