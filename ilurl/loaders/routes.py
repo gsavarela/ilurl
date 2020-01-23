@@ -16,24 +16,28 @@ __author__ = 'Guilherme Varela'
 __date__ = '20200117'
 
 import os
+import glob
 import xml.etree.ElementTree as ET
 from xml.dom.minidom import parseString
 
 from numpy import arange
-from numpy.random import rand, choice
+# from numpy.random import RandomState
+# from numpy.random import random, choice, seed
+from numpy import random
+import time
 
 XML_PATH = f"{os.environ['ILURL_HOME']}/data/networks/"
 
-def is_route(network_id, horizon, distribution='lane'):
-    """Verifies if there's a route config with those specs
-    """
-    p = _get_path(network_id, horizon, distribution)
-    if os.path.isfile(p):
-        return p
-    else:
-        return None
+# def is_route(network_id, horizon, distribution='lane'):
+#     """Verifies all route files that match those constraints
+#     """
+#     paths = _get_paths(network_id, horizon, distribution)
+#     if len(paths) > 0:
+#         return paths
+#     else:
+#         return None
 
-def _get_path(network_id, horizon, distribution='lane'):
+def _get_path(network_id, horizon, distribution='lane', n=0):
     path = f'{XML_PATH}{network_id}/{network_id}'
 
     if distribution not in ('lane', 'switch'):
@@ -41,12 +45,26 @@ def _get_path(network_id, horizon, distribution='lane'):
     else:
         x = 'l' if distribution == 'lane' else 'w'
 
-    path = f'{path}.{horizon}.{x}.rou.xml'
+    path = f'{path}.{n}.{horizon}.{x}.rou.xml'
 
     return path
 
+
+def _get_paths(network_id, horizon, distribution='lane'):
+    path = f'{XML_PATH}{network_id}/{network_id}'
+
+    if distribution not in ('lane', 'switch'):
+        raise ValueError(f'distribution not implemented {distribution}')
+    else:
+        x = 'l' if distribution == 'lane' else 'w'
+
+    paths = glob.glob(f'{path}.[0-9].{horizon}.{x}.rou.xml')
+
+    return paths
+
+
 def inflows2route(network_id, inflows,
-                  routes, edges, distribution='lane'):
+                  routes, edges, distribution='lane', num_reps=1):
     """
 
     EXAMPLE:
@@ -61,71 +79,75 @@ def inflows2route(network_id, inflows,
            </vehicle>
      </routes>
     """
-    # path = f'{XML_PATH}{network_id}/{network_id}'
-    root = ET.Element(
-        'routes',
-        attrib={
-            'xmlns:xsi':
-            "http://www.w3.org/2001/XMLSchema-instance",
-            'xsi:noNamespaceSchemaLocation':
-            "http://sumo.dlr.de/xsd/routes_file.xsd"}
-    )
-    # if distribuition not in ('lane', 'switch'):
-    #     raise ValueError(f'distribution not implemented {distribution}')
-    # else:
-    #     x = 'l' if distribution == 'lane' else 'w'
-
     _inflows = sorted(inflows.get(), key=lambda d: d['begin'])
     horizon = max([int(ii['end']) for ii in _inflows])
-    path = _get_path(network_id, horizon, distribution)
-    vehicles = []
-    veh_id = 1
-    for inflow in _inflows:
-        start = int(inflow['begin'])
-        finish = int(inflow['end'])
-        prob = inflow['probability']
+    paths = []
 
-        flw_routes, flw_probs = zip(*routes[inflow['edge']])
-        flw_indexes = arange(len(flw_routes))
+    for n in range(num_reps):
 
-        edge = [e
-                for e in edges if e['id'] == inflow['edge']][0]
+        root = ET.Element(
+            'routes',
+            attrib={
+                'xmlns:xsi':
+                "http://www.w3.org/2001/XMLSchema-instance",
+                'xsi:noNamespaceSchemaLocation':
+                "http://sumo.dlr.de/xsd/routes_file.xsd"}
+        )
 
-        if inflow['departSpeed'] == 'random':
-            max_speed = edge['speed']
-        else:
-            raise NotImplementedError
+        path = _get_path(network_id, horizon, distribution, n)
+        vehicles = []
+        veh_id = 1
 
-        for depart in range(start, finish):
- 
-            if rand() < prob:
-                # emit a vehicle
-                idx = choice(flw_indexes, p=flw_probs)
-                rou = flw_routes[idx]
+        random.seed(n)
+        for i, inflow in enumerate(_inflows):
+            start = int(inflow['begin'])
+            finish = int(inflow['end'])
+            prob = inflow['probability']
 
-                speed = float(max_speed) * rand()
-                
-                vehicle = ET.SubElement(
-                    root,
-                    'vehicle',
-                    attrib={
-                        'id': f'{veh_id:04d}',
-                        'type': inflow['vtype'],
-                        'depart': str(depart),
-                        'departSpeed': f'{speed:0.2f}',  # TODO: check
-                        'departPos': '0.0', # TODO: check if it should set edge starts
-                    })
+            flw_routes, flw_probs = zip(*routes[inflow['edge']])
+            flw_indexes = arange(len(flw_routes))
 
-                route = ET.SubElement(
-                    vehicle,
-                    'route',
-                    attrib={
-                        'edges': ' '.join(rou)
-                    }
-                )
-                veh_id += 1
+            edge = [e
+                    for e in edges if e['id'] == inflow['edge']][0]
 
-    dom = parseString(ET.tostring(root))
-    etree = ET.ElementTree(ET.fromstring(dom.toprettyxml()))
-    etree.write(path)
-    return path
+            if inflow['departSpeed'] == 'random':
+                max_speed = edge['speed']
+            else:
+                raise NotImplementedError
+
+            for depart in range(start, finish):
+     
+                if random.random() < prob:
+                    # emit a vehicle
+                    idx = random.choice(flw_indexes, p=flw_probs)
+                    rou = flw_routes[idx]
+
+                    speed = float(max_speed) * random.random()
+                    
+                    vehicle = ET.SubElement(
+                        root,
+                        'vehicle',
+                        attrib={
+                            'id': f'{veh_id:04d}',
+                            'type': inflow['vtype'],
+                            'depart': str(depart),
+                            'departSpeed': f'{speed:0.2f}',  # TODO: check
+                            'departPos': '0.0', # TODO: check if it should set edge starts
+                        })
+
+                    route = ET.SubElement(
+                        vehicle,
+                        'route',
+                        attrib={
+                            'edges': ' '.join(rou)
+                        }
+                    )
+                    veh_id += 1
+
+        dom = parseString(ET.tostring(root))
+        etree = ET.ElementTree(ET.fromstring(dom.toprettyxml()))
+        etree.write(path)
+        paths.append(path)
+
+    ret = paths[0] if num_reps == 1 else paths
+    return ret

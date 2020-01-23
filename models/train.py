@@ -17,10 +17,7 @@ from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
 
-from ilurl.scenarios.base import BaseScenario, get_edges, get_routes
-
-# test
-# from ilurl.loaders.routes import inflows2vehicles
+from ilurl.scenarios.base import BaseScenario
 
 # TODO: Generalize for any parameter
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -73,7 +70,7 @@ def get_arguments():
 
     
     parser.add_argument('--tls-long', '-L', dest='long_phase',
-                        type=int, default=False, nargs='?',
+                        type=int, default=45, nargs='?',
                         help='Long phase length in seconds of the cycle')
 
 
@@ -103,8 +100,10 @@ if __name__ == '__main__':
         'sim_step': args.step,
         'restart_instance': True
     }
+
+    path = f'{EMISSION_PATH}{args.long_phase}{args.short_phase}/'
     if args.emission:
-        sumo_args['emission_path'] = EMISSION_PATH
+        sumo_args['emission_path'] = path
 
     sim_params = SumoParams(**sumo_args)
 
@@ -118,11 +117,6 @@ if __name__ == '__main__':
     env_params = EnvParams(evaluate=True,
                            additional_params=additional_params)
 
-    # inflows = make_inflows(args.scenario, args.time) if args.switch else None
-    # vehs = inflows2vehicles(network_id,
-    #                         inflows,
-    #                         get_routes(args.scenario),
-    #                         get_edges(args.scenario))
 
     inflows_type = 'switch' if args.switch else 'lane'
     scenario = BaseScenario(
@@ -131,6 +125,7 @@ if __name__ == '__main__':
         inflows_type=inflows_type
     )
 
+    
     ql_params = QLParams(epsilon=0.10, alpha=0.05,
                          states=('speed', 'count'),
                          rewards={'type': 'weighted_average',
@@ -144,6 +139,15 @@ if __name__ == '__main__':
         ql_params=ql_params,
         scenario=scenario
     )
+
+    # UNCOMMENT to build evaluation
+    # scenarios over static distributions
+    # num_eval = 5
+    # for i in range(num_eval):
+    BaseScenario.make(
+        args.scenario, 900, inflows_type, 5
+    )
+
     exp = Experiment(env=env)
 
     import time
@@ -153,7 +157,6 @@ if __name__ == '__main__':
         # save info dict
         # save pickle environment
         # TODO: save with running parameters
-        path = f'{EMISSION_PATH}/{args.long_phase}{args.short_phase}'
         if not os.path.isdir(path):
             os.mkdir(path)
 

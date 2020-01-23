@@ -233,6 +233,15 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
     def stop(self, stop):
         self.dpq.stop = stop
 
+    @property
+    def Q(self):
+        """Stops exploring"""
+        return self.dpq.Q
+
+    @Q.setter
+    def Q(self, Q):
+        self.dpq.Q = Q
+
     def init_observation_scope_filter(self):
         """Returns edges attached to the node center#{node_id}
 

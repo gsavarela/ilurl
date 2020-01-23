@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 
 # InFlows
 from flow.core.params import InFlows
+
 # Network related parameters
 from flow.core.params import NetParams, InitialConfig, TrafficLightParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
@@ -15,7 +16,7 @@ from flow.controllers.routing_controllers import GridRouter
 
 from flow.scenarios.base_scenario import Scenario
 
-from ilurl.loaders.routes import is_route, inflows2route
+from ilurl.loaders.routes import inflows2route
 from ilurl.loaders.vtypes import get_vehicle_types
 
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -178,7 +179,7 @@ class BaseScenario(Scenario):
     """This class leverages on specs created by SUMO"""
 
     @classmethod
-    def make(cls, network_id, horizon, demand_type):
+    def make(cls, network_id, horizon, demand_type, num_reps):
         """Builds a new scenario from rou.xml file -- the resulting
         vehicle trips will be almost-deterministic use it for validation
         
@@ -189,7 +190,7 @@ class BaseScenario(Scenario):
         *   horizon: integer
             maximum emission time in seconds
         *   demand_type: string
-            string
+            a demand distribution e.g `lane`
         *   num: integer
 
         Returns:
@@ -198,24 +199,53 @@ class BaseScenario(Scenario):
             n = 0  attempts to load one scenario,
             n > 0  attempts to load n+1 scenarios returning a list
         """
+
+        if demand_type == 'lane':
+            initial_config = InitialConfig(
+                edges_distribution=tuple(get_routes(network_id).keys())
+            )
+            inflows = make_lane(network_id, horizon, initial_config)
+
+        elif demand_type == 'switch':
+            inflows = make_switch(network_id, horizon)
+        else:
+            raise ValueError(f'Unknown demand_type {demand_type}')
+
         # checks if route exists -- returning the path
-        rou_path = inflows2route(
+        paths = inflows2route(
             network_id,
             inflows,
             get_routes(network_id),
             get_edges(network_id),
-            distribution=demand_type
+            distribution=demand_type,
+            num_reps=num_reps
         )
-        template_args = {
-                'net': get_path(network_id, 'net'),
-                'vtype': get_vehicle_types(),
-                'rou': [rou_path],
-        }
-        net_params = NetParams(template=template_args)
-        return BaseScenario(network_id,
-                            horizon,
-                            net_params, 
-                            vehicles=VehicleParams())
+
+        net = get_path(network_id, 'net')
+        vtype = get_vehicle_types()
+        scenarios = []
+        for path in paths:
+            # template_args = {
+            #         'net': get_path(network_id, 'net'),
+            #         'vtype': get_vehicle_types(),
+            #         'rou': [rou_path],
+            # }
+            net_params = NetParams(
+                template={
+                    'net': net,
+                    'vtype': vtype,
+                    'rou': [path]
+                }
+            )
+            scenarios.append(
+                BaseScenario(
+                    network_id,
+                    horizon,
+                    net_params,
+                    vehicles=VehicleParams())
+            )
+
+        return scenarios
 
     @classmethod
     def load(cls, network_id, horizon, demand_type, num=0):
@@ -262,9 +292,9 @@ class BaseScenario(Scenario):
             )
 
         if net_params is None:
-            template_args = {
-                    'net': get_path(network_id, 'net')
-            }
+            # template_args = {
+            #         'net': get_path(network_id, 'net')
+            # }
             #TODO: check vtype
             if vehicles is None:
                 # vtypes_path = get_vehicle_types()

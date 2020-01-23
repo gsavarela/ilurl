@@ -126,6 +126,13 @@ class Experiment:
                 'output should be generated. If you do not wish to generate '
                 'emissions, set the convert_to_csv parameter to False.')
 
+        dir_path = None
+        if self.env.sim_params.emission_path is not None:
+
+            # collect the location of the emission file
+            dir_path = self.env.sim_params.emission_path
+
+
         if save_interval is not None:
             print('Warning save_interval has been disabled')
 
@@ -174,6 +181,7 @@ class Experiment:
             #     self.env.dump(os.getcwd())
             state = self.env.reset()
 
+
             for j in range(num_steps):
                 state, reward, done, _ = self.env.step(rl_actions(state))
                 speeds = self.env.k.vehicle.get_speed(
@@ -191,6 +199,13 @@ class Experiment:
 
                 if done:
                     break
+
+            # for every run dump
+            if hasattr(self.env, 'dump') and dir_path:
+                self.env.dump(dir_path,
+                              f'{self.env.scenario.name}.Q.{i + 1}.pickle',
+                              attr_name='Q')
+
 
             ret = round(ret, 2)
             rets.append(ret)
@@ -213,6 +228,8 @@ class Experiment:
                 plt.draw()
                 plt.pause(0.01)
 
+            
+
         info_dict["id"] = self.env.scenario.name
         info_dict["returns"] = rets
         info_dict["velocities"] = mean_vels 
@@ -231,24 +248,9 @@ class Experiment:
         self.env.terminate()
 
         print('emissions', f'{self.env.sim_params.emission_path}/{self.env.scenario.name}')
-        if self.env.sim_params.emission_path is not None:
+        if dir_path:
             # wait a short period of time to ensure the xml file is readable
             time.sleep(0.1)
-
-            # collect the location of the emission file
-            dir_path = self.env.sim_params.emission_path
-
-
-            # general process information
-            # info_filename = \
-            #     "{0}-info.json".format(self.env.scenario.name)
-
-            # info_path = os.path.join(dir_path, info_filename)
-            # with open(info_path, 'w') as fj:
-            #     json.dump(info_dict, fj)
-
-            # if hasattr(self.env, 'dump'):
-            #     self.env.dump(dir_path)
 
             if convert_to_csv:
                 emission_filename = \

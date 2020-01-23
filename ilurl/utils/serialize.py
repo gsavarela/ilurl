@@ -28,7 +28,7 @@ class Serializer(object):
 
         return serialized_instance
 
-    def dump(self, file_dir, filename=None):
+    def dump(self, file_dir, filename=None, attr_name=None):
         '''Serializes thru pickle'''
 
         if filename is None:
@@ -46,9 +46,14 @@ class Serializer(object):
         if file_dir[-1] != '/':
             file_dir += '/'
 
+        if attr_name is None:
+            obj = self
+        else:
+            obj = getattr(self, attr_name)
+
         file_path = '{:}{:}'.format(file_dir, filename)
         with open(file_path, 'wb') as f:
-            dill.dump(self, f, protocol=dill.HIGHEST_PROTOCOL)
+            dill.dump(obj, f, protocol=dill.HIGHEST_PROTOCOL)
 
 
 def convert(name):
