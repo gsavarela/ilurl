@@ -94,6 +94,10 @@ def str2bool(v):
 
 if __name__ == '__main__':
     args = get_arguments()
+    path = f'{EMISSION_PATH}{args.long_phase}{args.short_phase}/'
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
     sumo_args = {
         'render': args.render,
         'print_warnings': False,
@@ -101,7 +105,6 @@ if __name__ == '__main__':
         'restart_instance': True
     }
 
-    path = f'{EMISSION_PATH}{args.long_phase}{args.short_phase}/'
     if args.emission:
         sumo_args['emission_path'] = path
 
@@ -145,20 +148,21 @@ if __name__ == '__main__':
     # num_eval = 5
     # for i in range(num_eval):
     BaseScenario.make(
-        args.scenario, 900, inflows_type, 5
+        args.scenario, args.time, inflows_type, 5
     )
 
-    exp = Experiment(env=env)
+    exp = Experiment(env=env, dir_path=path, train=True)
 
     import time
     start = time.time()
-    info_dict = exp.run(args.num_iterations, int(args.time / args.step))
+    info_dict = exp.run(
+        args.num_iterations,
+        int(args.time / args.step)
+    )
     if args.pickle:
         # save info dict
         # save pickle environment
         # TODO: save with running parameters
-        if not os.path.isdir(path):
-            os.mkdir(path)
 
 
         # general process information

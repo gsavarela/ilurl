@@ -248,7 +248,7 @@ class BaseScenario(Scenario):
         return scenarios
 
     @classmethod
-    def load(cls, network_id, horizon, demand_type, num=0):
+    def load(cls, network_id, route_path):
         """Attempts to load a new scenario from rou.xml and 
         vtypes.add.xml -- if it fails will call `make`
         the resulting vehicle trips will be stochastic use 
@@ -270,7 +270,27 @@ class BaseScenario(Scenario):
             n = 0  attempts to load one scenario,
             n > 0  attempts to load n+1 scenarios returning a list
         """
-        raise NotImplementedError
+
+        net = get_path(network_id, 'net')
+        vtype = get_vehicle_types()
+
+        net_params = NetParams(
+            template={
+                'net': net,
+                'vtype': vtype,
+                'rou': [route_path]
+            }
+        )
+
+        horizon = int(route_path.split('.')[-4])
+
+        scenario = BaseScenario(
+            network_id,
+            horizon,
+            net_params,
+            vehicles=VehicleParams()
+        )
+        return scenario
 
     def __init__(self,
                  network_id,

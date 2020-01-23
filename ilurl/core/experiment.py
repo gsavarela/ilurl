@@ -25,6 +25,12 @@ from flow.core.util import emission_to_csv
 # TODO: Track those anoying warning
 warnings.filterwarnings('ignore')
 
+# TODO: Generalize for any parameter
+ILURL_HOME = os.environ['ILURL_HOME']
+
+EMISSION_PATH = \
+    f'{ILURL_HOME}/data/emissions/'
+
 class Experiment:
     """
     Class for systematically running simulations in any supported simulator.
@@ -71,9 +77,17 @@ class Experiment:
         the environment object the simulator will run
     """
 
-    def __init__(self, env):
+    def __init__(self, env, dir_path=EMISSION_PATH, train=True, policies=None):
         """Instantiate Experiment."""
+        if not train and policies is None:
+            raise ValueError(
+                f"In validation mode an array of policies must be provided"
+            )
+
         self.env = env
+        self.train = train
+        self.dir_path = dir_path
+        self.policies = policies
 
         logging.info(" Starting experiment {} at {}".format(
             env.scenario.name, str(datetime.datetime.utcnow())))
@@ -126,13 +140,6 @@ class Experiment:
                 'output should be generated. If you do not wish to generate '
                 'emissions, set the convert_to_csv parameter to False.')
 
-        dir_path = None
-        if self.env.sim_params.emission_path is not None:
-
-            # collect the location of the emission file
-            dir_path = self.env.sim_params.emission_path
-
-
         if save_interval is not None:
             print('Warning save_interval has been disabled')
 
@@ -181,7 +188,6 @@ class Experiment:
             #     self.env.dump(os.getcwd())
             state = self.env.reset()
 
-
             for j in range(num_steps):
                 state, reward, done, _ = self.env.step(rl_actions(state))
                 speeds = self.env.k.vehicle.get_speed(
@@ -201,11 +207,15 @@ class Experiment:
                     break
 
             # for every run dump
-            if hasattr(self.env, 'dump') and dir_path:
-                self.env.dump(dir_path,
-                              f'{self.env.scenario.name}.Q.{i + 1}.pickle',
-                              attr_name='Q')
+            if self.train:
+                if hasattr(self.env, 'dump') and self.dir_path:
+                    self.env.dump(self.dir_path,
+                                  f'{self.env.scenario.name}.Q.{i + 1}.pickle',
+                                  attr_name='Q')
 
+            else:
+                if i < len(self.policies):
+                    self.env.Q = self.policies[i]
 
             ret = round(ret, 2)
             rets.append(ret)
@@ -248,14 +258,18 @@ class Experiment:
         self.env.terminate()
 
         print('emissions', f'{self.env.sim_params.emission_path}/{self.env.scenario.name}')
-        if dir_path:
+        if self.env.sim_params.emission_path:
             # wait a short period of time to ensure the xml file is readable
             time.sleep(0.1)
 
             if convert_to_csv:
                 emission_filename = \
                     "{0}-emission.xml".format(self.env.scenario.name)
-                emission_path = os.path.join(dir_path, emission_filename)
+
+                emission_path = os.path.join(
+                    self.env.sim_params.emission_pathself.dir_path, 
+                    emission_filename
+                )
 
                 emission_to_csv(emission_path)
 
