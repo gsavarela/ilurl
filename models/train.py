@@ -147,9 +147,9 @@ if __name__ == '__main__':
     # scenarios over static distributions
     # num_eval = 5
     # for i in range(num_eval):
-    BaseScenario.make(
-        args.scenario, args.time, inflows_type, 5
-    )
+    # BaseScenario.make(
+    #     args.scenario, args.time, inflows_type, 5
+    # )
 
     exp = Experiment(env=env, dir_path=path, train=True)
 

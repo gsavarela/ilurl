@@ -424,7 +424,7 @@ def make_lane(network_id, horizon, initial_config):
 def make_switch(network_id, horizon):
     inflows = InFlows()
     edges = get_edges(network_id)
-    switch = 3600   # switches flow every 3600 seconds
+    switch = 900   # switches flow every 900 seconds
     for eid in get_routes(network_id):
         # use edges distribution to filter routes
         edge = [e for e in edges if e['id'] == eid][0]
@@ -435,7 +435,8 @@ def make_switch(network_id, horizon):
         for hr in range(num_flows):
             step = min(horizon - hr * switch, switch)
             # switches in accordance to the number of lanes
-            prob = prob0 - 0.1 if (hr + num_lanes) % 2 == 1 else prob0
+            prob = prob0 + 0.2 * num_lanes if (hr + num_lanes) % 2 == 1 else prob0
+            print(f'{eid} {prob}')
             inflows.add(
                 eid,
                 'human',
