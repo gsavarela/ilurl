@@ -21,21 +21,10 @@ import xml.etree.ElementTree as ET
 from xml.dom.minidom import parseString
 
 from numpy import arange
-# from numpy.random import RandomState
-# from numpy.random import random, choice, seed
 from numpy import random
 import time
 
 XML_PATH = f"{os.environ['ILURL_HOME']}/data/networks/"
-
-# def is_route(network_id, horizon, distribution='lane'):
-#     """Verifies all route files that match those constraints
-#     """
-#     paths = _get_paths(network_id, horizon, distribution)
-#     if len(paths) > 0:
-#         return paths
-#     else:
-#         return None
 
 def _get_path(network_id, horizon, distribution='lane', n=0):
     path = f'{XML_PATH}{network_id}/{network_id}'
@@ -64,7 +53,7 @@ def _get_paths(network_id, horizon, distribution='lane'):
 
 
 def inflows2route(network_id, inflows,
-                  routes, edges, distribution='lane', num_reps=1):
+                  routes, edges, distribution='lane', num_reps=1, label=None):
     """
 
     EXAMPLE:
@@ -94,7 +83,9 @@ def inflows2route(network_id, inflows,
                 "http://sumo.dlr.de/xsd/routes_file.xsd"}
         )
 
-        path = _get_path(network_id, horizon, distribution, n)
+        labeln = label or n
+        print(labeln)
+        path = _get_path(network_id, horizon, distribution, labeln)
         vehicles = []
         veh_id = 1
 
@@ -149,5 +140,4 @@ def inflows2route(network_id, inflows,
         etree.write(path)
         paths.append(path)
 
-    ret = paths[0] if num_reps == 1 else paths
-    return ret
+    return paths

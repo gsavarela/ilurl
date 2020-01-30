@@ -179,7 +179,7 @@ class BaseScenario(Scenario):
     """This class leverages on specs created by SUMO"""
 
     @classmethod
-    def make(cls, network_id, horizon, demand_type, num_reps):
+    def make(cls, network_id, horizon, demand_type, num_reps, label=None):
         """Builds a new scenario from rou.xml file -- the resulting
         vehicle trips will be almost-deterministic use it for validation
         
@@ -218,18 +218,14 @@ class BaseScenario(Scenario):
             get_routes(network_id),
             get_edges(network_id),
             distribution=demand_type,
-            num_reps=num_reps
+            num_reps=num_reps,
+            label=label
         )
 
         net = get_path(network_id, 'net')
         vtype = get_vehicle_types()
         scenarios = []
         for path in paths:
-            # template_args = {
-            #         'net': get_path(network_id, 'net'),
-            #         'vtype': get_vehicle_types(),
-            #         'rou': [rou_path],
-            # }
             net_params = NetParams(
                 template={
                     'net': net,
@@ -245,7 +241,8 @@ class BaseScenario(Scenario):
                     vehicles=VehicleParams())
             )
 
-        return scenarios
+        ret = scenarios[0] if num_reps == 1 else scenarios
+        return ret
 
     @classmethod
     def load(cls, network_id, route_path):
@@ -312,9 +309,6 @@ class BaseScenario(Scenario):
             )
 
         if net_params is None:
-            # template_args = {
-            #         'net': get_path(network_id, 'net')
-            # }
             #TODO: check vtype
             if vehicles is None:
                 # vtypes_path = get_vehicle_types()
@@ -327,11 +321,6 @@ class BaseScenario(Scenario):
                         decel=7.5,  # avoid collisions at emergency stops
                     ),
                 )
-                # template_args['vtype'] = vtypes_path
-                # vehicles = VehicleParams()
-
-            # rou_path = is_route(network_id, horizon, inflows_type)
-            # if (not rou_path and inflows_static) or not inflows_static:
             if inflows_type == 'lane':
                 inflows = make_lane(network_id, horizon, initial_config)
             elif inflows_type == 'switch':
@@ -340,19 +329,6 @@ class BaseScenario(Scenario):
             else:
                 raise ValueError(f'Unknown inflows_type {inflows_type}')
 
-                # if inflows_static:
-                #     rou_path = inflows2route(
-                #         network_id,
-                #         inflows,
-                #         get_routes(network_id),
-                #         get_edges(network_id),
-                #         distribution=inflows_type
-                #     )
-                #     template_args['rou'] = rou_path
-
-                #     net_params = NetParams(template=template_args)
-                # else:
-                #     net_params = NetParams(inflows, template=template_args)
 
             net_params = NetParams(inflows,
                                    template=get_path(network_id, 'net'))

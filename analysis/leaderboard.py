@@ -19,7 +19,7 @@ ROOT = os.environ['ILURL_HOME']
 CYCLE = 90      # agg. unit corresponding to all phases
 
 EXPERIMENTS_DIR = \
-    f"{ROOT}/data/experiments/0x00"
+    f"{ROOT}/data/experiments/0x01"
 
 BASELINE_DIR = \
     f"{EXPERIMENTS_DIR}/4545"
@@ -99,7 +99,7 @@ def plots():
             # code on their name: `w` switch, `l` uniform
             filenames = sorted([
                 f for f in filenames
-                if f.split('.')[-1] in ('json')
+                if 'test.9000.w.info.json' in f
             ])
             
             cycle = dirpath.split('/')[-1]
@@ -119,9 +119,10 @@ def plots():
                 # we don't really need the training files
                 # but they have the demand code on their
                 # name: `w` switch, `l` uniform
-
-                demand_code = filetrain.split('.')[-3]
-                demand = 'switch' if demand_code == 'w' else 'uniform'
+                # TODO: query
+                # demand_code = filetrain.split('.')[-3]
+                # demand = 'switch' if demand_code == 'w' else 'uniform'
+                demand = 'switch'
                 categories['demands'].append(demand)
                 categories['scenarios'].append(filetrain.split('_')[0])
                 categories['splits'].append(f'{cycle[:2]}/{cycle[2:]}')
@@ -157,9 +158,11 @@ def plots():
                    for i, dmd in enumerate(categories['demands'])]
 
             series = [ss
-                      for i, ss in enumerate(categories['series']) if idx[i]]
+                      for i, ss in enumerate(categories['series'])
+                      if i < len(idx) and idx[i]]
             labels = [lbl
-                      for i, lbl in enumerate(categories['splits']) if idx[i]]
+                      for i, lbl in enumerate(categories['splits'])
+                      if i < len(idx) and idx[i]]
 
             # sort the series by label
             labels, series = zip(*
@@ -197,8 +200,7 @@ def tables():
             # code on their name: `w` switch, `l` uniform
             filenames = sorted([
                 f for f in filenames
-                if f.split('.')[-1] in ('csv', 'json') and 
-                 'eval.info.json' not in f
+                if 'csv' in f or 'test.9000.w.info.json' in f
             ])
             
             cycle = dirpath.split('/')[-1]
@@ -213,7 +215,6 @@ def tables():
                 categories['scenarios'].append(scenario)
                 emission_df = get_emissions(csv,
                                             emission_dir=dirpath)
-
                 df_flow = build_table_flow(emission_df, scenario, cycle, demand)
                 flows.append(df_flow)
                 
@@ -237,49 +238,40 @@ def tables():
                         ascending=True,
                         inplace=False).round(2)
 
-    import pdb
-    pdb.set_trace()
     categories['scenarios'] = sorted(set(categories['scenarios']), reverse=True)
     categories['demands'] = sorted(set(categories['demands']), reverse=False)
 
+    dataframes = []
     with open(os.path.join(EXPERIMENTS_DIR, 'README.md'), 'w') as f:
-        idxspd = dff.columns.get_level_values(0) == 'speed'
-        idxwat = dff.columns.get_level_values(0) == 'waiting'
-        idxtrl = dff.columns.get_level_values(0) == 'total'
+        # idxspd = dff.columns.get_level_values(0) == 'speed'
+        # idxwat = dff.columns.get_level_values(0) == 'waiting'
+        # idxtrl = dff.columns.get_level_values(0) == 'total'
 
-        for ii, scenario in enumerate(categories['scenarios']):
-            f.write(f"\n# {ii + 1}.{scenario}\n")
-            idxscn = dff.index.get_level_values('scenario') == scenario
+        # for ii, scenario in enumerate(categories['scenarios']):
+
+        dff = dff.reset_index(). \
+                 drop(labels=[('scenario', ''), ('demand', '')], axis=1). \
+                set_index('split')
             
-            for jj, demand in enumerate(categories['demands']):
+        for col in ('speed',  'waiting', 'total'):
 
-                idxdmd = dff.index.get_level_values('demand') == demand
-                
-                f.write(f"\n\n## {ii + 1}.{jj + 1} {demand}\n\n")
-                f.write(f"\n\n### {ii + 1}.{jj + 1}.A Speed\n\n")
+            print(col)
 
-                df = dff.loc[idxscn & idxdmd, idxspd].reset_index()
-                df.columns = df.columns.droplevel()
-                f.write(dataframe2markdown(df))
+            df = dff.loc[:, dff.columns.get_level_values(0) == col]
+            df.columns = df.columns.droplevel()
 
+            df.index = pd.MultiIndex.from_product([[col], df.index])
+            dataframes.append(df)
+        
+        f.write(dataframe2markdown(pd.concat(dataframes, axis=0)))
 
-                f.write(f"\n\n### {ii + 1}.{jj + 1}.B Travel time\n\n")
-                df = dff.loc[idxscn & idxdmd, idxtrl].reset_index()
-                df.columns = df.columns.droplevel()
-                f.write(dataframe2markdown(df))
+        dft = dft.reset_index()
+        f.write(dataframe2markdown(dft))
 
-                f.write(f"\n\n### {ii + 1}.{jj + 1}.C Wait time\n\n")
-                df = dff.loc[idxscn & idxdmd, idxwat].reset_index()
-                df.columns = df.columns.droplevel()
-                f.write(dataframe2markdown(df))
-            
-                f.write(f"\n\n### {ii + 1}.{jj + 1}.D Throughput\n\n")
-            
-                idxscn1 = dft.index.get_level_values('scenario') == scenario
-                idxdmd1 = dft.index.get_level_values('demand') == demand
-                df = dft.loc[idxscn1 & idxdmd1, :].reset_index()
-                f.write(dataframe2markdown(df))
+    with open(os.path.join(EXPERIMENTS_DIR, 'README.latex'), 'w') as f:
+        f.write(pd.concat(dataframes, axis=0).to_latex())
+        f.write(dft.to_latex())
 
 if __name__ == '__main__':
     tables()
-    plots()
+    # plots()
