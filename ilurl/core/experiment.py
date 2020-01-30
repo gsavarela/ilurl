@@ -209,7 +209,6 @@ class Experiment:
             # for every run dump
             if self.train:
                 if hasattr(self.env, 'dump') and self.dir_path:
-                    raise ValueError
                     self.env.dump(self.dir_path,
                                   f'{self.env.scenario.name}.Q.{i + 1}.pickle',
                                   attr_name='Q')

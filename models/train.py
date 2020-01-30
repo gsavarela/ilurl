@@ -125,7 +125,7 @@ if __name__ == '__main__':
     scenario = BaseScenario(
         network_id=args.scenario,
         horizon=args.time,
-        inflows_type=inflows_type
+        demand_type=inflows_type
     )
 
     
@@ -145,11 +145,9 @@ if __name__ == '__main__':
 
     # UNCOMMENT to build evaluation
     # scenarios over static distributions
-    # num_eval = 5
-    # for i in range(num_eval):
-    # BaseScenario.make(
-    #     args.scenario, args.time, inflows_type, 5
-    # )
+    BaseScenario.make(
+        args.scenario, args.time, inflows_type, 5, 'eraseme'
+    )
 
     exp = Experiment(env=env, dir_path=path, train=True)
 

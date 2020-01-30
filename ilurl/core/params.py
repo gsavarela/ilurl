@@ -1,7 +1,18 @@
 """Objects that define the various meta-parameters of an experiment."""
+__author__ = 'Guilherme Varela'
+__date__ = '2020-01-30'
+import math
+
+import flow.core.params as flow_params
+
 from collections import namedtuple
 from ilurl.core.ql.reward import REWARD_TYPES
 from ilurl.core.ql.choice import CHOICE_TYPES
+
+from ilurl.loaders.routes import inflows2route
+from ilurl.loaders.nets import get_edges, get_routes, get_path
+from ilurl.loaders.vtypes import get_vehicle_types
+
 
 STATE_FEATURES = ('speed', 'count', 'flow', 'queue')
 ACTIONS = ('fast_slow_green', )
@@ -30,6 +41,10 @@ Bounds = namedtuple('Bounds', 'rank depth')
 '''
 Rewards = namedtuple('Rewards', 'type costs')
 
+ADDITIONAL_PARAMS = {
+    # every `switch`seconds concentrate flow in one direction
+     "switch": 900
+}
 
 class QLParams:
     """Base Q-learning parameters
@@ -245,3 +260,93 @@ class QLParams:
         if queue_per_cycle > .1042:  # Average 20% -- 75%  data-points
             return 1
         return 0  # Bottom 20% data-points
+
+
+class InFlows(flow_params.InFlows):
+    """InFlow: plus load & dump functionality"""
+
+    @classmethod
+    def make(cls, network_id, horizon, demand_type, label):
+
+        inflows = InFlows(network_id, horizon, demand_type)
+        # checks if route exists -- returning the path
+        path = inflows2route(
+            network_id,
+            inflows,
+            get_routes(network_id),
+            get_edges(network_id),
+            distribution=demand_type,
+            num_reps=1,
+            label=label
+        )
+        
+        return path
+
+    def __init__(self, network_id, horizon, demand_type,
+                 additional_params=ADDITIONAL_PARAMS):
+
+        super(InFlows, self).__init__()
+
+        edges = get_edges(network_id)
+        for eid in get_routes(network_id):
+            # use edges distribution to filter routes
+            # if eid in initial_config.edges_distribution:
+            edge = [e for e in edges if e['id'] == eid][0]
+
+            num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
+
+            probability = 0.2
+            if demand_type == 'lane':
+                self.add(
+                    eid,
+                    'human',
+                    probability=probability * num_lanes,
+                    depart_lane='best',
+                    depart_speed='random',
+                    name=f'lane_{eid}',
+                    begin=1,
+                    end=horizon
+                )
+
+            elif demand_type == 'switch':
+                switch = additional_params['switch']
+                num_flows = max(math.ceil(horizon / switch), 1)
+                for hr in range(num_flows):
+                    step = min(horizon - hr * switch, switch)
+                    # switches in accordance to the number of lanes
+                    if (hr + num_lanes) % 2 == 1:
+                        probability = probability + 0.2 * num_lanes
+
+                    self.add(
+                        eid,
+                        'human',
+                        probability=probability,
+                        depart_lane='best',
+                        depart_speed='random',
+                        name=f'switch_{eid}',
+                        begin=1 + hr * switch,
+                        end=step + hr * switch
+                    )
+                    probability = 0.2
+
+            else:
+                raise ValueError(f'Unknown demand_type {demand_type}')
+
+class NetParams(flow_params.NetParams):
+    """Extends NetParams to work with saved templates"""
+
+    @classmethod
+    def from_template(cls, network_id, horizon, demand_type, label=None):
+        net_path = get_path(network_id, 'net')
+        # TODO: test if exists first!
+        rou_path = InFlows.make(network_id,
+                                horizon, demand_type, label=label)
+        vtype_path = get_vehicle_types()
+
+        return cls(
+            template={
+                'net': net_path,
+                'vtype': vtype_path,
+                'rou': rou_path
+            }
+        )
