@@ -12,8 +12,7 @@ from flow.controllers.routing_controllers import GridRouter
 from flow.scenarios.base_scenario import Scenario
 
 from ilurl.core.params import InFlows, NetParams
-from ilurl.loaders.vtypes import get_vehicle_types
-from ilurl.loaders.nets import (get_routes, get_edges, get_path, get_tls,
+from ilurl.loaders.nets import (get_routes, get_edges, get_path,
                                 get_logic, get_connections, get_nodes,
                                 get_types)
 
@@ -43,9 +42,10 @@ class BaseScenario(Scenario):
         """
 
         scenarios = []
-        for path in range(num_reps):
+        for nr in range(num_reps):
+            label1 = f'{nr}.{label}' if label and num_reps > 1 else nr
             net_params = NetParams.from_template(
-                network_id, horizon, demand_type, label=label
+                network_id, horizon, demand_type, label=label1
             )
             scenarios.append(
                 BaseScenario(
@@ -70,28 +70,18 @@ class BaseScenario(Scenario):
         *   network_id: string
             identification of net.xml file, ex: `intersection`
         *   horizon: integer
-            maximum emission time in seconds
+            latest depart time
         *   demand_type: string
             string
-        *   num: integer
-
+        *   label: string
+            e.g `eval, `train` or `test`
         Returns:
         -------
         *   scenario(s): ilurl.scenario.BaseScenario or list
             n = 0  attempts to load one scenario,
             n > 0  attempts to load n+1 scenarios returning a list
         """
-
-        net = get_path(network_id, 'net')
-        vtype = get_vehicle_types()
-
-        net_params = NetParams(
-            template={
-                'net': net,
-                'vtype': vtype,
-                'rou': [route_path]
-            }
-        )
+        net_params = NetParams.load(network_id, route_path)
 
         horizon = int(route_path.split('.')[-4])
 
@@ -125,7 +115,6 @@ class BaseScenario(Scenario):
         if net_params is None:
             #TODO: check vtype
             if vehicles is None:
-                # vtypes_path = get_vehicle_types()
                 vehicles = VehicleParams()
                 vehicles.add(
                     veh_id="human",
@@ -141,10 +130,10 @@ class BaseScenario(Scenario):
                                    template=get_path(network_id, 'net'))
 
         if traffic_lights is None:
-            prog_list = get_logic(network_id)
-            if prog_list:
+            programs = get_logic(network_id)
+            if programs:
                 traffic_lights = TrafficLightParams(baseline=False)
-                for prog in prog_list:
+                for prog in programs:
                     prog_id = prog.pop('id')
                     prog['tls_type'] = prog.pop('type')
                     prog['programID'] = int(prog.pop('programID')) + 1

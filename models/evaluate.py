@@ -43,16 +43,6 @@ def get_arguments():
                         default=False, nargs='?',
                         help='Simulation\'s real world time in seconds')
 
-    # parser.add_argument('--experiment-iterations', '-i',
-    #                     dest='num_iterations', type=int,
-    #                     default=1, nargs='?',
-    #                     help='Number of times to repeat the experiment')
-
-    # parser.add_argument('--experiment-iterations', '-i',
-    #                     dest='num_iterations', type=int,
-    #                     default=1, nargs='?',
-    #                     help='Number of times to repeat the experiment')
-
     return parser.parse_args()
 
 def str2bool(v):

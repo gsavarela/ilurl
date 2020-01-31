@@ -9,7 +9,7 @@ from collections import namedtuple
 from ilurl.core.ql.reward import REWARD_TYPES
 from ilurl.core.ql.choice import CHOICE_TYPES
 
-from ilurl.loaders.routes import inflows2route
+from ilurl.dumpers.inflows import inflows_dump
 from ilurl.loaders.nets import get_edges, get_routes, get_path
 from ilurl.loaders.vtypes import get_vehicle_types
 
@@ -268,15 +268,12 @@ class InFlows(flow_params.InFlows):
     @classmethod
     def make(cls, network_id, horizon, demand_type, label):
 
-        inflows = InFlows(network_id, horizon, demand_type)
+        inflows = cls(network_id, horizon, demand_type)
         # checks if route exists -- returning the path
-        path = inflows2route(
+        path = inflows_dump(
             network_id,
             inflows,
-            get_routes(network_id),
-            get_edges(network_id),
             distribution=demand_type,
-            num_reps=1,
             label=label
         )
         
@@ -337,6 +334,25 @@ class NetParams(flow_params.NetParams):
 
     @classmethod
     def from_template(cls, network_id, horizon, demand_type, label=None):
+        """Factory method based on {network_id} layout + configs
+        
+        Params:
+        -------
+        *   network_id: string
+            standard {network_id}.net.xml file, ex: `intersection`
+            see data/networks for a list
+        *   horizon: integer
+            latest depart time
+        *   demand_type: string
+            string
+        *   label: string
+            e.g `eval, `train` or `test`
+
+        Returns:
+        -------
+        *   ilurl.core.params.NetParams
+            network parameters SEE parent
+        """
         net_path = get_path(network_id, 'net')
         # TODO: test if exists first!
         rou_path = InFlows.make(network_id,
@@ -348,5 +364,34 @@ class NetParams(flow_params.NetParams):
                 'net': net_path,
                 'vtype': vtype_path,
                 'rou': rou_path
+            }
+        )
+
+    @classmethod
+    def load(cls, network_id, route_path):
+        """Loads paremeters from net {network_id} and
+            routes from {route_path}
+        
+        Params:
+        -------
+        *   network_id: string
+            standard {network_id}.net.xml file, ex: `intersection`
+            see data/networks for a list
+        *   route_path: string
+            valid path on disk for a *.rou.xml file
+
+        Returns:
+        -------
+        *   ilurl.core.params.NetParams
+            network parameters SEE parent
+        """
+        net_path = get_path(network_id, 'net')
+        vtype_path = get_vehicle_types()
+
+        return cls(
+            template={
+                'net': net_path,
+                'vtype': vtype_path,
+                'rou': [route_path]
             }
         )
