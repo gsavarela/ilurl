@@ -1,4 +1,4 @@
-"""Provides baseline for scenarios"""
+"""Provides baseline for networks"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-08'
 
@@ -8,7 +8,8 @@ import argparse
 import math
 
 from flow.core.params import SumoParams, EnvParams
-from flow.envs.loop.loop_accel import ADDITIONAL_ENV_PARAMS
+from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
+
 from flow.core.params import InFlows
 
 from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS
@@ -17,7 +18,7 @@ from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
 
-from ilurl.scenarios.base import BaseScenario
+from ilurl.networks.base import Network
 
 # TODO: Generalize for any parameter
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -34,7 +35,7 @@ def get_arguments():
     )
 
     # TODO: validate against existing networks
-    parser.add_argument('scenario', type=str, nargs='?', default='intersection',
+    parser.add_argument('network', type=str, nargs='?', default='intersection',
                         help='Network to be simulated')
 
 
@@ -122,8 +123,8 @@ if __name__ == '__main__':
 
 
     inflows_type = 'switch' if args.switch else 'lane'
-    scenario = BaseScenario(
-        network_id=args.scenario,
+    network = Network(
+        network_id=args.network,
         horizon=args.time,
         demand_type=inflows_type
     )
@@ -140,13 +141,13 @@ if __name__ == '__main__':
         env_params=env_params,
         sim_params=sim_params,
         ql_params=ql_params,
-        scenario=scenario
+        network=network
     )
 
     # UNCOMMENT to build evaluation
-    # scenarios over static distributions
-    BaseScenario.make(
-        args.scenario, args.time, inflows_type, 2
+    # networks over static distributions
+    Network.make(
+        args.network, args.time, inflows_type, 2
     )
 
     exp = Experiment(env=env, dir_path=path, train=True)
@@ -166,7 +167,7 @@ if __name__ == '__main__':
         # general process information
         x = 'l' if inflows_type == 'lane' else 'w'
         filename = \
-             f"{env.scenario.name}.{args.time}.{x}.info.json"
+             f"{env.network.name}.{args.time}.{x}.info.json"
 
         info_path = os.path.join(path, filename)
         with open(info_path, 'w') as fj:

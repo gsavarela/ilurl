@@ -90,7 +90,7 @@ class Experiment:
         self.policies = policies
 
         logging.info(" Starting experiment {} at {}".format(
-            env.scenario.name, str(datetime.datetime.utcnow())))
+            env.network.name, str(datetime.datetime.utcnow())))
 
         logging.info("Initializing environment.")
 
@@ -210,7 +210,7 @@ class Experiment:
             if self.train:
                 if hasattr(self.env, 'dump') and self.dir_path:
                     self.env.dump(self.dir_path,
-                                  f'{self.env.scenario.name}.Q.{i + 1}.pickle',
+                                  f'{self.env.network.name}.Q.{i + 1}.pickle',
                                   attr_name='Q')
 
             else:
@@ -240,7 +240,7 @@ class Experiment:
 
             
 
-        info_dict["id"] = self.env.scenario.name
+        info_dict["id"] = self.env.network.name
         info_dict["returns"] = rets
         info_dict["velocities"] = mean_vels 
         info_dict["mean_returns"] = mean_rets
@@ -257,14 +257,14 @@ class Experiment:
                                                   np.nanstd(mean_vels)))
         self.env.terminate()
 
-        print('emissions', f'{self.env.sim_params.emission_path}/{self.env.scenario.name}')
+        print('emissions', f'{self.env.sim_params.emission_path}/{self.env.network.name}')
         if self.env.sim_params.emission_path:
             # wait a short period of time to ensure the xml file is readable
             time.sleep(0.1)
 
             if convert_to_csv:
                 emission_filename = \
-                    "{0}-emission.xml".format(self.env.scenario.name)
+                    "{0}-emission.xml".format(self.env.network.name)
 
                 emission_path = os.path.join(
                     self.env.sim_params.emission_pathself.dir_path, 

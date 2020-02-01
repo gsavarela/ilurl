@@ -1,4 +1,4 @@
-"""Provides baseline for scenarios"""
+"""Provides baseline for networks"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-24'
 
@@ -6,17 +6,10 @@ import os
 import json
 import dill
 
-# from flow.core.params import SumoParams, EnvParams
-# from flow.envs.loop.loop_accel import ADDITIONAL_ENV_PARAMS
-# from flow.core.params import InFlows
-# 
 from ilurl.envs.base import TrafficLightQLEnv #, QL_PARAMS
-# from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
-
-# from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
 
-from ilurl.scenarios.base import BaseScenario
+from ilurl.networks.base import Network
 
 # TODO: Generalize for any parameter
 ROOT_PATH = os.environ['ILURL_HOME']
@@ -41,9 +34,9 @@ if __name__ == '__main__':
     if os.path.isfile(path):
         # loading
         print('loading', path)
-        scenario = BaseScenario.load(network_id, path)
+        network = Network.load(network_id, path)
     else:
-        scenario = BaseScenario.make(
+        network = Network.make(
             network_id, horizon, inflows_type, 1, 'test'
         )
 
@@ -58,13 +51,13 @@ if __name__ == '__main__':
         env_path = '.'.join(policy_name.split('.')[:2])
         env_path = f'{EXPERIMENTS_PATH}{env_path}.pickle'
         env = TrafficLightQLEnv.load(env_path)
-        scenario.name = env.scenario.name
+        network.name = env.network.name
 
         env = TrafficLightQLEnv(
             env_params=env.env_params,
             sim_params=env.sim_params,
             ql_params=env.ql_params,
-            scenario=scenario
+            network=network
         )
         # always generate emissions
         emission_path = f'{EXPERIMENTS_PATH}{policy_dir}'
@@ -77,7 +70,7 @@ if __name__ == '__main__':
         exp = Experiment(env=env, dir_path=None, train=True)
         info_dict = exp.run(1, horizon)
         filename = \
-             f"{scenario.name}.test.{horizon}.{code}.info.json"
+             f"{network.name}.test.{horizon}.{code}.info.json"
 
         info_path = os.path.join(emission_path, filename)
         with open(info_path, 'w') as fj:

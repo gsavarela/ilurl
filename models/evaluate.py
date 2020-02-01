@@ -1,4 +1,4 @@
-'''Evaluation script for smart grid scenario'''
+'''Evaluation script for smart grid network'''
 
 __author__ = 'Guilherme Varela'
 __date__ = '2019-09-24'
@@ -12,7 +12,7 @@ import dill
 
 from ilurl.core.experiment import Experiment
 from ilurl.envs.base import TrafficLightQLEnv
-from ilurl.scenarios.base import BaseScenario
+from ilurl.networks.base import Network
 
 # TODO: Generalize for any parameter
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -57,21 +57,21 @@ def str2bool(v):
 
 
 def evaluate(env, code, policies, horizon, path):
-    # load all scenarios with config -- else build
-    netid = env.scenario.network_id
+    # load all networks with config -- else build
+    netid = env.network.network_id
     routes_path = \
         f"{NET_PATH}{netid}/{netid}"
 
     routes = sorted(glob(f"{routes_path}.[0-9].{horizon}.{code}.rou.xml"))
     for i, route in enumerate(routes):
-        #TODO: save scenario objects rather then routes
-        scenario = BaseScenario.load(env.scenario.network_id, route)
-        scenario.name = env.scenario.name
+        #TODO: save network objects rather then routes
+        network = Network.load(env.network.network_id, route)
+        network.name = env.network.name
 
         env_eval = TrafficLightQLEnv(env.env_params,
                                      env.sim_params,
                                      env.ql_params,
-                                     scenario)
+                                     network)
         # env_eval.Q = env.Q
         env_eval.stop = True
         # env.sim_params.emission_path = path # always emit
@@ -82,7 +82,7 @@ def evaluate(env, code, policies, horizon, path):
                               policies=policies)
         print(f"Running evaluation {i + 1}")
         info = exp_eval.run(num_iterations, horizon)
-        ipath = os.path.join(path, f'{env_eval.scenario.name}.{i}.eval.info.json')
+        ipath = os.path.join(path, f'{env_eval.network.name}.{i}.eval.info.json')
         with open(ipath, 'w') as f:
             json.dump(info, f)
 

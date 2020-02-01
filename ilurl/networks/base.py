@@ -1,4 +1,4 @@
-"""This module acts as a wrapper for scenarios generated from network data"""
+"""This module acts as a wrapper for networks generated from network data"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-10'
 
@@ -9,19 +9,19 @@ from flow.core.params import InitialConfig, TrafficLightParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers.routing_controllers import GridRouter
 
-from flow.scenarios.base_scenario import Scenario
+from flow.networks.base import Network as FlowNetwork
 
 from ilurl.core.params import InFlows, NetParams
 from ilurl.loaders.nets import (get_routes, get_edges, get_path,
                                 get_logic, get_connections, get_nodes,
                                 get_types)
 
-class BaseScenario(Scenario):
+class Network(FlowNetwork):
     """This class leverages on specs created by SUMO"""
 
     @classmethod
     def make(cls, network_id, horizon, demand_type, num_reps, label=None):
-        """Builds a new scenario from rou.xml file -- the resulting
+        """Builds a new network from rou.xml file -- the resulting
         vehicle trips will be almost-deterministic use it for validation
         
         Params:
@@ -36,31 +36,31 @@ class BaseScenario(Scenario):
 
         Returns:
         -------
-        *   scenario(s): ilurl.scenario.BaseScenario or list
-            n = 0  attempts to load one scenario,
-            n > 0  attempts to load n+1 scenarios returning a list
+        *   network(s): ilurl.network.Network or list
+            n = 0  attempts to load one network,
+            n > 0  attempts to load n+1 networks returning a list
         """
 
-        scenarios = []
+        networks = []
         for nr in range(num_reps):
             label1 = f'{nr}.{label}' if label and num_reps > 1 else nr
             net_params = NetParams.from_template(
                 network_id, horizon, demand_type, label=label1
             )
-            scenarios.append(
-                BaseScenario(
+            networks.append(
+                Network(
                     network_id,
                     horizon,
                     net_params,
                     vehicles=VehicleParams())
             )
 
-        ret = scenarios[0] if num_reps == 1 else scenarios
+        ret = networks[0] if num_reps == 1 else networks
         return ret
 
     @classmethod
     def load(cls, network_id, route_path):
-        """Attempts to load a new scenario from rou.xml and 
+        """Attempts to load a new network from rou.xml and 
         vtypes.add.xml -- if it fails will call `make`
         the resulting vehicle trips will be stochastic use 
         it for training
@@ -77,21 +77,21 @@ class BaseScenario(Scenario):
             e.g `eval, `train` or `test`
         Returns:
         -------
-        *   scenario(s): ilurl.scenario.BaseScenario or list
-            n = 0  attempts to load one scenario,
-            n > 0  attempts to load n+1 scenarios returning a list
+        *   network(s): ilurl.network.Network or list
+            n = 0  attempts to load one network,
+            n > 0  attempts to load n+1 networks returning a list
         """
         net_params = NetParams.load(network_id, route_path)
 
         horizon = int(route_path.split('.')[-4])
 
-        scenario = BaseScenario(
+        network = Network(
             network_id,
             horizon,
             net_params,
             vehicles=VehicleParams()
         )
-        return scenario
+        return network
 
     def __init__(self,
                  network_id,
@@ -103,7 +103,7 @@ class BaseScenario(Scenario):
                  traffic_lights=None):
 
 
-        """Builds a new scenario from inflows -- the resulting
+        """Builds a new network from inflows -- the resulting
         vehicle trips will be stochastic use it for training"""
         self.network_id = network_id
 
@@ -141,7 +141,7 @@ class BaseScenario(Scenario):
             else:
                 traffic_lights = TrafficLightParams(baseline=False)
 
-        super(BaseScenario, self).__init__(
+        super(Network, self).__init__(
                  network_id,
                  vehicles,
                  net_params,
