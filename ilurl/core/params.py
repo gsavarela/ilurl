@@ -285,6 +285,8 @@ class InFlows(flow_params.InFlows):
         super(InFlows, self).__init__()
 
         edges = get_edges(network_id)
+        # an array of kwargs
+        params = []
         for eid in get_routes(network_id):
             # use edges distribution to filter routes
             # if eid in initial_config.edges_distribution:
@@ -293,18 +295,18 @@ class InFlows(flow_params.InFlows):
             num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
 
             probability = 0.2
+            args = (eid, 'human')
             if demand_type == 'lane':
-                self.add(
-                    eid,
-                    'human',
-                    probability=probability * num_lanes,
-                    depart_lane='best',
-                    depart_speed='random',
-                    name=f'lane_{eid}',
-                    begin=1,
-                    end=horizon
-                )
+                kwargs = {
+                    'probability': round(probability * num_lanes, 2),
+                    'depart_lane': 'best',
+                    'depart_speed': 'random',
+                    'name': f'lane_{eid}',
+                    'begin': 1,
+                    'end': horizon
+                }
 
+                params.append((args, kwargs))
             elif demand_type == 'switch':
                 switch = additional_params['switch']
                 num_flows = max(math.ceil(horizon / switch), 1)
@@ -314,21 +316,27 @@ class InFlows(flow_params.InFlows):
                     if (hr + num_lanes) % 2 == 1:
                         probability = probability + 0.2 * num_lanes
 
-                    self.add(
-                        eid,
-                        'human',
-                        probability=probability,
-                        depart_lane='best',
-                        depart_speed='random',
-                        name=f'switch_{eid}',
-                        begin=1 + hr * switch,
-                        end=step + hr * switch
-                    )
+                    kwargs = {
+                        'probability': round(probability, 2),
+                        'depart_lane': 'best',
+                        'depart_speed': 'random',
+                        'name': f'switch_{eid}',
+                        'begin': 1 + hr * switch,
+                        'end': step + hr * switch
+                    }
                     probability = 0.2
 
+                    params.append((args, kwargs))
             else:
                 raise ValueError(f'Unknown demand_type {demand_type}')
-
+        
+        # Sort params flows will be consecutive
+        params = sorted(params, key=lambda x: x[1]['end'])
+        params = sorted(params, key=lambda x: x[1]['begin'])
+        for args, kwargs in params:
+            
+            self.add(*args, **kwargs)
+            
 class NetParams(flow_params.NetParams):
     """Extends NetParams to work with saved templates"""
 

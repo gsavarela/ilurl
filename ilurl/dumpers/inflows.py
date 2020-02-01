@@ -20,6 +20,7 @@ import os
 import glob
 import xml.etree.ElementTree as ET
 from xml.dom.minidom import parseString
+from collections import defaultdict
 
 from numpy import arange
 from numpy import random
@@ -89,22 +90,46 @@ def inflows_dump(network_id, inflows,
     )
 
     path = inflows_path(network_id, horizon, distribution, label)
-    vehicles = []
+    vehicles = [] # trips elements
     veh_id = 1
 
     random.seed(0)
-    for i, inflow in enumerate(inflows_sorted):
-        start = int(inflow['begin'])
-        finish = int(inflow['end'])
-        prob = inflow['probability']
+    # an array of dictionaries, keys are edgeids
+    # values are tuple (routeids, probabilities)
+    edges2routes = defaultdict(list)
+    routes2edges = {}
+    # first define route elements
+    for i, inflows in enumerate(inflows_sorted):
+        edge_id = inflows['edge']
+        if not edges2routes[edge_id]:
+            for j, edges_probs in enumerate(routes[edge_id]):
+                route_id = f'route{edge_id}_{j}'
+                ET.SubElement(
+                    root,
+                    'route',
+                    attrib={
+                        'id': route_id,
+                        'edges': ' '.join(edges_probs[0]),
+                    }
+                )
+                edges2routes[edge_id].append((route_id, edges_probs[1]))
+                routes2edges[route_id] = ' '.join(edges_probs[0])
 
-        flw_routes, flw_probs = zip(*routes[inflow['edge']])
-        flw_indexes = arange(len(flw_routes))
+    #  define trips indexed by route_ids
+    #  array of trips attributes
+    trips = []
+    for i, inflows in enumerate(inflows_sorted):
+        start = int(inflows['begin'])
+        finish = int(inflows['end'])
+        # emission probability from this edge
+        prob = inflows['probability']
 
-        edge = [e
-                for e in edges if e['id'] == inflow['edge']][0]
+        edge_id = inflows['edge']
 
-        if inflow['departSpeed'] == 'random':
+        route_ids, route_ps = zip(*edges2routes[edge_id])
+        edge = [e for e in edges if e['id'] == edge_id][0]
+
+        if inflows['departSpeed'] == 'random':
             max_speed = edge['speed']
         else:
             raise NotImplementedError
@@ -113,31 +138,39 @@ def inflows_dump(network_id, inflows,
  
             if random.random() < prob:
                 # emit a vehicle
-                idx = random.choice(flw_indexes, p=flw_probs)
-                rou = flw_routes[idx]
+                idx = random.choice(len(route_ids), p=route_ps)
+                route_id = route_ids[idx]
 
-                speed = float(max_speed) * random.random()
+                speed = round(float(max_speed) * random.random(), 2)
                 
-                vehicle = ET.SubElement(
-                    root,
-                    'vehicle',
-                    attrib={
-                        'id': f'{veh_id:04d}',
-                        'type': inflow['vtype'],
-                        'depart': str(depart),
-                        'departSpeed': f'{speed:0.2f}',  # TODO: check
-                        'departPos': '0.0', # TODO: check if it should set edge starts
-                    })
+                trips.append({
+                    'type': inflows['vtype'],
+                    'depart': depart,
+                    'departSpeed': f'{speed:0.2f}',  # todo: check
+                    'departPos': '0.0',    # TODO: check if it should set edge starts
+                    'route': route_id,
+                })
 
-                route = ET.SubElement(
-                    vehicle,
-                    'route',
-                    attrib={
-                        'edges': ' '.join(rou)
+    # sort trips by depart times
+    trips = sorted(trips, key=lambda x: x['depart'])
+    for nt, trip in enumerate(trips):
+        trip['id'] = f'{nt:05d}'
+        trip['depart'] = f"{trip['depart']:0.1f}"
+
+        route_id = trip.pop('route')
+        vehicle = ET.SubElement(
+            root,
+            'vehicle',
+            attrib=trip
+        )
+        route = ET.SubElement(
+            vehicle,
+            'route',
+            attrib={
+                'route': route_id,
+                'edges': routes2edges[route_id]
                     }
-                )
-                veh_id += 1
-
+        )
     dom = parseString(ET.tostring(root))
     etree = ET.ElementTree(ET.fromstring(dom.toprettyxml()))
     etree.write(path)

@@ -146,7 +146,7 @@ if __name__ == '__main__':
     # UNCOMMENT to build evaluation
     # scenarios over static distributions
     BaseScenario.make(
-        args.scenario, args.time, inflows_type, 5 
+        args.scenario, args.time, inflows_type, 2
     )
 
     exp = Experiment(env=env, dir_path=path, train=True)
