@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on Fri Jan 10 08:15:23 2020 by Eclipse SUMO netedit Version 1.1.0
+<!-- generated on Tue Feb  4 10:03:17 2020 by Eclipse SUMO netedit Version 1.1.0
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
 
     <input>
-        <sumo-net-file value="data/networks/intersection/intersection.net.xml"/>
+        <sumo-net-file value="intersection.net.xml"/>
     </input>
 
     <output>
-        <output-file value="data/networks/intersection/intersection.net.xml"/>
+        <output-file value="intersection.net.xml"/>
     </output>
 
     <processing>
@@ -126,10 +126,10 @@
     </edge>
 
     <tlLogic id="247123161" type="static" programID="0" offset="0">
-        <phase duration="39" state="rrrGGGgrrrGGGg"/>
-        <phase duration="6"  state="rrryyyyrrryyyy"/>
-        <phase duration="39" state="GGgrrrrGGgrrrr"/>
-        <phase duration="6"  state="yyyrrrryyyrrrr"/>
+        <phase duration="39" state="GGrrrGGrrr"/>
+        <phase duration="6"  state="yyrrryyrrr"/>
+        <phase duration="39" state="rrGGGrrGGG"/>
+        <phase duration="6"  state="rryyyrryyy"/>
     </tlLogic>
 
     <junction id="-103021" type="dead_end" x="70.87" y="0.00" incLanes="238059324_0" intLanes="" shape="70.87,0.00 67.70,0.47 70.87,0.00"/>
@@ -149,14 +149,14 @@
     <junction id="247123374" type="dead_end" x="0.00" y="63.30" incLanes="238059328_0 238059328_1" intLanes="" shape="0.00,63.30 -0.03,69.70 0.00,63.30"/>
     <junction id="247123464" type="dead_end" x="159.10" y="63.85" incLanes="-309265401_0 -309265401_1" intLanes="" shape="159.10,63.85 159.12,57.45 159.10,63.85"/>
 
-    <connection from="-238059324" to="-309265401" fromLane="0" toLane="0" via=":247123161_5_0" tl="247123161" linkIndex="7" dir="r" state="o"/>
-    <connection from="-238059324" to="-383432312" fromLane="0" toLane="0" via=":247123161_6_0" tl="247123161" linkIndex="8" dir="s" state="o"/>
-    <connection from="-238059328" to="238059324" fromLane="0" toLane="0" via=":247123161_7_0" tl="247123161" linkIndex="10" dir="r" state="O"/>
-    <connection from="-238059328" to="-309265401" fromLane="0" toLane="0" via=":247123161_8_0" tl="247123161" linkIndex="11" dir="s" state="O"/>
-    <connection from="-238059328" to="-309265401" fromLane="1" toLane="1" via=":247123161_8_1" tl="247123161" linkIndex="12" dir="s" state="O"/>
-    <connection from="309265401" to="-383432312" fromLane="0" toLane="0" via=":247123161_2_0" tl="247123161" linkIndex="3" dir="r" state="O"/>
-    <connection from="309265401" to="238059328" fromLane="0" toLane="0" via=":247123161_3_0" tl="247123161" linkIndex="4" dir="s" state="O"/>
-    <connection from="309265401" to="238059328" fromLane="1" toLane="1" via=":247123161_3_1" tl="247123161" linkIndex="5" dir="s" state="O"/>
+    <connection from="-238059324" to="-309265401" fromLane="0" toLane="0" via=":247123161_5_0" tl="247123161" linkIndex="5" dir="r" state="o"/>
+    <connection from="-238059324" to="-383432312" fromLane="0" toLane="0" via=":247123161_6_0" tl="247123161" linkIndex="6" dir="s" state="o"/>
+    <connection from="-238059328" to="238059324" fromLane="0" toLane="0" via=":247123161_7_0" tl="247123161" linkIndex="7" dir="r" state="O"/>
+    <connection from="-238059328" to="-309265401" fromLane="0" toLane="0" via=":247123161_8_0" tl="247123161" linkIndex="8" dir="s" state="O"/>
+    <connection from="-238059328" to="-309265401" fromLane="1" toLane="1" via=":247123161_8_1" tl="247123161" linkIndex="9" dir="s" state="O"/>
+    <connection from="309265401" to="-383432312" fromLane="0" toLane="0" via=":247123161_2_0" tl="247123161" linkIndex="2" dir="r" state="O"/>
+    <connection from="309265401" to="238059328" fromLane="0" toLane="0" via=":247123161_3_0" tl="247123161" linkIndex="3" dir="s" state="O"/>
+    <connection from="309265401" to="238059328" fromLane="1" toLane="1" via=":247123161_3_1" tl="247123161" linkIndex="4" dir="s" state="O"/>
     <connection from="383432312" to="238059328" fromLane="0" toLane="0" via=":247123161_0_0" tl="247123161" linkIndex="0" dir="r" state="o"/>
     <connection from="383432312" to="238059324" fromLane="0" toLane="0" via=":247123161_1_0" tl="247123161" linkIndex="1" dir="s" state="o"/>
 

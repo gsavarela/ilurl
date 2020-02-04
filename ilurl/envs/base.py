@@ -6,6 +6,7 @@
 __author__ = "Guilherme Varela"
 __date__ = "2019-12-10"
 from collections import defaultdict
+import re
 
 import numpy as np
 
@@ -231,7 +232,14 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.incoming_edge_ids = {}
         self.outgoing_edge_ids = {}
 
+        # the edges that control a phase
+        self.phase_component_ids = {}
         self.traffic_light_ids = []
+
+        # helper function
+        def tls_filter(node_id, conn):
+            return 'tl' in conn and node_id == conn['tl'] and conn['dir'] == 's'
+
         for node in self.network.nodes:
             if node['type'] == 'traffic_light':
                 # RIGHT to LEFT
@@ -241,7 +249,43 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
                 self.outgoing_edge_ids[nodeid] = \
                     [e['id'] for e in self.network.edges if e['from'] == nodeid]
+
                 self.traffic_light_ids.append(nodeid)
+
+
+                
+                # for each tls extract connections
+                # TODO: generalize for more then two phases
+                straight_connections = \
+                    [conn for conn in self.network.connections
+                          if tls_filter(nodeid, conn)]
+
+                # Get identifier fields: assumption edges with opposite
+                # orientation are the negative to each other
+                # or, they are symetric
+                connections_ids = [
+                    tuple(int(conn[key]) for key in ('from', 'to', 'linkIndex'))
+                    for conn in straight_connections
+                ]
+               
+                
+                phase_0_gen = enumerate(min(connections_ids, key=lambda x: x[2])[:2])
+                phase_set_0 = {
+                    str(-connid) if (i + 1) % 2 == 0 else str(connid)
+                    for i, connid in phase_0_gen
+                }
+
+                phase_1_gen = enumerate(max(connections_ids, key=lambda x: x[2])[:2])
+                phase_set_1 = {
+                    str(-connid) if (i + 1) % 2 == 0 else str(connid)
+                    for i, connid in phase_1_gen
+                }
+                
+                # Only two phases supported
+                self.phase_component_ids[nodeid] = {
+                    0:phase_set_0,
+                    1:phase_set_1
+                }
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
@@ -558,9 +602,10 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # reward = super(TrafficLightQLEnv, self).compute_reward(rl_actions, **kwargs)
         if self.duration not in self.memo_rewards:
             # rew = rewards.average_velocity(self, fail=False)
-            rew = self.reward_calculator.calculate(
-                self.get_observation_space())
-            self.memo_rewards[self.duration] = rew
+            reward = self.reward_calculator.calculate(
+                self.get_observation_space()
+            )
+            self.memo_rewards[self.duration] = reward
         return self.memo_rewards[self.duration]
 
     def _to_index(self, action):
@@ -613,6 +658,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.memo_counts = {}
         self.memo_flows = {}
         self.memo_queue = {}
+
+
         for node_id, config in tls_configs.items():
             state0 = config['phases'][0]['state']
             self.k.traffic_light.set_state(node_id=node_id, state=state0)
@@ -629,7 +676,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         self.memo_rewards = {}
         self.memo_observation_space = {}
-        node_id = self.traffic_light_ids[0]
+
+        
 
     # TODO: Copy & Paste dependency on TrafficLightGridEnv
     # ===============================
