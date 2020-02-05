@@ -13,9 +13,9 @@ from ilurl.dumpers.inflows import inflows_dump
 from ilurl.loaders.nets import get_edges, get_routes, get_path
 from ilurl.loaders.vtypes import get_vehicle_types
 
-
+# number of phases is fixed
+NUM_PHASES = 2
 STATE_FEATURES = ('speed', 'count', 'flow', 'queue')
-ACTIONS = ('fast_slow_green', )
 ''' Bounds : namedtuple
         provide the settings to describe discrete variables ( e.g actions ). Or
         create discrete categorizations from continous variables ( e.g states)
@@ -66,7 +66,7 @@ class QLParams:
                 'type': 'weighted_average',
                 'costs': None
             },
-            num_traffic_lights=4,
+            num_traffic_lights=1,
             states=('speed', 'count'),
             actions=('fast_slow_green', ),
             choice_type='eps-greedy'
@@ -167,7 +167,7 @@ class QLParams:
 
     def set_states(self, states_tuple):
         self.states_labels = states_tuple
-        rank = self.num_traffic_lights * len(states_tuple)
+        rank = self.num_traffic_lights * len(states_tuple) * NUM_PHASES
         depth = 3
         self.states = Bounds(rank, depth)
 
@@ -182,18 +182,88 @@ class QLParams:
 
     def categorize_space(self, observation_space):
 
-        labels = list(self.states_labels) * self.num_traffic_lights
-        return tuple([
-            getattr(self, f'_categorize_{name}')(value)
-            for name, value in zip(labels, observation_space)
-        ])
+        labels = list(self.states_labels)
+        categorized_space = []
+        # first loop is for intersections
+        for inters_space in observation_space:
+            # second loop is for phases
+            categorized_intersections = []
+            for phase_space in inters_space:
+                # third loop is for variables
+                categorized_phases = []
+                for i, label in enumerate(labels):
+                    val = phase_space[i]
+                    category = getattr(self, f'_categorize_{label}')(val)
+                    categorized_phases.append(category)
+                categorized_intersections.append(categorized_phases)
+            categorized_space.append(categorized_intersections)
+            
+        
+        return categorized_space
 
     def split_space(self, observation_space):
-        """Splits different variables into tuple"""
+        """Splits different variables into tuple
+        
+        Params:
+            * observation_space: list of lists
+            nested 2 level list such that;
+            The second level represents it's phases; e.g
+            north-south and east-west. And the last level represents
+            the variables withing labels e.g `speed` and `count`.
+
+        Returns:
+        -------
+            * flatten space
+            
+        Example:
+        -------
+        > observation_space = [[13.3, 2.7], [15.7, 1.9]]
+        > splits = split_space(observation_space)
+        > splits
+        > [[13.3, 15.7], [2.7, 1.9]]
+
+        """
+
+        num_intersections = len(observation_space)
+        num_phases = 2
         num_labels = len(self.states_labels)
-        ss = [observation_space[ll::num_labels]
-              for ll in range(num_labels)]
-        return tuple(ss)
+
+        splits = []
+        for inters_space in observation_space:
+            for label in range(num_labels):
+                components = []
+                for comp in range(num_phases):
+                    components.append(inters_space[comp][label])
+                splits.append(components)
+
+        return splits
+
+    def flatten_space(self, observation_space):
+        """Linearizes hierarchial state representation
+        
+        Params:
+            * observation_space: list of lists
+            nested 2 level list such that;
+            The second level represents it's phases; e.g
+            north-south and east-west. And the last level represents
+            the variables withing labels e.g `speed` and `count`.
+
+        Returns:
+        -------
+            * flattened_space: a list
+            
+        Example:
+        -------
+        > observation_space = [[[13.3, 2.7], [15.7, 1.9]]]
+        > splits = split_space(observation_space)
+        > splits
+        > [[13.3, 15.7], [2.7, 1.9]]
+
+        """
+        flattened = [obs_value for inters in observation_space
+                     for phases in inters for obs_value in phases]
+
+        return flattened
 
     def _categorize_speed(self, speed):
         """Converts a float speed into a category

@@ -128,3 +128,8 @@ class TestRewardCalculator(unittest.TestCase):
                 })
         )
         self.assertEqual(calc.calculate(observation_space), 34.0-15.3)
+
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -35,7 +35,7 @@ class Serializer(object):
             try:
                 # gets scenario name in case
                 # implements environment
-                filename = self.scenario.name
+                filename = self.network.name
             except Exception:
                 filename = convert(self.__class__.__name__)
 

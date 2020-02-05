@@ -74,3 +74,6 @@ class TestExperiment(unittest.TestCase):
                 # one action one at least for the state
                 assert (a0 < a1) or a1 == 0
 
+
+if __name__ == '__main__':
+    unittest.main()

@@ -5,7 +5,7 @@ from flow.core.params import SumoParams, EnvParams
 from ilurl.envs.base import (TrafficLightQLEnv, ADDITIONAL_TLS_PARAMS,
                              ADDITIONAL_ENV_PARAMS, QL_PARAMS)
 from ilurl.core.params import QLParams
-from ilurl.scenarios.base import BaseScenario
+from ilurl.networks.base import Network
 
 
 class TestGetState(unittest.TestCase):
@@ -28,7 +28,7 @@ class TestGetState(unittest.TestCase):
         env_params = EnvParams(evaluate=True,
                                additional_params=additional_params)
 
-        scenario = BaseScenario(
+        network = Network(
             network_id='intersection',
             horizon=360,
         )
@@ -44,7 +44,7 @@ class TestGetState(unittest.TestCase):
             env_params=env_params,
             sim_params=sim_params,
             ql_params=ql_params,
-            scenario=scenario
+            network=network
         )
 
     def tearDown(self):
@@ -67,3 +67,6 @@ class TestGetState(unittest.TestCase):
             sorted(self.env.outgoing_edge_ids['247123161']),
             sorted(edges))
 
+
+if __name__ == '__main__':
+    unittest.main()

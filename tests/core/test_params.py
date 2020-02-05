@@ -91,3 +91,7 @@ class TestQLParamsCategorize(unittest.TestCase):
     def test_categorize_space_counts(self):
         counts = self.states[1::2]
         self.assertEqual(counts, (0, 1, 1, 2))
+
+
+if __name__ == '__main__':
+    unittest.main()

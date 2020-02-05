@@ -7,6 +7,7 @@ __author__ = "Guilherme Varela"
 __date__ = "2019-12-10"
 from collections import defaultdict
 import re
+import pdb
 
 import numpy as np
 
@@ -189,7 +190,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # traffic light configurations
         self.tl_type = env_params.additional_params.get('tl_type')
         if self.tl_type != "actuated":
-            self._init()
+            self._reset()
 
 
         self.discrete = env_params.additional_params.get("discrete", False)
@@ -270,22 +271,22 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                
                 
                 phase_0_gen = enumerate(min(connections_ids, key=lambda x: x[2])[:2])
-                phase_set_0 = {
+                phases_0 = [
                     str(-connid) if (i + 1) % 2 == 0 else str(connid)
                     for i, connid in phase_0_gen
-                }
+                ]
 
                 phase_1_gen = enumerate(max(connections_ids, key=lambda x: x[2])[:2])
-                phase_set_1 = {
+                phases_1 = [
                     str(-connid) if (i + 1) % 2 == 0 else str(connid)
                     for i, connid in phase_1_gen
-                }
+                ]
                 
                 # Only two phases supported
                 self.phase_component_ids[nodeid] = {
-                    0:phase_set_0,
-                    1:phase_set_1
+                    0:phases_0, 1:phases_1
                 }
+                assert set(phases_0 + phases_1) == set(self.incoming_edge_ids[nodeid])
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
@@ -371,15 +372,34 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         for tls in range(self.num_traffic_lights):
 
             node_id = self.traffic_light_ids[tls]
-            self.incoming[node_id][self.duration] = \
-                                extract(self.incoming_edge_ids[node_id])
+            for phase, edges in self.phase_component_ids[node_id].items():
+                 
+                self.incoming[node_id][phase][self.duration] = \
+                                    extract(edges)
 
-            # TODO: Add parameter to control
-            self.outgoing[node_id][self.duration] = \
-                                extract(self.outgoing_edge_ids[node_id])
+                # TODO: Add parameter to control
+                # self.outgoing[node_id][self.duration] = \
+                #                     extract(self.outgoing_edge_ids[node_id])
 
     def get_observation_space(self):
         """consolidates the observation space
+
+        Update:
+        ------
+        observation space is now a 3 level hierachial list
+
+        *   intersection: list
+            the top most represents the traffic lights being
+            controlled by the agent.
+
+        *   phases: list
+            the second layer represents the phases components
+            for each intersection as of now there are only 
+            two phases
+
+        *   variables: list
+            the third and final layer represents the variables
+            being observed by the agent e.g `speeds` or `counts`
 
         WARNING:
             when all cars are dispatched the
@@ -403,74 +423,92 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                  if self.step_counter * self.sim_step < self.cycle_time \
                  else self.cycle_time
 
+            observations = []
             for tls in range(self.num_traffic_lights):
 
                 nid = self.traffic_light_ids[tls]
-                for label in self.ql_params.states_labels:
+                for phase in self.phase_component_ids[nid]:
 
-                    if label in ('count',):
-                        count = 0
-                        count += len(self.incoming[nid][prev][1]) \
-                                 if prev in self.incoming[nid] else 0.0
-                        # count += len(self.outgoing[nid][prev][1]) \
-                        #          if prev in self.outgoing[nid] else 0.0
-                        self.memo_counts[nid][prev] = count
-                        value = np.mean(list(self.memo_counts[nid].values()))
+                    incoming = self.incoming[nid][phase]
+                    # outgoing = self.outgoing[nid][phase]
+                    values = []
+                    for label in self.ql_params.states_labels:
 
-                    elif label in ('flow',):
-                        # outflow measures cumulate number of the
-                        # vehicles leaving the intersection
-                        veh_set = set(self.outgoing[nid][prev][0]) \
-                                 if prev in self.outgoing[nid] else set()
+                        if label in ('count',):
+                            counts = self.memo_counts[nid][phase]
+                            count = 0
+                            count += len(incoming[prev][1]) if prev in incoming else 0.0
+                            # count += len(self.outgoing[nid][prev][1]) \
+                            #          if prev in self.outgoing[nid] else 0.0
+                            counts[prev] = count
+                            value = np.mean(list(counts.values()))
 
+                        elif label in ('flow',):
+                            raise ValueError('`flow` not implemented')
 
-                        # The vehicles which we should accumulate over
-                        prevprev = delay(prev)
-                        prev_veh_set = self.memo_flows[nid][prevprev] \
-                                       if prevprev in self.memo_flows[nid] else set()
+                            # flows = self.memo_flows[nid][phase]
+                            # # outflow measures cumulate number of the
+                            # # vehicles leaving the intersection
+                            # veh_set = set(outgoing[0]) \
+                            #     if prev in outgoing else set()
 
-                        # The vehicles which should be deprecated
-                        old_veh_set = self.memo_flows[nid][prev] \
-                                      if prev in self.memo_flows[nid] else set()
+                            # # The vehicles which we should accumulate over
+                            # prevprev = delay(prev)
+                            # prev_veh_set = flows[prevprev] \
+                            #                if prevprev in flows else set()
 
-                        self.memo_flows[nid][prev] = \
-                            (veh_set | prev_veh_set) - (prev_veh_set & old_veh_set)
+                            # # The vehicles which should be deprecated
+                            # old_veh_set = flows[prev] \
+                            #               if prev in flows else set()
 
-                        value = len(self.memo_flows[nid][prev]) / t 
-                    elif label in ('queue',):
-                        # vehicles are slowing :
-                        queue = []
-                        queue += self.incoming[nid][prev][1] \
-                                  if prev in self.incoming[nid] else []
+                            # flows[prev] = \
+                            #     (veh_set | prev_veh_set) - (prev_veh_set & old_veh_set)
 
-                        queue = [q for q in queue
-                                 if q < 0.10 * self.k.scenario.max_speed()]
+                            # value = len(flows[prev]) / t
+                        elif label in ('queue',):
 
-                        self.memo_queue[nid][prev] = len(queue)
-                        value = np.mean(list(self.memo_queue[nid].values())) / t
+                            raise ValueError('`flow` not implemented')
+                            # # vehicles are slowing :
+                            # mem = self.memo_queue[nid][phase]
+                            # queue = mem
+                            # queue += incoming[prev][1] \
+                            #           if prev in incoming else []
 
-                    elif label in ('speed',):
-                        speeds = []
-                        speeds += self.incoming[nid][prev][1] \
-                                 if prev in self.incoming[nid] else []
-                        # speeds += self.outgoing[nid][prev][1] \
-                        #          if prev in self.outgoing[nid] else []
+                            # queue = [q for q in queue
+                            #          if q < 0.10 * self.k.scenario.max_speed()]
 
-                        self.memo_speeds[nid][prev] = \
-                            0.0 if not any(speeds) else round(np.mean(speeds), 2)
-                        value = np.mean(list(self.memo_speeds[nid].values()))
-                    else:
-                        raise ValueError('Label not found')
+                            # queue = len(queue)
+                            # value = np.mean(list(mem.values())) / t
 
-                    data.append(round(value, 2))
+                        elif label in ('speed',):
+                            mem = self.memo_speeds[nid][phase]
+                            speeds = []
+                            speeds += incoming[prev][1] \
+                                     if prev in incoming else []
+                            # speeds += self.outgoing[nid][prev][1] \
+                            #          if prev in self.outgoing[nid] else []
 
-            self.memo_observation_space[prev] = tuple(data)
+                            mem[prev] = \
+                                0.0 if not any(speeds) else round(np.mean(speeds), 2)
+                            value = np.mean(list(mem.values()))
+                        else:
+                            raise ValueError('Label not found')
+
+                        values.append(round(value, 2))
+                    data.append(values)
+                observations.append(data)
+            self.memo_observation_space[prev] = observations
         return self.memo_observation_space[prev]
 
     def get_state(self):
         """See class definition."""
         # categorize
-        return self.ql_params.categorize_space(self.get_observation_space())
+        categorized = \
+            self.ql_params.categorize_space(self.get_observation_space())
+        flattened = \
+            self.ql_params.flatten_space(categorized)
+
+        return tuple(flattened)
 
     def rl_actions(self, state):
         """
@@ -623,9 +661,9 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
     def reset(self):
         super(TrafficLightQLEnv, self).reset()
-        self._init()
+        self._reset()
 
-    def _init(self):
+    def _reset(self):
 
         # duration measures the amount of time the current
         # configuration has been going on
@@ -651,8 +689,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         tls_configs = self.network.traffic_lights.get_properties()
 
         i = 0
-        self.incoming = {}
-        self.outgoing = {}
+        self.incoming = {} 
+        # self.outgoing = {}
 
         self.memo_speeds = {}
         self.memo_counts = {}
@@ -666,13 +704,13 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
             self.currently_yellow[i] = 1 if state0[0].lower() == 'y' else 0
             i += 1
 
-            self.incoming[node_id] = {}
-            self.outgoing[node_id] = {}
+            self.incoming[node_id] = {0:{}, 1:{}}
+            # self.outgoing[node_id] = {}
 
-            self.memo_speeds[node_id] = {}
-            self.memo_counts[node_id] = {}
-            self.memo_flows[node_id] = {}
-            self.memo_queue[node_id] = {}
+            self.memo_speeds[node_id] = {0:{}, 1:{}}
+            self.memo_counts[node_id] = {0:{}, 1:{}}
+            self.memo_flows[node_id] = {0:{}, 1:{}}
+            self.memo_queue[node_id] = {0:{}, 1:{}}
 
         self.memo_rewards = {}
         self.memo_observation_space = {}
