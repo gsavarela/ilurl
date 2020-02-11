@@ -165,6 +165,14 @@ class QLParams:
                     self.state.depth, len(rewards['costs'])))
         self.set_rewards(rewards['type'], rewards['costs'])
 
+    @property
+    def category_speeds(self):
+        return (2.06, 2.15)
+
+    @property
+    def category_counts(self):
+        return (33.21, 33.25)
+
     def set_states(self, states_tuple):
         self.states_labels = states_tuple
         rank = self.num_traffic_lights * len(states_tuple) * NUM_PHASES
@@ -180,9 +188,27 @@ class QLParams:
     def set_rewards(self, type, costs):
         self.rewards = Rewards(type, costs)
 
+    
     def categorize_space(self, observation_space):
+        """Converts readings e.g averages, counts into integers
+
+        Params:
+        ------
+            * observation_space: a list of lists
+                level 1 -- number of intersections controlled
+                level 2 -- number of phases e.g 2
+                level 3 -- numer of variables
+        Usage:
+        -----
+            # 1 tls, 2 phases, 2 variables
+            > reading = [[[14.2, 3], [0, 10]]]
+            > categories = categorize_space(reading)
+            > categories
+            > [[2, 0], [0, 3]]
+        """
 
         labels = list(self.states_labels)
+
         categorized_space = []
         # first loop is for intersections
         for inters_space in observation_space:
@@ -205,8 +231,9 @@ class QLParams:
         """Splits different variables into tuple
         
         Params:
-            * observation_space: list of lists
-            nested 2 level list such that;
+        ------- 
+        * observation_space: list of lists
+            nested 3 level list such that;
             The second level represents it's phases; e.g
             north-south and east-west. And the last level represents
             the variables withing labels e.g `speed` and `count`.
@@ -217,7 +244,7 @@ class QLParams:
             
         Example:
         -------
-        > observation_space = [[13.3, 2.7], [15.7, 1.9]]
+        > observation_space = [[[13.3, 2.7], [15.7, 1.9]]]
         > splits = split_space(observation_space)
         > splits
         > [[13.3, 15.7], [2.7, 1.9]]
@@ -229,12 +256,12 @@ class QLParams:
         num_labels = len(self.states_labels)
 
         splits = []
-        for inters_space in observation_space:
-            for label in range(num_labels):
-                components = []
-                for comp in range(num_phases):
-                    components.append(inters_space[comp][label])
-                splits.append(components)
+        for label in range(num_labels):
+            components = []
+            for inters_space in observation_space:
+                for phases in inters_space:
+                    components.append(phases[label])
+            splits.append(components)
 
         return splits
 
@@ -242,6 +269,7 @@ class QLParams:
         """Linearizes hierarchial state representation
         
         Params:
+        ------
             * observation_space: list of lists
             nested 2 level list such that;
             The second level represents it's phases; e.g
@@ -255,9 +283,9 @@ class QLParams:
         Example:
         -------
         > observation_space = [[[13.3, 2.7], [15.7, 1.9]]]
-        > splits = split_space(observation_space)
-        > splits
-        > [[13.3, 15.7], [2.7, 1.9]]
+        > flattened = flatten_space(observation_space)
+        > flattened
+        > [13.3, 2.7, 15.7, 1.9]
 
         """
         flattened = [obs_value for inters in observation_space
@@ -272,17 +300,9 @@ class QLParams:
            from environment analysis/hist
         """
         # intersection
-        # if speed >= 2.2:  # hightest 25%
-        #     return 2
-        # elif speed <= 1.88:  # lowest 25%
-        #     return 0
-        # else:
-        #     return 1
-
-        # intersection
-        if speed >= 2.15:  # hightest 25%
+        if speed >= self.category_speeds[-1]:  # hightest 25%
             return 2
-        elif speed <= 2.06:  # lowest 25%
+        elif speed <= self.category_speeds[0]:  # lowest 25%
             return 0
         else:
             return 1
@@ -293,9 +313,9 @@ class QLParams:
            Segregates into 3 categories estimated
            from environment analysis/hist
         """
-        if count >= 35.21:    # highest 25%
+        if count >= self.category_counts[-1]:    # highest 25%
             return 2
-        elif count <= 33.25:  # lowest 25%
+        elif count <= self.category_counts[0]:  # lowest 25%
             return 0
         else:
             return 1

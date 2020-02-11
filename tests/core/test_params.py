@@ -1,5 +1,5 @@
 import unittest
-
+import numpy as np
 from ilurl.core.params import QLParams
 
 
@@ -67,13 +67,13 @@ class TestQLParamsAssignments(unittest.TestCase):
         self.assertEqual(self.ql_params.max_speed, 35)
 
     def test_states_rank(self):
-        self.assertEqual(self.ql_params.states.rank, 4)
+        self.assertEqual(self.ql_params.states.rank, 2)
 
     def test_states_depth(self):
         self.assertEqual(self.ql_params.states.depth, 3)
 
     def test_actions_rank(self):
-        self.assertEqual(self.ql_params.actions.rank, 4)
+        self.assertEqual(self.ql_params.actions.rank, 1)
 
     def test_actions_depth(self):
         self.assertEqual(self.ql_params.actions.depth, 2)
@@ -81,16 +81,36 @@ class TestQLParamsAssignments(unittest.TestCase):
 
 class TestQLParamsCategorize(unittest.TestCase):
     def setUp(self):
-        self.states = QLParams().categorize_space(
-            (0.0, 0.0, 8.75, 2.0, 8.76, 5, 23.2, 6))
+        params = QLParams(num_traffic_lights=4)
+        cats = params.category_speeds
+        s0, s1, s2 = cats[0], cats[0] + 0.01, cats[1]
+        catc = params.category_counts
+        c0, c1, c2 = catc[0], catc[1] - 0.01, catc[1]
+
+        self.states = params.categorize_space(
+            [[[s0, c0], [s0, c1]],
+             [[s0, c2], [s1, c0]],
+             [[s1, c1], [s1, c2]],
+             [[s2, c0], [s2, c1]]]
+
+        )
+        self.speeds, self.counts = params.split_space(self.states)
 
     def test_categorize_space_speeds(self):
-        speeds = self.states[::2]
-        self.assertEqual(speeds, (0, 0, 1, 2))
+        speeds = [phase[0] for tls in self.states for phase in tls]
+        self.assertEqual(speeds, [0, 0, 0, 1, 1, 1, 2, 2])
 
     def test_categorize_space_counts(self):
-        counts = self.states[1::2]
-        self.assertEqual(counts, (0, 1, 1, 2))
+        counts = [phase[1] for tls in self.states for phase in tls]
+        self.assertEqual(counts, [0, 1, 2, 0, 1, 2, 0, 1])
+
+    def test_split_space_speeds(self):
+        speeds = [phase[0] for tls in self.states for phase in tls]
+        self.assertEqual(self.speeds, speeds)
+        
+    def test_split_space_counts(self):
+        counts = [phase[1] for tls in self.states for phase in tls]
+        self.assertEqual(self.counts, counts)
 
 
 if __name__ == '__main__':
