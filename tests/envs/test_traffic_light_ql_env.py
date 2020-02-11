@@ -68,5 +68,18 @@ class TestGetState(unittest.TestCase):
             sorted(edges))
 
 
+    def test_phase_0(self):
+        phase_0 = ['383432312', '-238059324']
+        
+        self.assertEqual(
+            sorted(self.env.phase_component_ids['247123161'][0]),
+            sorted(phase_0))
+    
+    def test_phase_1(self):
+        phase_1 = ['-238059328', '309265401']
+        self.assertEqual(
+            sorted(self.env.phase_component_ids['247123161'][1]),
+            sorted(phase_1))
+
 if __name__ == '__main__':
     unittest.main()
