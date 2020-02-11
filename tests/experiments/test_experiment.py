@@ -5,7 +5,7 @@ from flow.core.params import SumoParams, EnvParams, InitialConfig
 from ilurl.envs.base import (TrafficLightQLEnv, ADDITIONAL_TLS_PARAMS,
                              ADDITIONAL_ENV_PARAMS, QL_PARAMS)
 from ilurl.core.params import QLParams
-from ilurl.scenarios.base import BaseScenario
+from ilurl.networks.base import Network
 from ilurl.core.experiment import Experiment
 
 class TestExperiment(unittest.TestCase):
@@ -30,9 +30,9 @@ class TestExperiment(unittest.TestCase):
                                additional_params=additional_params)
 
         # Force flow only on horizontal edges
-        scenario = BaseScenario(
+        network = Network(
             network_id='intersection',
-            horizon=36000,
+            horizon=3600,
             initial_config=InitialConfig(
                 edges_distribution=['309265401', '-238059328']
             )
@@ -49,7 +49,7 @@ class TestExperiment(unittest.TestCase):
             env_params=env_params,
             sim_params=sim_params,
             ql_params=ql_params,
-            scenario=scenario
+            network=network
         )
 
     def tearDown(self):
@@ -60,19 +60,22 @@ class TestExperiment(unittest.TestCase):
             # free data used by class
             self.env = None
 
+    # @unittest.skip("Generate a favorable demand")
     def test_experiment(self):
-        experiment = Experiment(self.env)
+        experiment = Experiment(self.env, dir_path=None)
 
-        _  = experiment.run(1, 36000)
+        _  = experiment.run(1, 3600)
         # should opt always for action 1
         Q = self.env.dpq.Q
         print(Q)
-        for speed in (0, 1, 2):
-            for count in (0, 1, 2):
-                S = (speed, count)
-                a0, a1 = Q[S].values()
-                # one action one at least for the state
-                assert (a0 < a1) or a1 == 0
+        for s0 in (0, 1, 2):
+            for s1 in (0, 1, 2):
+                for c0 in (0, 1, 2):
+                    for c1 in (0, 1, 2):
+                        S = (s0, c0, s1, c1)
+                        a0, a1 = Q[S].values()
+                        # one action one at least for the state
+                        assert (a0 > a1) or a0 == 0
 
 
 if __name__ == '__main__':

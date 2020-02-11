@@ -125,7 +125,9 @@ class Network(FlowNetwork):
                     ),
                 )
 
-            inflows = InFlows(network_id, horizon, demand_type)
+            inflows = InFlows(network_id, horizon, demand_type,
+                              initial_config=initial_config)
+
             net_params = NetParams(inflows,
                                    template=get_path(network_id, 'net'))
 
