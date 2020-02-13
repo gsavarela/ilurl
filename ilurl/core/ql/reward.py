@@ -2,12 +2,24 @@
 
 __author__ = "Guilherme Varela"
 __date__ = "2019-07-26"
-REWARD_TYPES = ('fix', 'weighted_average', 'score')
+import numpy as np
+
+REWARD_TYPES = ('fix', 'weighted_average', 'score', 'target_velocity')
 
 
 class RewardCalculator(object):
-    def __init__(self, ql_params):
+    def __init__(self, env_params, ql_params):
         self.type = ql_params.rewards.type
+        if self.type == 'target_velocity': 
+            if 'target_velocity' not in env_params.additional_params:
+                raise ValueError('''
+                    target_velocity must be provided on env_params
+                    ''')
+
+            else:
+                # target mean velocity
+                self.target_velocity = \
+                env_params.additional_params['target_velocity']
         self.costs = ql_params.rewards.costs
         self.categorize = lambda x: ql_params.categorize_space(x)
         self.split = lambda x: ql_params.split_space(x)
@@ -27,6 +39,20 @@ class RewardCalculator(object):
                 if K == 0.0:
                     return 0.0
                 return sum([s * c for s, c in zip(speeds, counts)]) / K
+
+        elif self.type in ('target_velocity',):
+            # get this target velocity from environment
+            speeds, counts = self.split(observation_space)
+            if sum(counts) <= 0.0:
+                return 0
+            # Flow
+            # max_cost = target_velocity * sum(counts)
+            # cost = np.linalg.norm(np.array(speeds) - target_velocity)
+            # return max(target_velocity, 0)
+
+            max_cost = np.array([self.target_velocity] * len(speeds))
+            return -np.maximum(max_cost - speeds, 0).dot(counts)
+
         elif self.type in ('score', ):
             # scores some are either negative in case of queues
             # or positive in the case of flow or velocity

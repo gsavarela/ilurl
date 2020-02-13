@@ -198,7 +198,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # Q learning stuff
         self.ql_params = ql_params
         self.dpq = DPQ(ql_params)
-        self.reward_calculator = RewardCalculator(ql_params)
+        self.reward_calculator = RewardCalculator(env_params, ql_params)
         self.rl_action = None
 
 
