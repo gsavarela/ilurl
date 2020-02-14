@@ -182,10 +182,6 @@ class Experiment:
             ret = 0
             ret_list = []
             actions_list = []
-            # This feature is disabled since it requires
-            # that the sumo server is down
-            # if save_interval is not None and (i + 1) % save_interval == 0:
-            #     self.env.dump(os.getcwd())
             state = self.env.reset()
 
             for j in range(num_steps):
@@ -200,6 +196,7 @@ class Experiment:
                 ret_list.append(round(reward, 2))
                 if hasattr(self.env, 'rl_action'):
                     actions_list.append(list(self.env.rl_action)) 
+
                 if is_synch and self.env.duration == 0.0 and j > 0:
                     observation_spaces.append(list(self.env.get_observation_space()))
 

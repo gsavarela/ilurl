@@ -116,6 +116,8 @@ if __name__ == '__main__':
     additional_params.update(ADDITIONAL_TLS_PARAMS)
     additional_params['long_cycle_time'] = args.long_phase
     additional_params['short_cycle_time'] = args.short_phase
+    #target velocity
+    additional_params['target_velocity'] = 4
 
     print(args.long_phase, args.short_phase)
     env_params = EnvParams(evaluate=True,
@@ -132,7 +134,7 @@ if __name__ == '__main__':
     
     ql_params = QLParams(epsilon=0.10, alpha=0.05,
                          states=('speed', 'count'),
-                         rewards={'type': 'weighted_average',
+                         rewards={'type': 'target_velocity',
                                   'costs': None},
                          num_traffic_lights=1, c=10,
                          choice_type='ucb')
@@ -146,9 +148,9 @@ if __name__ == '__main__':
 
     # UNCOMMENT to build evaluation
     # networks over static distributions
-    Network.make(
-        args.network, args.time, inflows_type, 2
-    )
+    #Network.make(
+    #    args.network, args.time, inflows_type, 2
+    #)
 
     exp = Experiment(env=env, dir_path=path, train=True)
 
@@ -156,7 +158,8 @@ if __name__ == '__main__':
     start = time.time()
     info_dict = exp.run(
         args.num_iterations,
-        int(args.time / args.step)
+        int(args.time / args.step),
+        show_plot=True
     )
     if args.pickle:
         # save info dict
