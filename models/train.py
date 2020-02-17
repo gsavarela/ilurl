@@ -116,7 +116,6 @@ if __name__ == '__main__':
     additional_params.update(ADDITIONAL_TLS_PARAMS)
     additional_params['long_cycle_time'] = args.long_phase
     additional_params['short_cycle_time'] = args.short_phase
-    #target velocity
     additional_params['target_velocity'] = 4
 
     print(args.long_phase, args.short_phase)
@@ -148,9 +147,9 @@ if __name__ == '__main__':
 
     # UNCOMMENT to build evaluation
     # networks over static distributions
-    #Network.make(
-    #    args.network, args.time, inflows_type, 2
-    #)
+    Network.make(
+        args.network, args.time, inflows_type, 5
+    )
 
     exp = Experiment(env=env, dir_path=path, train=True)
 

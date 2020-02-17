@@ -383,7 +383,8 @@ class InFlows(flow_params.InFlows):
         params = []
         for eid in get_routes(network_id):
             # use edges distribution to filter routes
-            if edges_distribution and eid in edges_distribution:
+            if ((edges_distribution is None) or
+               (edges_distribution and eid in edges_distribution)):
                 edge = [e for e in edges if e['id'] == eid][0]
 
                 num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
@@ -424,12 +425,15 @@ class InFlows(flow_params.InFlows):
                 else:
                     raise ValueError(f'Unknown demand_type {demand_type}')
             
-            # Sort params flows will be consecutive
-            params = sorted(params, key=lambda x: x[1]['end'])
-            params = sorted(params, key=lambda x: x[1]['begin'])
-            for args, kwargs in params:
-                
-                self.add(*args, **kwargs)
+        if not params:
+            import pdb
+            pdb.set_trace()
+        # Sort params flows will be consecutive
+        params = sorted(params, key=lambda x: x[1]['end'])
+        params = sorted(params, key=lambda x: x[1]['begin'])
+        for args, kwargs in params:
+            
+            self.add(*args, **kwargs)
             
 class NetParams(flow_params.NetParams):
     """Extends NetParams to work with saved templates"""
