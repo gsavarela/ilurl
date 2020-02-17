@@ -170,7 +170,9 @@ class Experiment:
         vels = []
         vehs = []
         mean_vels = []
+        vels_lists = []
         mean_vehs = []
+        veh_lists = []
         std_vels = []
         outflows = []
         observation_spaces = []
@@ -182,6 +184,8 @@ class Experiment:
             ret = 0
             ret_list = []
             actions_list = []
+            vel_list = []
+            veh_list = []
             state = self.env.reset()
 
             for j in range(num_steps):
@@ -216,12 +220,15 @@ class Experiment:
 
             ret = round(ret, 2)
             rets.append(ret)
-            vels.append(vel)
-            vehs.append(veh)
+            vels.append(vel.tolist())
+            vehs.append(veh.tolist())
 
             mean_rets.append(round(np.nanmean(ret_list), 2))
             ret_lists.append(ret_list)
             actions_lists.append(actions_list)
+
+            veh_list.append(vehs)
+            vel_list.append(vels)
             mean_vels.append(round(np.nanmean(vel), 2))
             mean_vehs.append(np.mean(veh))
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
@@ -239,11 +246,14 @@ class Experiment:
 
         info_dict["id"] = self.env.network.name
         info_dict["returns"] = rets
-        info_dict["velocities"] = mean_vels 
+        info_dict["velocities"] = mean_vels
         info_dict["mean_returns"] = mean_rets
         info_dict["per_step_returns"] = ret_lists
         info_dict["outflows"] = round(np.mean(outflows).astype(float), 2)
         info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
+
+        info_dict["per_step_velocities"] = vels
+        info_dict["per_step_vehs"] = vehs
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions_lists
         info_dict["vehicles"] = mean_vehs
