@@ -1,5 +1,4 @@
-import operator
-
+"""Implementation of dynamic programming TD methods with function approximation"""
 from ilurl.core.params import QLParams
 from ilurl.core.ql.choice import choice_eps_greedy, choice_ucb
 from ilurl.core.ql.define import dpq_tls
@@ -30,22 +29,28 @@ class DPQ(object):
             }
 
     def rl_actions(self, s):
-        if self.choice_type in ('eps-greedy',):
+        if self.stop:
+            # this is the argmax greedy choice
             actions, values = zip(*self.Q[s].items())
-            choosen = choice_eps_greedy(actions, values, self.epsilon)
-
-        elif self.choice_type in ('optimistic',):
-            raise NotImplementedError
-
-        elif self.choice_type in ('ucb',):
-            self.decision_counter += 1 if not self.stop else 0
-            choosen = choice_ucb(self.Q[s].items(),
-                                 self.c,
-                                 self.decision_counter,
-                                 self.actions_counter[s])
-            self.actions_counter[s][choosen] += 1 if not self.stop else 0
+            choosen = choice_eps_greedy(actions, values, 0)
         else:
-            raise NotImplementedError
+            # choose a criteria
+            if self.choice_type in ('eps-greedy',):
+                actions, values = zip(*self.Q[s].items())
+                choosen = choice_eps_greedy(actions, values, self.epsilon)
+
+            elif self.choice_type in ('optimistic',):
+                raise NotImplementedError
+
+            elif self.choice_type in ('ucb',):
+                self.decision_counter += 1 if not self.stop else 0
+                choosen = choice_ucb(self.Q[s].items(),
+                                     self.c,
+                                     self.decision_counter,
+                                     self.actions_counter[s])
+                self.actions_counter[s][choosen] += 1 if not self.stop else 0
+            else:
+                raise NotImplementedError
 
         return choosen
 
