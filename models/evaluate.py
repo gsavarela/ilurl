@@ -43,6 +43,11 @@ def get_arguments():
                         default=False, nargs='?',
                         help='Simulation\'s real world time in seconds')
 
+
+    parser.add_argument('--sumo-render', '-r', dest='render', type=str2bool,
+                        default=False, nargs='?',
+                        help='Renders the simulation')
+
     return parser.parse_args()
 
 def str2bool(v):
@@ -56,7 +61,7 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
-def evaluate(env, code, policies, horizon, path):
+def evaluate(env, code, policies, horizon, path, render=False):
     # load all networks with config -- else build
     netid = env.network.network_id
     routes_path = \
@@ -72,9 +77,8 @@ def evaluate(env, code, policies, horizon, path):
                                      env.sim_params,
                                      env.ql_params,
                                      network)
-        # env_eval.Q = env.Q
+        env_eval.sim_params.render = render
         env_eval.stop = True
-        # env.sim_params.emission_path = path # always emit
         num_iterations = len(policies) + 1
         exp_eval = Experiment(env_eval,
                               dir_path=path,
@@ -90,6 +94,7 @@ def evaluate(env, code, policies, horizon, path):
 if __name__ == '__main__':
     args = get_arguments()
 
+    render = args.render
     dir_pickle = args.dir_pickle
     time = args.time
     x = 'w' if args.switch else 'l'
@@ -106,8 +111,7 @@ if __name__ == '__main__':
             obj = dill.load(f)
         if isinstance(obj, TrafficLightQLEnv):
             env = obj
-            # 
         else:
             policies.append(obj)
 
-    evaluate(env, x, policies, time, dir_pickle)
+    evaluate(env, x, policies, time, dir_pickle, render=render)

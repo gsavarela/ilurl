@@ -12,12 +12,16 @@
     2019-12-11
         * update normpdf function
         * deprecate TrafficLightQLGridEnv in favor of TrafficQLEnv
+    2020-02-20
+        * swap filename for pattern matching uniting many files at once
 """
 __author__ = 'Guilherme Varela'
 __date__ = '2019-09-27'
 # core packages
+from collections import defaultdict
 import json
 import os
+from glob import glob
 
 # third-party libs
 import dill
@@ -28,30 +32,36 @@ import matplotlib.pyplot as plt
 # current project dependencies
 from ilurl.envs.base import TrafficLightQLEnv
 
+ROOT_DIR = os.environ['ILURL_HOME']
+EMISSION_DIR = f"{ROOT_DIR}/data/emissions/"
+CONFIG_DIR = ('4545', '5040', '5434', '6030')
+
 if __name__ == '__main__':
 
-    filename = "intersection_20200122-2025241579724724.554257"
-    #filename = "grid_20200116-2052381579207958.931286"
-    path = f"{os.environ['ILURL_HOME']}/data/emissions"
-    file_path = f"{path}/{filename}.9000.l.info.json"
+    # this loop acumulates experiments
+    ext = '.9000.w.info.json'
+    states = defaultdict(list)
 
-    # Retrieves output data
-    with open(file_path, 'r') as f:
-        output = json.load(f)
+    import pdb
+    pdb.set_trace()
+    for config_dir in CONFIG_DIR:
+        lookup_jsons = f'{EMISSION_DIR}{config_dir}/*{ext}'
+        for jf in glob(lookup_jsons):
+            # file_path = f"{path}/{filename}.9000.w.info.json"
+            # Retrieves output data
+            with open(jf, 'r') as f:
+                output = json.load(f)
 
-    # Retrieves agent data
-    env = TrafficLightQLEnv.load(f"{path}/{filename}.pickle")
+            filename = jf.replace(ext,'')
+            # Retrieves agent data
+            env = TrafficLightQLEnv.load(f"{filename}.pickle")
 
-    # observation spaces
-    observation_spaces_per_cycle = output['observation_spaces']
-    states = {
-        state_label: []
-        for state_label in env.ql_params.states_labels}
-
-    for observation_space in observation_spaces_per_cycle:
-        for i, values in enumerate(env.ql_params.split_space(observation_space)):
-            label = env.ql_params.states_labels[i]
-            states[label] += values
+            # observation spaces
+            observation_spaces_per_cycle = output['observation_spaces']
+            for observation_space in observation_spaces_per_cycle:
+                for i, values in enumerate(env.ql_params.split_space(observation_space)):
+                    label = env.ql_params.states_labels[i]
+                    states[label] += values
 
     # plot building
     num_bins = 50

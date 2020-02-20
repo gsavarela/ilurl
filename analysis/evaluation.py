@@ -14,9 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT_PATH = os.environ['ILURL_HOME']
-EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x01/'
+# EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x01/'
+EXPERIMENTS_PATH = f'{ROOT_PATH}/data/emissions/'
 
-CONFIG_DIRS = ('4545', '5040', '5436', '6030')
+#CONFIG_DIRS = ('4545', '5040', '5436', '6030')
+CONFIG_DIRS = ('4545', '5040', '6030')
 
 if __name__ == '__main__':
 

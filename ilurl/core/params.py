@@ -167,11 +167,11 @@ class QLParams:
 
     @property
     def category_speeds(self):
-        return (2.06, 2.15)
+        return (2.61, 2.72)
 
     @property
     def category_counts(self):
-        return (33.21, 33.25)
+        return (8.54, 27.69)
 
     def set_states(self, states_tuple):
         self.states_labels = states_tuple

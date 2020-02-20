@@ -2,6 +2,7 @@
 
 __author__ = "Guilherme Varela"
 __date__ = "2019-07-26"
+import pdb
 import numpy as np
 
 REWARD_TYPES = ('fix', 'weighted_average', 'score', 'target_velocity')
@@ -45,10 +46,6 @@ class RewardCalculator(object):
             speeds, counts = self.split(observation_space)
             if sum(counts) <= 0.0:
                 return 0
-            # Flow
-            # max_cost = target_velocity * sum(counts)
-            # cost = np.linalg.norm(np.array(speeds) - target_velocity)
-            # return max(target_velocity, 0)
 
             max_cost = np.array([self.target_velocity] * len(speeds))
             return -np.maximum(max_cost - speeds, 0).dot(counts)

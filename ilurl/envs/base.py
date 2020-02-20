@@ -7,7 +7,6 @@ __author__ = "Guilherme Varela"
 __date__ = "2019-12-10"
 from collections import defaultdict
 import re
-import pdb
 
 import numpy as np
 
@@ -205,7 +204,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
     # delegates properties to dpq
     @property
     def stop(self):
-        """Stops exploring"""
         return self.dpq.stop
 
     @stop.setter
@@ -214,7 +212,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
     @property
     def Q(self):
-        """Stops exploring"""
         return self.dpq.Q
 
     @Q.setter
@@ -481,6 +478,14 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                             # value = np.mean(list(mem.values())) / t
 
                         elif label in ('speed',):
+                            counts = self.memo_counts[nid][phase].copy()
+                            count = 0
+                            count += len(incoming[prev][1]) if prev in incoming else 0.0
+                            # count += len(self.outgoing[nid][prev][1]) \
+                            #          if prev in self.outgoing[nid] else 0.0
+                            # counts[prev] = count
+                            weights = np.array(list(counts.values()))
+
                             mem = self.memo_speeds[nid][phase]
                             speeds = []
                             speeds += incoming[prev][1] \
@@ -636,8 +641,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
     def compute_reward(self, rl_actions, **kwargs):
         """See class definition.
         """
-        # enable this computation to match with AccelEnv reward
-        # reward = super(TrafficLightQLEnv, self).compute_reward(rl_actions, **kwargs)
         if self.duration not in self.memo_rewards:
             # rew = rewards.average_velocity(self, fail=False)
             reward = self.reward_calculator.calculate(

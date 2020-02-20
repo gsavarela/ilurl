@@ -1,4 +1,4 @@
-"""Provides baseline for scenarios"""
+"""Provides baseline for networks"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-08'
 
@@ -14,7 +14,7 @@ from flow.envs.loop.loop_accel import ADDITIONAL_ENV_PARAMS
 from ilurl.envs.base import TrafficLightQLEnv
 from ilurl.core.experiment import Experiment
 
-from ilurl.scenarios.base import BaseScenario, get_edges, get_routes
+from ilurl.networks.base import Network, get_edges, get_routes
 
 from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS
 from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
@@ -36,7 +36,7 @@ def get_arguments():
     )
 
     # TODO: validate against existing networks
-    parser.add_argument('scenario', type=str, nargs='?',
+    parser.add_argument('network', type=str, nargs='?',
                         help='Network to be simulated')
 
 
@@ -108,10 +108,10 @@ if __name__ == '__main__':
     env_params = EnvParams(evaluate=True,
                            additional_params=additional_params)
 
-    # inflows = make_inflows(args.scenario, args.time) if args.switch else None
+    # inflows = make_inflows(args.network, args.time) if args.switch else None
     inflows_type = 'switch' if args.switch else 'lane'
-    scenario = BaseScenario(
-        network_id=args.scenario,
+    network = Network(
+        network_id=args.network,
         horizon=args.time,
         inflows_type=inflows_type
     )
@@ -128,7 +128,7 @@ if __name__ == '__main__':
         env_params=env_params,
         sim_params=sim_params,
         ql_params=ql_params,
-        scenario=scenario
+        network=network
     )
     env.stop = True # prevents any learning
     exp = Experiment(env=env)
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     print(f'Sum of Q {sum([v for s in Q for a, v in Q[s].items()])}')
     x = 'l' if inflows_type == 'lane' else 'w'
     filename = \
-        f"{env.scenario.name}.{args.time}.{x}.info.json"
+        f"{env.network.name}.{args.time}.{x}.info.json"
 
     info_path = os.path.join(EMISSION_PATH, filename)
     with open(info_path, 'w') as fj:

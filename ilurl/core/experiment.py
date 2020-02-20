@@ -18,6 +18,7 @@ import os
 import tempfile
 import time
 from collections import defaultdict
+import pdb
 
 import numpy as np
 from flow.core.util import emission_to_csv
@@ -203,9 +204,9 @@ class Experiment:
 
                 if is_synch and self.env.duration == 0.0 and j > 0:
                     observation_spaces.append(list(self.env.get_observation_space()))
-
                 if done:
                     break
+
 
             # for every run dump
             if self.train:
@@ -234,8 +235,10 @@ class Experiment:
             outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
             std_vels.append(round(np.nanstd(vel), 2))
             print(f"""
-                    Round {i}\treturn: {mean_rets[-1]}\tavg speed:{mean_vels[-1]}
+                    Round {i}\treturn: {sum(ret_list):0.2f}\tavg speed:{mean_vels[-1]}
                   """)
+
+            pdb.set_trace()
             if show_plot:
                 self.ax1.plot(rets, 'c-')
                 self.ax2.plot(mean_vels, 'b-')
