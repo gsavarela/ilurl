@@ -18,7 +18,6 @@ import os
 import tempfile
 import time
 from collections import defaultdict
-import pdb
 
 import numpy as np
 from flow.core.util import emission_to_csv
@@ -208,16 +207,20 @@ class Experiment:
                     break
 
 
-            # for every run dump
-            if self.train:
-                if hasattr(self.env, 'dump') and self.dir_path:
-                    self.env.dump(self.dir_path,
-                                  f'{self.env.network.name}.Q.{i + 1}.pickle',
-                                  attr_name='Q')
+                # for every 100 decisions -- save Q
+                if j % 9000 == 0:
+                    filename = \
+                        f'{self.env.network.name}.Q.{i + 1}-{int(j / 9000)}.pickle'
+                    print(filename)
+                    if self.train:
+                        if hasattr(self.env, 'dump') and self.dir_path:
+                            self.env.dump(self.dir_path,
+                                          f'{self.env.network.name}.Q.{i + 1}-{int(j / 9000)}.pickle',
+                                          attr_name='Q')
 
-            else:
-                if i < len(self.policies):
-                    self.env.Q = self.policies[i]
+                    else:
+                        if i < len(self.policies):
+                            self.env.Q = self.policies[i]
 
             ret = round(ret, 2)
             rets.append(ret)
@@ -238,7 +241,6 @@ class Experiment:
                     Round {i}\treturn: {sum(ret_list):0.2f}\tavg speed:{mean_vels[-1]}
                   """)
 
-            pdb.set_trace()
             if show_plot:
                 self.ax1.plot(rets, 'c-')
                 self.ax2.plot(mean_vels, 'b-')
