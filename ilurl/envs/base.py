@@ -621,10 +621,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                     alt_prog.append(d + delta)
                     delta = 0
                 self.alt_progs[tid][act] = np.cumsum(alt_prog).tolist()
-            print('Default program')
-            print('\t', self.network.durations)
-            print('Alternative programs')
-            print('\t', self.alt_progs)
         return self.alt_progs
 
 
