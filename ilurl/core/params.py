@@ -356,9 +356,9 @@ class InFlows(flow_params.InFlows):
     """InFlow: plus load & dump functionality"""
 
     @classmethod
-    def make(cls, network_id, horizon, demand_type, label):
+    def make(cls, network_id, horizon, demand_type, label, initial_config=None):
 
-        inflows = cls(network_id, horizon, demand_type)
+        inflows = cls(network_id, horizon, demand_type, initial_config=initial_config)
         # checks if route exists -- returning the path
         path = inflows_dump(
             network_id,
@@ -439,7 +439,7 @@ class NetParams(flow_params.NetParams):
     """Extends NetParams to work with saved templates"""
 
     @classmethod
-    def from_template(cls, network_id, horizon, demand_type, label=None):
+    def from_template(cls, network_id, horizon, demand_type, label=None, initial_config=None):
         """Factory method based on {network_id} layout + configs
         
         Params:
@@ -461,8 +461,9 @@ class NetParams(flow_params.NetParams):
         """
         net_path = get_path(network_id, 'net')
         # TODO: test if exists first!
-        rou_path = InFlows.make(network_id,
-                                horizon, demand_type, label=label)
+        rou_path = InFlows.make(network_id, horizon,
+                                demand_type, label=label,
+                                initial_config=initial_config)
         vtype_path = get_vehicle_types()
 
         return cls(

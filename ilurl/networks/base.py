@@ -42,17 +42,25 @@ class Network(FlowNetwork):
         """
 
         networks = []
+
+        # initial_config = InitialConfig(
+        #     edges_distribution=['309265401','-238059328']
+        # )
         for nr in range(num_reps):
             label1 = f'{nr}.{label}' if label and num_reps > 1 else nr
             net_params = NetParams.from_template(
-                network_id, horizon, demand_type, label=label1
+                network_id, horizon, demand_type, label=label1,
+                initial_config=initial_config
             )
+
             networks.append(
                 Network(
                     network_id,
                     horizon,
                     net_params,
-                    vehicles=VehicleParams())
+                    initial_config=initial_config,
+                    vehicles=VehicleParams()
+                )
             )
 
         ret = networks[0] if num_reps == 1 else networks
