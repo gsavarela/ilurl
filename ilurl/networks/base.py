@@ -20,7 +20,7 @@ class Network(FlowNetwork):
     """This class leverages on specs created by SUMO"""
 
     @classmethod
-    def make(cls, network_id, horizon, demand_type, num_reps, label=None):
+    def make(cls, network_id, horizon, demand_type, num_reps, label=None, initial_config=None):
         """Builds a new network from rou.xml file -- the resulting
         vehicle trips will be almost-deterministic use it for validation
         
