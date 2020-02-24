@@ -20,7 +20,8 @@ class Network(FlowNetwork):
     """This class leverages on specs created by SUMO"""
 
     @classmethod
-    def make(cls, network_id, horizon, demand_type, num_reps, label=None, initial_config=None):
+    def make(cls, network_id, horizon, demand_type, num_reps,
+             label=None, initial_config=None):
         """Builds a new network from rou.xml file -- the resulting
         vehicle trips will be almost-deterministic use it for validation
         
@@ -43,9 +44,6 @@ class Network(FlowNetwork):
 
         networks = []
 
-        # initial_config = InitialConfig(
-        #     edges_distribution=['309265401','-238059328']
-        # )
         for nr in range(num_reps):
             label1 = f'{nr}.{label}' if label and num_reps > 1 else nr
             net_params = NetParams.from_template(

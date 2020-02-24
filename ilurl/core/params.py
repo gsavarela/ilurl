@@ -358,7 +358,8 @@ class InFlows(flow_params.InFlows):
     @classmethod
     def make(cls, network_id, horizon, demand_type, label, initial_config=None):
 
-        inflows = cls(network_id, horizon, demand_type, initial_config=initial_config)
+        inflows = cls(network_id, horizon, demand_type,
+                      initial_config=initial_config)
         # checks if route exists -- returning the path
         path = inflows_dump(
             network_id,
@@ -366,11 +367,11 @@ class InFlows(flow_params.InFlows):
             distribution=demand_type,
             label=label
         )
-        
         return path
 
     def __init__(self, network_id, horizon, demand_type,
-                 initial_config=None, additional_params=ADDITIONAL_PARAMS):
+                 initial_config=None,
+                 additional_params=ADDITIONAL_PARAMS):
 
         super(InFlows, self).__init__()
 
@@ -424,24 +425,21 @@ class InFlows(flow_params.InFlows):
                         params.append((args, kwargs))
                 else:
                     raise ValueError(f'Unknown demand_type {demand_type}')
-            
-        if not params:
-            import pdb
-            pdb.set_trace()
+
         # Sort params flows will be consecutive
         params = sorted(params, key=lambda x: x[1]['end'])
         params = sorted(params, key=lambda x: x[1]['begin'])
         for args, kwargs in params:
-            
             self.add(*args, **kwargs)
-            
+
 class NetParams(flow_params.NetParams):
     """Extends NetParams to work with saved templates"""
 
     @classmethod
-    def from_template(cls, network_id, horizon, demand_type, label=None, initial_config=None):
+    def from_template(cls, network_id, horizon, demand_type,
+                      label=None, initial_config=None):
         """Factory method based on {network_id} layout + configs
-        
+
         Params:
         -------
         *   network_id: string
@@ -465,7 +463,6 @@ class NetParams(flow_params.NetParams):
                                 demand_type, label=label,
                                 initial_config=initial_config)
         vtype_path = get_vehicle_types()
-
         return cls(
             template={
                 'net': net_path,
@@ -478,7 +475,7 @@ class NetParams(flow_params.NetParams):
     def load(cls, network_id, route_path):
         """Loads paremeters from net {network_id} and
             routes from {route_path}
-        
+
         Params:
         -------
         *   network_id: string

@@ -124,12 +124,21 @@ if __name__ == '__main__':
 
 
     inflows_type = 'switch' if args.switch else 'lane'
-    network = Network(
-        network_id=args.network,
-        horizon=args.time,
-        demand_type=inflows_type
-    )
+    # network = Network(
+    #     network_id=args.network,
+    #     horizon=args.time,
+    #     demand_type=inflows_type
 
+    # )
+
+    # UNCOMMENT to build evaluation
+    # networks over static distributions
+    # Network.make(
+    #     args.network, args.time, inflows_type, 1
+    # )
+    net_path = 'data/networks/intersection/intersection.0.450000.l.rou.xml'
+    net_id = 'intersection'
+    network = Network.load(net_id, net_path)
     
     ql_params = QLParams(epsilon=0.10, alpha=0.05,
                          states=('speed', 'count'),
@@ -145,11 +154,6 @@ if __name__ == '__main__':
         network=network
     )
 
-    # UNCOMMENT to build evaluation
-    # networks over static distributions
-    Network.make(
-        args.network, args.time, inflows_type, 5
-    )
 
     exp = Experiment(env=env, dir_path=path, train=True)
 

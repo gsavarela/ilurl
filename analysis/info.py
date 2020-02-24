@@ -10,10 +10,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ROOT_PATH = os.environ['ILURL_HOME']
-EXPERIMENTS_PATH = f'{ROOT_PATH}/data/emissions/'
+EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x02/'
 CYCLE = 90
 TIME = 9000
-CONFIG_DIRS = ('4545', '5040', '5436', '6030')
+# CONFIG_DIRS = ('4545', '5040', '5436', '6030')
+CONFIG_DIRS = ('6030',)
 
 def get_arguments():
     parser = argparse.ArgumentParser(

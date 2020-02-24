@@ -42,8 +42,6 @@ if __name__ == '__main__':
     ext = '.9000.w.info.json'
     states = defaultdict(list)
 
-    import pdb
-    pdb.set_trace()
     for config_dir in CONFIG_DIR:
         lookup_jsons = f'{EMISSION_DIR}{config_dir}/*{ext}'
         for jf in glob(lookup_jsons):

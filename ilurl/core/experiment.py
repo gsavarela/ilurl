@@ -198,11 +198,12 @@ class Experiment:
 
                 ret += reward if not(np.isnan(reward)) else 0
                 ret_list.append(round(reward, 2))
-                if hasattr(self.env, 'rl_action'):
-                    actions_list.append(list(self.env.rl_action)) 
 
                 if is_synch and self.env.duration == 0.0 and j > 0:
-                    observation_spaces.append(list(self.env.get_observation_space()))
+                    observation_space = list(self.env.get_observation_space())
+                    observation_spaces.append(observation_space)
+                    if hasattr(self.env, 'rl_action'):
+                        actions_list.append(list(self.env.rl_action))
                 if done:
                     break
 
@@ -246,8 +247,6 @@ class Experiment:
                 self.ax2.plot(mean_vels, 'b-')
                 plt.draw()
                 plt.pause(0.01)
-
-            
 
         info_dict["id"] = self.env.network.name
         info_dict["returns"] = rets

@@ -7,50 +7,79 @@ import dill
 # current project dependencies
 from ilurl.envs.base import TrafficLightQLEnv
 
-
-
 ROOT_DIR = os.environ['ILURL_HOME']
-EMISSION_DIR = f"{ROOT_DIR}/data/emissions/"
+EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x02/"
 # CONFIG_DIRS = ('4545', '5040', '5434', '6030')
 CONFIG_DIRS = ('6030',)
 
 
-filenames = ('intersection_20200220-2158131582235893.8645902.Q.1-85',
-             'intersection_20200220-2159311582235971.1839051.Q.1-85',
-             'intersection_20200220-2158221582235902.563563.Q.1-85',
-             'intersection_20200220-2159181582235958.167368.Q.1-85',
-             'intersection_20200220-2158061582235886.423499.Q.1-85',
-             'intersection_20200220-2158081582235888.27206.Q.1-85')
+filenames = ('intersection_20200221-1649421582303782.3306901.Q.1-49',
+             'intersection_20200221-1649511582303791.171921.Q.1-49',
+             'intersection_20200221-1650091582303809.758275.Q.1-49',
+             'intersection_20200221-1650161582303816.600648.Q.1-49',
+             'intersection_20200221-1650301582303830.197564.Q.1-49',
+             'intersection_20200221-1650331582303833.1454122.Q.1-49')
 
 
-import pdb
 def qdist(Q, Q1):
+    """Computes the maximium value absolute value
+
+    Params:
+    -------
+        * Q: dictionary of dictionaries
+        Nested dictionary representing a table
+        * Q1: dictionary of dictionaries
+        Nested dictionary representing a table
+    Returns:
+    -------
+        * distance: float
+            sum(|a -b|) / sqrt(A * B)
+    """
     states = set(Q.keys()).union(set(Q1.keys()))
     distance = 0
+    total, total1 = 0, 0
     for state in states:
         actions = set(Q[state].keys()).union(set(Q1[state].keys()))
-        dist, n = 0, 0
         for action in actions:
-            dist = max(dist, np.abs(Q[state][action] - Q1[state][action]))
-        distance = round(max(distance, dist), 1)
-    return distance
- 
+            total += Q[state][action]
+            total1 += Q1[state][action]
+            distance += np.abs(Q[state][action] - Q1[state][action])
+
+    ret = np.round(distance / np.sqrt(total * total1), 2)
+    return ret
+
+
+def num_state_actions(Q):
+    states = Q.keys()
+    t = 0
+    n = 0
+    for state in states:
+        actions = Q[state].keys()
+        for action in actions:
+            n += int(Q[state][action] != 0)
+            t += 1
+    return n, t
+
 
 if __name__ == '__main__':
-
     QS = []
     for config_dir in CONFIG_DIRS:
         for filename in filenames:
             path = f'{EMISSION_DIR}{config_dir}/{filename}.pickle'
-            # env = TrafficLightQLEnv.load(path)
             with open(path, 'rb') as f:
                 Q = dill.load(f)
             QS.append(Q)
 
     N = len(QS)
     D = np.zeros((N, N), dtype=np.float)
-    for i in range(N - 1): 
+    for i in range(N - 1):
         for j in range(i + 1, N):
             D[i, j] = qdist(QS[i], QS[j])
 
-    print(D[:,1:])
+    # number of state-action pairs explored
+    num, total = zip(*[num_state_actions(Q) for Q in QS])
+    msa = np.round(np.mean(num), 2)
+    tsa = np.mean(total)
+    print(f'mean number of state-actions visited:{msa} of {tsa}')
+    # percentual distance
+    print(D)
