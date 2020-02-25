@@ -4,6 +4,7 @@ __date__ = '2020-02-20'
 import os
 import numpy as np
 import dill
+
 # current project dependencies
 from ilurl.envs.base import TrafficLightQLEnv
 
@@ -30,6 +31,7 @@ def qdist(Q, Q1):
         Nested dictionary representing a table
         * Q1: dictionary of dictionaries
         Nested dictionary representing a table
+
     Returns:
     -------
         * distance: float
@@ -49,37 +51,107 @@ def qdist(Q, Q1):
     return ret
 
 
+def jacd(pola, polb):
+    """Computes the jaccard distance
+
+    Params:
+    -------
+    * pola: dictionary from states to actions
+        deterministic policy computed by experiment a
+    * polb: dictionary from states to actions
+        deterministic policy computed by experiment b
+
+    Returns:
+    --------
+    * jaccard distance
+        1 - jaccard similarity
+    """
+    states = set(pola.keys()).union(set(polb.keys()))
+    d = 0
+    for s in states:
+        set_a = set(pola[s])
+        set_b = set(polb[s])
+        d += 1 - len(set_a & set_b) / len(set_a | set_b)
+
+    return d
+
+
+def policy(Q):
+    """Hard max over prescriptions
+
+    Params:
+    -------
+        * Q: dictionary of dictionaries
+        Nested dictionary representing a table
+
+    Returns:
+    -------
+        * policy: dictonary of states to policies
+    """
+    pol = {}
+    for s in Q:
+        pol[s] = max(Q[s].items(), key=lambda x: x[1])[0]
+
+    return pol
+
+def visited(Q):
+    """Visited states
+
+    Params:
+    -------
+        * Q: dictionary of dictionaries
+        Nested dictionary representing a table
+
+    Returns:
+    -------
+        * vis: a list of unique visited states
+    """
+    vis = sorted([s for s in Q if any([v for v in Q[s].values()])])
+
+    return vis
+
+
 def num_state_actions(Q):
-    states = Q.keys()
     t = 0
     n = 0
-    for state in states:
-        actions = Q[state].keys()
-        for action in actions:
-            n += int(Q[state][action] != 0)
+    for s in Q:
+        for v in Q[s].values():
+            n += int(v != 0)
             t += 1
     return n, t
 
 
 if __name__ == '__main__':
     QS = []
+    PI = []
     for config_dir in CONFIG_DIRS:
         for filename in filenames:
             path = f'{EMISSION_DIR}{config_dir}/{filename}.pickle'
             with open(path, 'rb') as f:
                 Q = dill.load(f)
             QS.append(Q)
+            PI.append(policy(Q))
 
     N = len(QS)
     D = np.zeros((N, N), dtype=np.float)
+    JD = np.zeros((N, N), dtype=np.float)
     for i in range(N - 1):
         for j in range(i + 1, N):
             D[i, j] = qdist(QS[i], QS[j])
+            JD[i, j] = jacd(PI[i], PI[j])
 
     # number of state-action pairs explored
-    num, total = zip(*[num_state_actions(Q) for Q in QS])
-    msa = np.round(np.mean(num), 2)
-    tsa = np.mean(total)
-    print(f'mean number of state-actions visited:{msa} of {tsa}')
+    states = {s for Q in QS for s in Q}
+    vis = {s for Q in QS for s in visited(Q)}
+    msa = np.round(np.mean([len(visited(Q)) for Q in QS]), 2)
+    tsa = len(states)
+    print(f'mean number of states visited:{msa} of {tsa}')
+    print(f'visited states: {vis}')
+
     # percentual distance
+    print('Manhattan distance (%)')
     print(D)
+    # policy disagreement
+    print('Jaccard distance (%)')
+    print(JD)
+
