@@ -1,85 +1,184 @@
-"""This script makes a histogram from the info.json output from experiment
-USAGE:
------
-From root directory with files saved on root
-> python analysis/rewards.py
-"""
+"""Analyses aggregate experiment files e.g info and envs"""
 __author__ = 'Guilherme Varela'
-__date__ = '2019-10-01'
-# core packages
+__date__ = '2020-02-13'
+import os
+import argparse
 import json
+from glob import glob
 
-# third-party libs
-import dill
 import numpy as np
 import matplotlib.pyplot as plt
 
-# current project dependencies
-from ilurl.envs.green_wave_env import TrafficLightQLGridEnv
+ROOT_PATH = os.environ['ILURL_HOME']
+EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x02/'
+CYCLE = 90
+TIME = 9000
+# CONFIG_DIRS = ('4545', '5040', '5436', '6030')
+CONFIG_DIRS = ('6030',)
 
-# Retrieves output data
-filename = "smart-grid_20191001-1737031569947823.294037.info.json"
-with open(filename, 'r') as f:
-    output = json.load(f)
+def get_arguments():
+    parser = argparse.ArgumentParser(
+        description="""
+            This script runs a traffic light simulation based on
+            custom environment with with presets saved on data/networks
+        """
+    )
 
-# Retrieves agent data
-filename = "smart-grid_20191001-1737031569947823.294037.pickle"
-env = TrafficLightQLGridEnv.load(filename)
+    # TODO: validate against existing networks
+    parser.add_argument('period', type=str, nargs='?',
+                        choices=('cycles', 'episodes'),
+                        default='episodes', help='Cycle or episode')
 
-returns = output['returns']
-velocities = output['velocities']
+    parser.add_argument('--type', '-t', dest='db_type', nargs='?',
+                        choices=('evaluate', 'train'),
+                        default='evaluate',
+                        help="db type `evaluate` or `train`")
 
-_, ax1 = plt.subplots()
-ax2 = ax1.twinx()
-ax1.set_xlabel('Iteration')
-ax1.set_ylabel('Return', color='c')
-ax2.set_ylabel('Speed', color='b')
+    return parser.parse_args()
 
-ax1.plot(returns, 'c-')
-ax2.plot(velocities, 'b-')
-plt.show()
 
-print(np.corrcoef(returns, velocities))
-# states = {
-#     state_label: []
-#     for state_label in env.ql_params.states_labels}
-# 
-# for observation_space in observation_spaces_per_cycle:
-#     for i, values in enumerate(env.ql_params.split_space(observation_space)):
-#         label = env.ql_params.states_labels[i]
-#         states[label] += values
-# 
-# # plot building
-# num_bins = 10
-# # percentile separators: low, medium and high
-# percentile_separators = (0.0, 20.0, 75.0, 100.0)
-# perceptile_colors = ('yellow', 'green')
-# for label, values in states.items():
-#     plt.figure()
-# 
-#     # mean and standard deviation of the distribution
-#     mu = np.mean(values)
-#     sigma = np.std(values)
-# 
-#     # the histogram of the data
-#     values_normalized = [
-#         round((v - mu) / sigma, 2) for v in values
-#     ]
-#     # Define quantiles for the histogram
-#     # ignore lower and higher values
-#     quantiles = np.percentile(values_normalized, percentile_separators)
-#     for i, q in enumerate(quantiles[1:-1]):
-#         color = perceptile_colors[i]
-#         plt.axvline(x=float(q), markerfacecoloralt=color)
-#     n, bins, patches = plt.hist(values_normalized, num_bins,density=mu, facecolor='blue', alpha= 0.5)
-# 
-#     # add a 'best fit' line
-#     y = mlab.normpdf(bins, mu, sigma)
-#     plt.plot(bins, y, 'r--')
-#     plt.xlabel(label)
-#     plt.ylabel('Probability')
-#     plt.title(f"""Histogram of {label}
-#               $\mu$={round(mu, 2)}, $\sigma$={round(sigma,2)}""")
-#     # Tweak spacing to prevent clipping of ylabel
-#     plt.subplots_adjust(left=0.15)
-# plt.show()
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+if __name__ == '__main__':
+    parser = get_arguments()
+    period = parser.period
+
+    db_type = parser.db_type
+    if db_type == 'evaluate':
+        ext = 'eval.info.json'
+    elif db_type == 'train':
+        ext = '[w|l].info.json'
+    else:
+        raise ValueError(f'db_type<{db_type}> not recognized!')
+
+    for config_dir in CONFIG_DIRS:
+        files_dir = f'{EXPERIMENTS_PATH}{config_dir}/'
+
+
+        paths = sorted(glob(f"{files_dir}*.{ext}"))
+        num_dbs = len(paths)
+        phase_split = f'{config_dir[:2]}x{config_dir[2:]}'
+        try:
+            cycle_time = int(config_dir[:2]) + int(config_dir[2:])
+        except Exception:
+            cycle_time = CYCLE
+
+        for nf, path in enumerate(paths):
+            with open(path, 'r') as f:
+                data = json.load(f)
+
+            num_iter = len(data['per_step_returns'])
+            num_steps = len(data['per_step_returns'][0])
+
+            if period == 'cycles':
+                p = cycle_time
+            elif period == 'episodes':
+                p = num_steps
+            else:
+                raise ValueError(f'period<{period}> not recognized!')
+
+            if nf == 0:
+                N = int((num_steps * num_iter) / p)
+                rets = np.zeros((N,), dtype=float)
+                vels = np.zeros((N,),  dtype=float)
+                vehs = np.zeros((N,),  dtype=float)
+                acts = np.zeros((N, num_dbs),  dtype=int)
+
+            for i in range(num_iter):
+
+                if period == 'episodes':
+                    _vels = data["velocities"][i]
+                    _rets = data["mean_returns"][i]
+                    _vehs = data["vehicles"][i]
+
+                    vels[i] = (nf * vels[i] + _vels) / (nf + 1)
+                    rets[i] = (nf * rets[i] + _rets) / (nf + 1)
+                    vehs[i] = (nf * vehs[i] + _vehs) / (nf + 1)
+                else:
+
+                    _rets = data['per_step_returns'][i]
+                    _vels = data['per_step_velocities'][i]
+                    _vehs = data['per_step_vehs'][i]
+                    _acts = data["rl_actions"][i]
+
+                    for t in range(0, num_steps, cycle_time):
+
+                        cycle = int(i * (num_steps / cycle_time) + t / cycle_time)
+                        ind = slice(t, t + cycle_time)
+                        vels[cycle] = \
+                            (nf * vels[cycle] + np.mean(_vels[ind])) / (nf + 1)
+                        rets[cycle] = \
+                            (nf * rets[cycle] + np.sum(_rets[ind])) / (nf + 1)
+                        vehs[cycle] = \
+                            (nf * vehs[cycle] + np.mean(_vehs[ind])) / (nf + 1)
+                        acts[cycle, nf] = \
+                            round(np.array(_acts[ind]).mean())
+
+        _, ax1 = plt.subplots()
+        if period == 'cycles':
+            ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
+        else:
+            ax1.set_xlabel(f'Episodes ({num_steps} sec)')
+
+        color = 'tab:blue'
+        ax1.set_ylabel('Avg. speed', color=color)
+        ax1.plot(vels, color=color)
+        ax1.tick_params(axis='y', labelcolor=color)
+
+        color = 'tab:red'
+        ax2 = ax1.twinx()
+        ax2.set_ylabel('Avg. vehicles', color=color)
+        ax2.plot(vehs, color=color)
+        ax2.tick_params(axis='y', labelcolor=color)
+
+        plt.title(f'{phase_split}:speed and count\n({db_type}, n={num_dbs})')
+        plt.savefig(f'{files_dir}{phase_split}_{db_type}_velsvehs_{period}.png')
+        plt.show()
+
+
+        color = 'tab:cyan'
+        _, ax1 = plt.subplots()
+        if period == 'cycles':
+            ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
+        else:
+            ax1.set_xlabel(f'Episodes ({num_steps} sec)')
+
+        ax1.set_ylabel('Avg. Reward per Cycle', color=color)
+        ax2.tick_params(axis='y', labelcolor=color)
+        ax1.plot(rets, color=color)
+        plt.title(f'{phase_split}:avg. cycle return\n({db_type}, n={num_dbs})')
+        plt.savefig(f'{files_dir}{phase_split}_{db_type}_rewards_{period}.png')
+        plt.show()
+
+        # optimal action
+        # TODO: allow for customize action
+        optact = 0.0
+        _, ax1 = plt.subplots()
+        color = 'tab:orange'
+        if period == 'cycles':
+            ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
+        else:
+            ax1.set_xlabel(f'Episodes ({num_steps} sec)')
+
+        ax1.set_ylabel('ratio optimal action')
+
+        cumacts = np.cumsum(acts == optact, axis=0)
+        weights = np.arange(1, len(acts) + 1)
+
+        plt.title(f'{phase_split}:% optimal action\n({db_type}, n={num_dbs})')
+        legends = []
+        for j in range(num_dbs):
+            ax1.plot(cumacts[:, j] / weights)
+            legends.append(f'e#{j}')
+        plt.legend(legends, loc='lower right')
+        plt.savefig(f'{files_dir}{phase_split}_{db_type}_optimal_cycles.png')
+        plt.show()
+
