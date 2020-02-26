@@ -26,7 +26,8 @@ import matplotlib.pyplot as plt
 from ilurl.envs.base import TrafficLightQLEnv
 
 ROOT_DIR = os.environ['ILURL_HOME']
-EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x02/"
+# EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x02/"
+EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x03/"
 # CONFIG_DIR = ('4545', '5040', '5434', '6030')
 CONFIG_DIR = ('6030',)
 
@@ -103,88 +104,5 @@ if __name__ == '__main__':
         ax.legend()
         ax.grid(True)
         plt.title(f'{split}: observation space (N={N})')
+        plt.savefig(f'{EMISSION_DIR}{config_dir}/{split}.png')
         plt.show()
-    # Fixing random state for reproducibility
-    # np.random.seed(19680801)
-
-
-    # N = 100
-    # r0 = 0.6
-    # x = 0.9 * np.random.rand(N)
-    # y = 0.9 * np.random.rand(N)
-    # area = (20 * np.random.rand(N))**2  # 0 to 10 point radii
-    # c = np.sqrt(area)
-    # r = np.sqrt(x ** 2 + y ** 2)
-    # area1 = np.ma.masked_where(r < r0, area)
-    # area2 = np.ma.masked_where(r >= r0, area)
-
-    # plt.scatter(x, y, s=area1, marker='^', c=c)
-    # plt.scatter(x, y, s=area2, marker='o', c=c)
-    # _, ax = plt.subplots()
-    # colors = ['tab:blue', 'tab:red']
-    # for i, phase in phases.items():
-    #     x, y = zip(*phase)
-    #     ax.scatter(x, y, c=colors[i], label=f'phase#{i}')
-
-    # ax.legend()
-    # ax.grid(True)
-    # plt.show()
-    # Show the boundary between the regions:
-    # theta = np.arange(0, np.pi / 2, 0.01)
-    # plt.plot(r0 * np.cos(theta), r0 * np.sin(theta))
-
-    # plt.show()
-    #     # plot building
-    #     num_bins = 50
-    #     # percentile separators: low, medium and high
-    #     percentile_separators = (0.0, 25.0, 75.0, 100.0)
-    #     perceptile_colors = ('yellow', 'green')
-    #     for label, values in states.items():
-    #         plt.figure()
-
-    #         # mean and standard deviation of the distribution
-    #         mu = np.mean(values)
-    #         sigma = np.std(values)
-
-    #         # the histogram of the data
-    #         values_normalized = [
-    #             round((v - mu) / sigma, 2) for v in values
-    #         ]
-    #         # Define quantiles for the histogram
-    #         # ignore lower and higher values
-    #         quantiles = np.percentile(values_normalized, percentile_separators)
-    #         for i, q in enumerate(quantiles[1:-1]):
-    #             color = perceptile_colors[i]
-    #             p = percentile_separators[i]
-    #             legend = f'p {int(p)} %'
-    #             plt.axvline(x=float(q),
-    #                         markerfacecoloralt=color,
-    #                         label=legend)
-
-    #         n, bins, patches = plt.hist(
-    #             values_normalized,
-    #             num_bins,
-    #             density=mu,
-    #             facecolor='blue',
-    #             alpha=0.5
-    #         )
-
-    #         # add a 'best fit' line
-    #         y = norm.pdf(bins, mu, sigma)
-    #         plt.plot(bins, y, 'r--')
-    #         plt.xlabel(label)
-    #         plt.ylabel('Probability')
-    #         title = f"Histogram of {label}"
-    #         title = f"{title}\n$\mu$={round(mu, 2)},"
-    #         title = f"{title}$\sigma$={round(sigma,2)}"
-    #         plt.title(title)
-
-
-    #         # Tweak spacing to prevent clipping of ylabel
-    #         plt.subplots_adjust(left=0.15)
-    #         print(f"#########{label}##########")
-    #         print(f"min:\t{np.round(quantiles[0] * sigma + mu, 2)}")
-    #         print(f"{percentile_separators[1]}\%\t{np.round(quantiles[1] * sigma + mu, 2)}")
-    #         print(f"{percentile_separators[2]}\%\t{np.round(quantiles[2] * sigma + mu, 2)}")
-    #         print(f"max:\t{np.round(quantiles[-1] * sigma + mu, 2)}")
-    #     plt.show()

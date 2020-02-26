@@ -1,6 +1,7 @@
 """Analyses aggregate experiment files e.g info and envs"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-02-13'
+import pdb
 import os
 import argparse
 import json
@@ -10,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ROOT_PATH = os.environ['ILURL_HOME']
-EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x02/'
+EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x03/'
 CYCLE = 90
 TIME = 9000
 # CONFIG_DIRS = ('4545', '5040', '5436', '6030')
@@ -107,8 +108,7 @@ if __name__ == '__main__':
                     _rets = data['per_step_returns'][i]
                     _vels = data['per_step_velocities'][i]
                     _vehs = data['per_step_vehs'][i]
-                    _acts = data["rl_actions"][i]
-
+                    _acts = np.array(data["rl_actions"][i])
                     for t in range(0, num_steps, cycle_time):
 
                         cycle = int(i * (num_steps / cycle_time) + t / cycle_time)
@@ -119,8 +119,13 @@ if __name__ == '__main__':
                             (nf * rets[cycle] + np.sum(_rets[ind])) / (nf + 1)
                         vehs[cycle] = \
                             (nf * vehs[cycle] + np.mean(_vehs[ind])) / (nf + 1)
-                        acts[cycle, nf] = \
-                            round(np.array(_acts[ind]).mean())
+                        # 0x02 per_step_actions
+                        if len(_acts) == num_steps:
+                            acts[cycle, nf] = \
+                                round(np.array(_acts[ind]).mean())
+                        else:
+                            # 0x03 actions per decision
+                            acts[cycle, nf] = _acts[cycle]
 
         _, ax1 = plt.subplots()
         if period == 'cycles':

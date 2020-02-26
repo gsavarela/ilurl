@@ -9,17 +9,17 @@ import dill
 from ilurl.envs.base import TrafficLightQLEnv
 
 ROOT_DIR = os.environ['ILURL_HOME']
-EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x02/"
+# EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x02/"
+EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x03/"
 # CONFIG_DIRS = ('4545', '5040', '5434', '6030')
 CONFIG_DIRS = ('6030',)
 
 
-filenames = ('intersection_20200221-1649421582303782.3306901.Q.1-49',
-             'intersection_20200221-1649511582303791.171921.Q.1-49',
-             'intersection_20200221-1650091582303809.758275.Q.1-49',
-             'intersection_20200221-1650161582303816.600648.Q.1-49',
-             'intersection_20200221-1650301582303830.197564.Q.1-49',
-             'intersection_20200221-1650331582303833.1454122.Q.1-49')
+filenames = ('intersection_20200222-0900161582362016.287294.Q.1-49',
+             'intersection_20200222-0900371582362037.617882.Q.1-49',
+             'intersection_20200222-0900411582362041.078803.Q.1-49',
+             'intersection_20200222-0900481582362048.594145.Q.1-49',
+             'intersection_20200222-0900511582362051.183386.Q.1-49')
 
 
 def qdist(Q, Q1):
@@ -71,7 +71,7 @@ def jacd(pola, polb):
     for s in states:
         set_a = set(pola[s])
         set_b = set(polb[s])
-        d += 1 - len(set_a & set_b) / len(set_a | set_b)
+        d += 1 - (len(set_a & set_b) / len(set_a | set_b))
 
     return d
 
@@ -152,6 +152,6 @@ if __name__ == '__main__':
     print('Manhattan distance (%)')
     print(D)
     # policy disagreement
-    print('Jaccard distance (%)')
+    print('Jaccard distance')
     print(JD)
 
