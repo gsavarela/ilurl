@@ -19,6 +19,8 @@ import tempfile
 import time
 from collections import defaultdict
 
+from tqdm import tqdm
+
 import numpy as np
 from flow.core.util import emission_to_csv
 
@@ -188,7 +190,7 @@ class Experiment:
             veh_list = []
             state = self.env.reset()
 
-            for j in range(num_steps):
+            for j in tqdm(range(num_steps)):
                 state, reward, done, _ = self.env.step(rl_actions(state))
                 speeds = self.env.k.vehicle.get_speed(
                     self.env.k.vehicle.get_ids()
@@ -212,7 +214,6 @@ class Experiment:
                 if j % 9000 == 0:
                     filename = \
                         f'{self.env.network.name}.Q.{i + 1}-{int(j / 9000)}.pickle'
-                    print(filename)
                     if self.train:
                         if hasattr(self.env, 'dump') and self.dir_path:
                             self.env.dump(self.dir_path,

@@ -6,6 +6,7 @@ import os
 import json
 import argparse
 import math
+import time
 
 from flow.core.params import SumoParams, EnvParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
@@ -92,9 +93,27 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
+def print_arguments(args):
+    print('Arguments:')
+    print('\tExperiment time: {0}'.format(args.time))
+    print('\tExperiment iterations: {0}'.format(args.num_iterations))
+    print('\tExperiment pickle: {0}'.format(args.pickle))
+
+    print('\tSUMO render: {0}'.format(args.render))
+    print('\tSUMO emission: {0}'.format(args.emission))
+    print('\tSUMO step: {0}'.format(args.step))
+
+    print('\tTLS short: {0}'.format(args.short_phase))
+    print('\tTLS long: {0}'.format(args.long_phase))
+    print('\tInflows switch: {0}\n'.format(args.switch))
+
 
 if __name__ == '__main__':
+
     args = get_arguments()
+
+    print_arguments(args)
+
     path = f'{EMISSION_PATH}{args.long_phase}{args.short_phase}/'
     if not os.path.isdir(path):
         os.mkdir(path)
@@ -118,27 +137,24 @@ if __name__ == '__main__':
     additional_params['short_cycle_time'] = args.short_phase
     additional_params['target_velocity'] = 4
 
-    print(args.long_phase, args.short_phase)
     env_params = EnvParams(evaluate=True,
                            additional_params=additional_params)
 
-
     inflows_type = 'switch' if args.switch else 'lane'
-    # network = Network(
-    #     network_id=args.network,
-    #     horizon=args.time,
-    #     demand_type=inflows_type
-
-    # )
+    network = Network(
+        network_id=args.network,
+        horizon=args.time,
+        demand_type=inflows_type
+    )
 
     # UNCOMMENT to build evaluation
     # networks over static distributions
     # Network.make(
     #     args.network, args.time, inflows_type, 1
     # )
-    net_path = 'data/networks/intersection/intersection.0.450000.l.rou.xml'
-    net_id = 'intersection'
-    network = Network.load(net_id, net_path)
+    #net_path = 'data/networks/intersection/intersection.0.450000.l.rou.xml'
+    #net_id = 'intersection'
+    #network = Network.load(net_id, net_path)
     
     ql_params = QLParams(epsilon=0.10, alpha=0.05,
                          states=('speed', 'count'),
@@ -154,21 +170,24 @@ if __name__ == '__main__':
         network=network
     )
 
-
     exp = Experiment(env=env, dir_path=path, train=True)
 
-    import time
+    print('Running experiment...')
+
     start = time.time()
+
     info_dict = exp.run(
         args.num_iterations,
         int(args.time / args.step),
         show_plot=False
     )
+
+    print(f'Elapsed time {time.time() - start}')
+
     if args.pickle:
         # save info dict
         # save pickle environment
         # TODO: save with running parameters
-
 
         # general process information
         x = 'l' if inflows_type == 'lane' else 'w'
@@ -182,4 +201,3 @@ if __name__ == '__main__':
         if hasattr(env, 'dump'):
             env.dump(path)
 
-    print(f'Elapsed time {time.time() - start}')
