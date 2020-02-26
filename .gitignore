@@ -10,6 +10,9 @@
 # prevent sensitive data to into repo
 data/sensors/
 
+# prevent data growth
+data/emissions/
+
 # prevent experiments batches to 
 # be tracked and avoid .git file
 # growth
