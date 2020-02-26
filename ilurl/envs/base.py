@@ -42,7 +42,8 @@ ADDITIONAL_TLS_PARAMS = {
 
 
 class TrafficLightQLEnv(AccelEnv, Serializer):
-    """Environment used to train traffic lights.
+    """
+    Environment used to train traffic lights.
 
     This is a single TFLQLAgent controlling a variable number of
     traffic lights (TFL) with discrete features defined as such:
@@ -219,7 +220,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.dpq.Q = Q
 
     def init_observation_scope_filter(self):
-        """Returns edges attached to the node center#{node_id}
+        """
+        Returns edges attached to the node center#{node_id}.
 
         This function should be provided by Kernel#Scenario,
         effectively unbinding the Grid enviroment names from
@@ -323,8 +325,9 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                     self.currently_yellow[i] = 1
 
     #############
-    def set_observation_space(self):
-        """updates the observation space
+    def update_observation_space(self):
+        """
+        Updates the observation space.
 
         Assumes that each traffic light carries a speed sensor. The agent
         has the traffic light information if the vehicle is as close as 50%
@@ -379,7 +382,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 #                     extract(self.outgoing_edge_ids[node_id])
 
     def get_observation_space(self):
-        """consolidates the observation space
+        """
+        Consolidates the observation space.
 
         Update:
         ------
@@ -506,10 +510,20 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         return self.memo_observation_space[prev]
 
     def get_state(self):
-        """See class definition."""
-        # categorize
+        """
+        Return the state of the simulation as perceived by the RL agent.
+        
+        Returns
+        -------
+        state : array_like
+            information on the state of the vehicles, which is provided to the
+            agent
+        """
+        # Categorize.
         categorized = \
             self.ql_params.categorize_space(self.get_observation_space())
+        
+        # Flatten.
         flattened = \
             self.ql_params.flatten_space(categorized)
 
@@ -554,9 +568,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         return action
 
     def control_actions(self, static=False):
-        """Either switch traffic light for the frame or
-            keep orientation
-
+        """
+        Either switch traffic light for the frame or keep orientation.
 
         """
         ret = []
@@ -591,55 +604,73 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         return ret
 
     def apply_rl_actions(self, rl_actions):
-        """Q-Learning
-
-        Algorithm as in Sutton et Barto, 2018 [1]
-        for a single agent controlling all traffic
-        light.
+        """
+        Specify the actions to be performed by the rl agent(s).
 
         Parameters
         ----------
-
         rl_actions: list of actions or None
         """
-        self.set_observation_space()
+
+        # Update observation space.
+        self.update_observation_space()
 
         if self.duration == 0.0:
+            # New cycle.
+
+            # Select new action (action is stored in self.rl_action attribute).
             if rl_actions is None:
                 rl_action = self.rl_actions(self.get_state())
             else:
                 rl_action = rl_actions
 
-            # some function is changing self._state to numpy array
-            # if self._state is None or isinstance(self._state, np.ndarray):
+            # Setup initial state and action.
             if self.step_counter == 1:
                 self.prev_state = self.get_state()
                 self.prev_action = rl_action
+
+            if self.step_counter > 1 and not self.stop:
+                # RL-agent update.
+
+                reward = self.compute_reward(rl_actions)
+                state = self.get_state()
+
+                self.dpq.update(self.prev_state, self.prev_action, reward, state)
+                
+                self.prev_state = state
+                self.prev_action = rl_action
+
             self.memo_rewards = {}
             self.memo_observation_space = {}
 
-        #  _apply_rl_actions -- actions have to be on integer format
+        #  _apply_rl_actions -- actions have to be on integer format.
         idx = self._to_index(self.control_actions(static=False))
 
-        # updates traffic lights' control signals
+        # Update traffic lights' control signals.
         self._apply_rl_actions(idx)
 
-        if self.duration == 0.0 and self.step_counter > 1 and not self.stop:
-            # place q-learning here
-            reward = self.compute_reward(rl_actions)
-
-            state = self.get_state()
-            self.dpq.update(self.prev_state, self.prev_action, reward, state)
-            self.prev_state = state
-            self.prev_action = rl_action
-
+        # Update timer.
         self.duration = round(
             self.duration + self.sim_step,
             2,
         ) % self.cycle_time
 
     def compute_reward(self, rl_actions, **kwargs):
-        """See class definition.
+        """
+        Reward function for the RL agent(s).
+        Defaults to 0 for non-implemented environments.
+        
+        Parameters
+        ----------
+        rl_actions : array_like
+            actions performed by rl vehicles
+        kwargs : dict
+            other parameters of interest. Contains a "fail" element, which
+            is True if a vehicle crashed, and False otherwise
+
+        Returns
+        -------
+        reward : float or list of float
         """
         if self.duration not in self.memo_rewards:
             # rew = rewards.average_velocity(self, fail=False)

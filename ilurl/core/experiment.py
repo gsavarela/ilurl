@@ -105,7 +105,8 @@ class Experiment:
             convert_to_csv=False,
             save_interval=None
     ):
-        """Run the given scenario for a set number of runs and steps per run.
+        """
+        Run the given scenario for a set number of runs and steps per run.
 
         Parameters
         ----------
