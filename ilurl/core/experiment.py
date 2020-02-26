@@ -103,8 +103,7 @@ class Experiment:
             num_steps,
             rl_actions=None,
             convert_to_csv=False,
-            save_interval=None,
-            show_plot=False
+            save_interval=None
     ):
         """Run the given scenario for a set number of runs and steps per run.
 
@@ -144,18 +143,6 @@ class Experiment:
 
         if save_interval is not None:
             print('Warning save_interval has been disabled')
-
-        if show_plot:
-            # Plotting stuff
-            import matplotlib.pyplot as plt
-
-            _, self.ax1 = plt.subplots()
-
-            self.ax2 = self.ax1.twinx()
-
-            self.ax1.set_xlabel('Iteration')
-            self.ax1.set_ylabel('Return', color='c')
-            self.ax2.set_ylabel('Speed', color='b')
 
         info_dict = {}
         if rl_actions is None:
@@ -242,12 +229,6 @@ class Experiment:
             print(f"""
                     Round {i}\treturn: {sum(ret_list):0.2f}\tavg speed:{mean_vels[-1]}
                   """)
-
-            if show_plot:
-                self.ax1.plot(rets, 'c-')
-                self.ax2.plot(mean_vels, 'b-')
-                plt.draw()
-                plt.pause(0.01)
 
         info_dict["id"] = self.env.network.name
         info_dict["returns"] = rets

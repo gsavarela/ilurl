@@ -178,8 +178,7 @@ if __name__ == '__main__':
 
     info_dict = exp.run(
         args.num_iterations,
-        int(args.time / args.step),
-        show_plot=False
+        int(args.time / args.step)
     )
 
     print(f'Elapsed time {time.time() - start}')
