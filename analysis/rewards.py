@@ -1,7 +1,7 @@
 """Analyses aggregate experiment files e.g info and envs"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-02-13'
-import pdb
+
 import os
 import argparse
 import json
@@ -144,13 +144,13 @@ if __name__ == '__main__':
 
         color = 'tab:blue'
         ax1.set_ylabel('Avg. speed', color=color)
-        ax1.plot(vels, color=color)
+        ax1.plot(np.mean(vels, axis=1), color=color)
         ax1.tick_params(axis='y', labelcolor=color)
 
         color = 'tab:red'
         ax2 = ax1.twinx()
         ax2.set_ylabel('Avg. vehicles', color=color)
-        ax2.plot(vehs, color=color)
+        ax2.plot(np.mean(vehs, axis=1), color=color)
         ax2.tick_params(axis='y', labelcolor=color)
 
         plt.title(f'{phase_split}:speed and count\n({db_type}, n={num_dbs})')
@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
         ax1.set_ylabel('Avg. Reward per Cycle', color=color)
         ax2.tick_params(axis='y', labelcolor=color)
-        ax1.plot(rets, color=color)
+        ax1.plot(np.mean(rets, axis=1), color=color)
         plt.title(f'{phase_split}:avg. cycle return\n({db_type}, n={num_dbs})')
         plt.savefig(f'{files_dir}{phase_split}_{db_type}_rewards.png')
         plt.show()
@@ -177,8 +177,6 @@ if __name__ == '__main__':
         ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
         ax1.set_ylabel('ratio optimal action')
 
-        import pdb
-        pdb.set_trace()
         cumacts = np.cumsum(acts == optact, axis=0)
         weights = np.arange(1, len(acts) + 1)
 

@@ -16,6 +16,7 @@ import json
 import os
 from glob import glob
 
+
 # third-party libs
 import dill
 import numpy as np
@@ -27,13 +28,13 @@ from ilurl.envs.base import TrafficLightQLEnv
 
 ROOT_DIR = os.environ['ILURL_HOME']
 # EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x02/"
-EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x03/"
+EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x04/"
 # CONFIG_DIR = ('4545', '5040', '5434', '6030')
 CONFIG_DIR = ('6030',)
 
 if __name__ == '__main__':
     # this loop acumulates experiments
-    ext = '.450000.l.info.json'
+    ext = '.9000.l.info.json'
     phases = defaultdict(list)
     labels = []
     desired_velocity = None
@@ -66,11 +67,17 @@ if __name__ == '__main__':
                 category_counts = env.ql_params.category_counts
 
             # observation spaces
-            observation_spaces_per_cycle = output['observation_spaces']
-            for intersection_space in observation_spaces_per_cycle:
-                for phase_space in intersection_space:
-                    for i, phase in enumerate(phase_space):
-                        phases[i] += [phase]
+            if 'cycle' not in output:
+                # deprecate: 0x00, 0x01, 0x02, 0x03
+                observation_spaces = [output['observation_spaces']]
+            else:
+                observation_spaces = output['observation_spaces']
+
+            for observation_space in observation_spaces:
+                for intersection_space in observation_space:
+                    for phase_space in intersection_space:
+                        for i, phase in enumerate(phase_space):
+                            phases[i] += [phase]
 
         _, ax = plt.subplots()
         for i, label in enumerate(labels):

@@ -2,7 +2,7 @@
 
 __author__ = "Guilherme Varela"
 __date__ = "2019-07-26"
-import pdb
+
 import numpy as np
 
 REWARD_TYPES = ('fix', 'weighted_average', 'score', 'target_velocity')

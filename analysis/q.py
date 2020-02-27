@@ -10,16 +10,14 @@ from ilurl.envs.base import TrafficLightQLEnv
 
 ROOT_DIR = os.environ['ILURL_HOME']
 # EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x02/"
-EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x03/"
+EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x04/"
 # CONFIG_DIRS = ('4545', '5040', '5434', '6030')
 CONFIG_DIRS = ('6030',)
 
 
-filenames = ('intersection_20200222-0900161582362016.287294.Q.1-49',
-             'intersection_20200222-0900371582362037.617882.Q.1-49',
-             'intersection_20200222-0900411582362041.078803.Q.1-49',
-             'intersection_20200222-0900481582362048.594145.Q.1-49',
-             'intersection_20200222-0900511582362051.183386.Q.1-49')
+filenames = ('intersection_20200227-2043431582836223.796797.Q.1-99',
+             'intersection_20200227-2128041582838884.952684.Q.1-100',
+             'intersection_20200227-2128511582838931.2348.Q.1-100')
 
 
 def qdist(Q, Q1):

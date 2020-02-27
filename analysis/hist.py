@@ -23,6 +23,7 @@ import json
 import os
 from glob import glob
 
+
 # third-party libs
 import dill
 import numpy as np
@@ -33,13 +34,15 @@ import matplotlib.pyplot as plt
 from ilurl.envs.base import TrafficLightQLEnv
 
 ROOT_DIR = os.environ['ILURL_HOME']
-EMISSION_DIR = f"{ROOT_DIR}/data/emissions/"
-CONFIG_DIR = ('4545', '5040', '5434', '6030')
+# EMISSION_DIR = f"{ROOT_DIR}/data/emissions/"
+EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x04/"
+# CONFIG_DIR = ('4545', '5040', '5434', '6030')
+CONFIG_DIR = ('6030',)
 
 if __name__ == '__main__':
 
     # this loop acumulates experiments
-    ext = '.9000.w.info.json'
+    ext = '.9000.l.info.json'
     states = defaultdict(list)
 
     for config_dir in CONFIG_DIR:
@@ -55,11 +58,22 @@ if __name__ == '__main__':
             env = TrafficLightQLEnv.load(f"{filename}.pickle")
 
             # observation spaces
-            observation_spaces_per_cycle = output['observation_spaces']
-            for observation_space in observation_spaces_per_cycle:
-                for i, values in enumerate(env.ql_params.split_space(observation_space)):
+            if 'cycle' not in output:
+                # 0x00, 0x01, 0x02, 0x03
+                # deprecate
+                observation_spaces = [output['observation_spaces']]
+            else:
+                observation_spaces = output['observation_spaces']
+ 
+            for observation_space in observation_spaces:
+                variables = \
+                   env.ql_params.split_space(observation_space)
+                for i, values in enumerate(variables):
+
+                    ()
                     label = env.ql_params.states_labels[i]
-                    states[label] += values
+                    states[label] += \
+                        [val for value in values for val in value]
 
     # plot building
     num_bins = 50
@@ -72,7 +86,6 @@ if __name__ == '__main__':
         # mean and standard deviation of the distribution
         mu = np.mean(values)
         sigma = np.std(values)
-
         # the histogram of the data
         values_normalized = [
             round((v - mu) / sigma, 2) for v in values

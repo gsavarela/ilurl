@@ -1,7 +1,7 @@
 """The module helps define the q learning dictionary"""
 __author__ = "Guilherme Varela"
 __date__ = "2019-07-25"
-import pdb
+
 
 from numpy import argmax, sqrt, log, isnan
 from numpy.random import choice, rand
