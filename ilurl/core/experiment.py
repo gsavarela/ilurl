@@ -18,6 +18,7 @@ import os
 import tempfile
 import time
 from collections import defaultdict
+import pdb
 
 from tqdm import tqdm
 
@@ -86,11 +87,15 @@ class Experiment:
                 f"In validation mode an array of policies must be provided"
             )
 
+        sim_step = env.sim_params.sim_step
         self.env = env
         self.train = train
         self.dir_path = dir_path
-        self.policies = policies
+        self.Qs = policies
+        # fails gracifully if an environment with no cycle time
+        # is provided
         self.cycle = getattr(env, 'cycle_time', None)
+        self.save_step = getattr(env, 'cycle_time', 1) / sim_step
 
         logging.info(" Starting experiment {} at {}".format(
             env.network.name, str(datetime.datetime.utcnow())))
@@ -103,8 +108,7 @@ class Experiment:
             num_runs,
             num_steps,
             rl_actions=None,
-            convert_to_csv=False,
-            save_interval=None
+            convert_to_csv=False
     ):
         """
         Run the given scenario for a set number of runs and steps per run.
@@ -121,9 +125,6 @@ class Experiment:
         convert_to_csv : bool
             Specifies whether to convert the emission file created by sumo
             into a csv file
-        save_interval: int or None
-            Will save and retore every refresh_interval number of runs.
-            if not supplied None will only save after termination
 
         Returns
         -------
@@ -143,9 +144,6 @@ class Experiment:
                 'output should be generated. If you do not wish to generate '
                 'emissions, set the convert_to_csv parameter to False.')
 
-        if save_interval is not None:
-            print('Warning save_interval has been disabled')
-
         info_dict = {}
         if rl_actions is None:
 
@@ -160,7 +158,6 @@ class Experiment:
 
         for i in range(num_runs):
             logging.info("Iter #" + str(i))
-            actions_list = []
 
             vel_list = []
             veh_list = []
@@ -181,34 +178,34 @@ class Experiment:
                     )
                 )
 
-                if self.cycle is not None:
-                    if self.env.duration == 0.0:
-                        obs_list.append(
-                            list(self.env.get_observation_space()))
-                        act_list.append(
-                            getattr(self.env, 'rl_action', None))
-                        rew_list.append(reward)
+                if self._is_save_step():
+                    obs_list.append(
+                        list(self.env.get_observation_space()))
+                    act_list.append(
+                        getattr(self.env, 'rl_action', None))
+                    rew_list.append(round(reward, 4))
 
-                        veh_list.append(sum(veh_i) / self.cycle)
-                        vel_list.append(sum(vel_i) / self.cycle)
+                    veh_list.append(np.nanmean(veh_i).round(4))
+                    vel_list.append(np.nanmean(vel_i).round(4))
+                    veh_i = []
+                    vel_i = []
+
                 if done:
                     break
 
-
                 # for every 100 decisions -- save Q
-                if j % 9000 == 0:
+                if self._is_save_q_table():
+                    n = int(j / self.save_step) + 1
                     filename = \
-                        f'{self.env.network.name}.Q.{i + 1}-{int(j / 9000)}.pickle'
-                    if self.train:
-                        if hasattr(self.env, 'dump') and self.dir_path:
-                            self.env.dump(self.dir_path,
-                                          f'{self.env.network.name}.Q.{i + 1}-{int(j / 9000)}.pickle',
-                                          attr_name='Q')
+                        f'{self.env.network.name}.Q.{i + 1}-{n}.pickle'
 
-                    else:
-                        if i < len(self.policies):
-                            self.env.Q = self.policies[i]
+                    self.env.dump(self.dir_path,
+                                  filename,
+                                  attr_name='Q')
 
+                elif self._is_swap_q_table():
+                    if i < len(self.Qs):
+                        self.env.Q = self.Qs[i]
 
             vels.append(vel_list)
             vehs.append(veh_list)
@@ -221,16 +218,20 @@ class Experiment:
                   """)
 
         info_dict["id"] = self.env.network.name
-        info_dict["rewards"] = per_cycle_rewards
+        info_dict["cycle"] = self.cycle
+        info_dict["save_step"] = self.save_step
+        info_dict["rewards"] = rewards
         info_dict["velocities"] = vels
         info_dict["vehicles"] = vehs
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions
 
+        rets = [np.nanmean(rew_list) for rew_list in rewards]
+        velocities = [np.nanmean(ret_list) for ret_list in vels]
         print("Average, std return: {}, {}".format(np.nanmean(rets),
                                                    np.nanstd(rets)))
-        print("Average, std speed: {}, {}".format(np.nanmean(mean_vels),
-                                                  np.nanstd(mean_vels)))
+        print("Average, std speed: {}, {}".format(np.nanmean(velocities),
+                                                  np.nanstd(velocities)))
         self.env.terminate()
 
         print('emissions', f'{self.env.sim_params.emission_path}/{self.env.network.name}')
@@ -243,7 +244,7 @@ class Experiment:
                     "{0}-emission.xml".format(self.env.network.name)
 
                 emission_path = os.path.join(
-                    self.env.sim_params.emission_pathself.dir_path, 
+                    self.env.sim_params.emission_pathself.dir_path,
                     emission_filename
                 )
 
@@ -251,4 +252,17 @@ class Experiment:
 
         return info_dict
 
+    def _is_save_step(self):
+        if self.cycle is not None:
+            return self.env.duration == 0.0
+        return self.step_counter % self.save_step == 0
 
+    def _is_save_q_table(self):
+        if self.env.step_counter % (100 * self.save_step) == 0:
+            return self.train and hasattr(self.env, 'dump') and self.dir_path
+        return False
+
+    def _is_swap_q_table(self):
+        if self.env.step_counter % (100 * self.save_step) == 0:
+            return not self.train
+        return False
