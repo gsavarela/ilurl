@@ -130,9 +130,9 @@ def plots():
                 with open(path, 'r') as f:
                     stats = json.load(f)
 
-                returns = stats['per_step_returns']
-                ni = len(stats['per_step_returns'])
-                total = len(stats['per_step_returns'][0])
+                returns = stats['rewards']
+                ni = len(stats['rewards'])
+                total = len(stats['rewards'][0])
                 nc = int(total / CYCLE)
 
 

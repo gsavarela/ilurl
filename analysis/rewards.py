@@ -25,11 +25,6 @@ def get_arguments():
         """
     )
 
-    # TODO: validate against existing networks
-    parser.add_argument('period', type=str, nargs='?',
-                        choices=('cycles', 'episodes'),
-                        default='episodes', help='Cycle or episode')
-
     parser.add_argument('--type', '-t', dest='db_type', nargs='?',
                         choices=('evaluate', 'train'),
                         default='evaluate',
@@ -50,7 +45,6 @@ def str2bool(v):
 
 if __name__ == '__main__':
     parser = get_arguments()
-    period = parser.period
 
     db_type = parser.db_type
     if db_type == 'evaluate':
@@ -76,18 +70,11 @@ if __name__ == '__main__':
             with open(path, 'r') as f:
                 data = json.load(f)
 
-            num_iter = len(data['per_step_returns'])
-            num_steps = len(data['per_step_returns'][0])
-
-            if period == 'cycles':
-                p = cycle_time
-            elif period == 'episodes':
-                p = num_steps
-            else:
-                raise ValueError(f'period<{period}> not recognized!')
+            num_iter = len(data['rewards'])
+            num_steps = len(data['rewards'][0])
 
             if nf == 0:
-                N = int((num_steps * num_iter) / p)
+                N = int((num_steps * num_iter) / cycle_time)
                 rets = np.zeros((N,), dtype=float)
                 vels = np.zeros((N,),  dtype=float)
                 vehs = np.zeros((N,),  dtype=float)
@@ -95,43 +82,30 @@ if __name__ == '__main__':
 
             for i in range(num_iter):
 
-                if period == 'episodes':
-                    _vels = data["velocities"][i]
-                    _rets = data["mean_returns"][i]
-                    _vehs = data["vehicles"][i]
+                _rets = data['rewards'][i]
+                _vels = data['velocities'][i]
+                _vehs = data['per_step_vehs'][i]
+                _acts = np.array(data["rl_actions"][i])
+                for t in range(0, num_steps, cycle_time):
 
-                    vels[i] = (nf * vels[i] + _vels) / (nf + 1)
-                    rets[i] = (nf * rets[i] + _rets) / (nf + 1)
-                    vehs[i] = (nf * vehs[i] + _vehs) / (nf + 1)
-                else:
-
-                    _rets = data['per_step_returns'][i]
-                    _vels = data['per_step_velocities'][i]
-                    _vehs = data['per_step_vehs'][i]
-                    _acts = np.array(data["rl_actions"][i])
-                    for t in range(0, num_steps, cycle_time):
-
-                        cycle = int(i * (num_steps / cycle_time) + t / cycle_time)
-                        ind = slice(t, t + cycle_time)
-                        vels[cycle] = \
-                            (nf * vels[cycle] + np.mean(_vels[ind])) / (nf + 1)
-                        rets[cycle] = \
-                            (nf * rets[cycle] + np.sum(_rets[ind])) / (nf + 1)
-                        vehs[cycle] = \
-                            (nf * vehs[cycle] + np.mean(_vehs[ind])) / (nf + 1)
-                        # 0x02 per_step_actions
-                        if len(_acts) == num_steps:
-                            acts[cycle, nf] = \
-                                round(np.array(_acts[ind]).mean())
-                        else:
-                            # 0x03 actions per decision
-                            acts[cycle, nf] = _acts[cycle]
+                    cycle = int(i * (num_steps / cycle_time) + t / cycle_time)
+                    ind = slice(t, t + cycle_time)
+                    vels[cycle] = \
+                        (nf * vels[cycle] + np.mean(_vels[ind])) / (nf + 1)
+                    rets[cycle] = \
+                        (nf * rets[cycle] + np.sum(_rets[ind])) / (nf + 1)
+                    vehs[cycle] = \
+                        (nf * vehs[cycle] + np.mean(_vehs[ind])) / (nf + 1)
+                    # 0x02 per_step_actions
+                    if len(_acts) == num_steps:
+                        acts[cycle, nf] = \
+                            round(np.array(_acts[ind]).mean())
+                    else:
+                        # 0x03 actions per decision
+                        acts[cycle, nf] = _acts[cycle]
 
         _, ax1 = plt.subplots()
-        if period == 'cycles':
-            ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
-        else:
-            ax1.set_xlabel(f'Episodes ({num_steps} sec)')
+        ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
 
         color = 'tab:blue'
         ax1.set_ylabel('Avg. speed', color=color)
@@ -151,16 +125,13 @@ if __name__ == '__main__':
 
         color = 'tab:cyan'
         _, ax1 = plt.subplots()
-        if period == 'cycles':
-            ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
-        else:
-            ax1.set_xlabel(f'Episodes ({num_steps} sec)')
+        ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
 
         ax1.set_ylabel('Avg. Reward per Cycle', color=color)
         ax2.tick_params(axis='y', labelcolor=color)
         ax1.plot(rets, color=color)
         plt.title(f'{phase_split}:avg. cycle return\n({db_type}, n={num_dbs})')
-        plt.savefig(f'{files_dir}{phase_split}_{db_type}_rewards_{period}.png')
+        plt.savefig(f'{files_dir}{phase_split}_{db_type}_rewards.png')
         plt.show()
 
         # optimal action
@@ -168,11 +139,7 @@ if __name__ == '__main__':
         optact = 0.0
         _, ax1 = plt.subplots()
         color = 'tab:orange'
-        if period == 'cycles':
-            ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
-        else:
-            ax1.set_xlabel(f'Episodes ({num_steps} sec)')
-
+        ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
         ax1.set_ylabel('ratio optimal action')
 
         cumacts = np.cumsum(acts == optact, axis=0)

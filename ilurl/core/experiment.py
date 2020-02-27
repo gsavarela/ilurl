@@ -90,6 +90,7 @@ class Experiment:
         self.train = train
         self.dir_path = dir_path
         self.policies = policies
+        self.cycle = getattr(env, 'cycle_time', None)
 
         logging.info(" Starting experiment {} at {}".format(
             env.network.name, str(datetime.datetime.utcnow())))
@@ -150,50 +151,46 @@ class Experiment:
 
             def rl_actions(*_):
                 return None
-        #  duration flags where in the current phase
-        #  the syncronous agent is.
-        is_synch = hasattr(self.env, "duration")
 
-        rets = []
-        mean_rets = []
-        ret_lists = []
         vels = []
         vehs = []
-        mean_vels = []
-        vels_lists = []
-        mean_vehs = []
-        veh_lists = []
-        std_vels = []
-        outflows = []
         observation_spaces = []
-        actions_lists = []
+        actions = []
+        rewards = []
+
         for i in range(num_runs):
-            vel = np.zeros(num_steps)
-            veh = np.zeros(num_steps)
             logging.info("Iter #" + str(i))
-            ret = 0
-            ret_list = []
             actions_list = []
+
             vel_list = []
             veh_list = []
+            rew_list = []
+            act_list = []
+            obs_list = []
             state = self.env.reset()
 
+            veh_i = []
+            vel_i = []
             for j in tqdm(range(num_steps)):
                 state, reward, done, _ = self.env.step(rl_actions(state))
-                speeds = self.env.k.vehicle.get_speed(
-                    self.env.k.vehicle.get_ids()
+                veh_i.append(len(self.env.k.vehicle.get_ids()))
+                vel_i.append(
+                    np.nanmean(self.env.k.vehicle.get_speed(
+                        self.env.k.vehicle.get_ids()
+                        )
+                    )
                 )
-                vel[j] = round(np.nanmean(speeds), 2)
-                veh[j] = len(speeds)
 
-                ret += reward if not(np.isnan(reward)) else 0
-                ret_list.append(round(reward, 2))
+                if self.cycle is not None:
+                    if self.env.duration == 0.0:
+                        obs_list.append(
+                            list(self.env.get_observation_space()))
+                        act_list.append(
+                            getattr(self.env, 'rl_action', None))
+                        rew_list.append(reward)
 
-                if is_synch and self.env.duration == 0.0 and j > 0:
-                    observation_space = list(self.env.get_observation_space())
-                    observation_spaces.append(observation_space)
-                    if hasattr(self.env, 'rl_action'):
-                        actions_list.append(list(self.env.rl_action))
+                        veh_list.append(sum(veh_i) / self.cycle)
+                        vel_list.append(sum(vel_i) / self.cycle)
                 if done:
                     break
 
@@ -212,38 +209,31 @@ class Experiment:
                         if i < len(self.policies):
                             self.env.Q = self.policies[i]
 
-            ret = round(ret, 2)
-            rets.append(ret)
-            vels.append(vel.tolist())
-            vehs.append(veh.tolist())
 
-            mean_rets.append(round(np.nanmean(ret_list), 2))
-            ret_lists.append(ret_list)
-            actions_lists.append(actions_list)
+            vels.append(vel_list)
+            vehs.append(veh_list)
+            observation_spaces.append(obs_list)
+            actions.append(act_list)
+            rewards.append(rew_list)
 
-            veh_list.append(vehs)
-            vel_list.append(vels)
-            mean_vels.append(round(np.nanmean(vel), 2))
-            mean_vehs.append(np.mean(veh))
-            outflows.append(self.env.k.vehicle.get_outflow_rate(int(500)))
-            std_vels.append(round(np.nanstd(vel), 2))
             print(f"""
-                    Round {i}\treturn: {sum(ret_list):0.2f}\tavg speed:{mean_vels[-1]}
+                    Round {i}\treturn: {sum(rew_list):0.2f}\tavg speed:{np.mean(vel_list)}
                   """)
 
-        info_dict["id"] = self.env.network.name
-        info_dict["returns"] = rets
-        info_dict["velocities"] = mean_vels
-        info_dict["mean_returns"] = mean_rets
-        info_dict["per_step_returns"] = ret_lists
-        info_dict["outflows"] = round(np.mean(outflows).astype(float), 2)
-        info_dict["mean_outflows"] = round(np.mean(outflows).astype(float), 2)
+            if show_plot:
+                _rets = [np.sum(rew_list) for rew_list in rewards]
+                _vels = [np.nanmean(vel_list) for vel_list in vels]
+                self.ax1.plot(_rets, 'c-')
+                self.ax2.plot(_vels, 'b-')
+                plt.draw()
+                plt.pause(0.01)
 
-        info_dict["per_step_velocities"] = vels
-        info_dict["per_step_vehs"] = vehs
+        info_dict["id"] = self.env.network.name
+        info_dict["rewards"] = per_cycle_rewards
+        info_dict["velocities"] = vels
+        info_dict["vehicles"] = vehs
         info_dict["observation_spaces"] = observation_spaces
-        info_dict["rl_actions"] = actions_lists
-        info_dict["vehicles"] = mean_vehs
+        info_dict["rl_actions"] = actions
 
         print("Average, std return: {}, {}".format(np.nanmean(rets),
                                                    np.nanstd(rets)))

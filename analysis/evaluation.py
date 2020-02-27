@@ -7,7 +7,6 @@ __date__ = '2020-01-22'
 import os
 import json
 from glob import glob
-import pdb
 
 # third-party libs
 import matplotlib.pyplot as plt
@@ -27,20 +26,21 @@ if __name__ == '__main__':
         file_paths = sorted(glob(f"{path}*.[0-9].eval.info.json"))
 
         returns = []
-        for file_path in file_paths:
+        or file_path in file_paths:
             with open(file_path, 'r') as f:
                 db = json.load(f)
-                returns.append(db['returns'])
-                t = len(db['per_step_returns'][0])
+                ret = np.array(db['rewards']).sum(axis=1)
+                returns.append(ret)
+                t = len(db['rewards'][0])
 
-        returns = np.array(returns)
+        # convert rewards to returns
+        returns = np.concatenate(returns)
         y = np.mean(returns, axis=0)
-        err = np.std(returns, axis=0) 
+        err = np.std(returns, axis=0)
         y_error = [err, err]
         num_iterations = len(y)
-
         x = [int(t / 90) * i for i in range(num_iterations)]
-        
+
 
         # Must savefig.
         label = f'{config_dir[:2]}x{config_dir[2:]}'
