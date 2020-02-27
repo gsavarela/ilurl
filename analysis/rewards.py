@@ -11,7 +11,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ROOT_PATH = os.environ['ILURL_HOME']
-EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x03/'
+
+# EXPERIMENTS_PATH = f'{ROOT_PATH}/data/emissions/'
+EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x04/'
 CYCLE = 90
 TIME = 9000
 # CONFIG_DIRS = ('4545', '5040', '5436', '6030')
@@ -61,49 +63,82 @@ if __name__ == '__main__':
         paths = sorted(glob(f"{files_dir}*.{ext}"))
         num_dbs = len(paths)
         phase_split = f'{config_dir[:2]}x{config_dir[2:]}'
-        try:
-            cycle_time = int(config_dir[:2]) + int(config_dir[2:])
-        except Exception:
-            cycle_time = CYCLE
 
         for nf, path in enumerate(paths):
             with open(path, 'r') as f:
                 data = json.load(f)
+                print(data.keys())
+
+            try:
+                if 'cycle' in data:
+                    # new: information already comes in cycles
+                    cycle_time = data['cycle']
+                    group_by = False
+                else:
+                    # legacy: information was either by episode or sim_step
+                    # 0x00, 0x01, 0x02, 0x03
+                    cycle_time = int(config_dir[:2]) + int(config_dir[2:])
+                    group_by = True
+            except Exception:
+                cycle_time = CYCLE
 
             num_iter = len(data['rewards'])
             num_steps = len(data['rewards'][0])
 
-            if nf == 0:
-                N = int((num_steps * num_iter) / cycle_time)
-                rets = np.zeros((N,), dtype=float)
-                vels = np.zeros((N,),  dtype=float)
-                vehs = np.zeros((N,),  dtype=float)
-                acts = np.zeros((N, num_dbs),  dtype=int)
+            if group_by:
+                if nf == 0:
+                    N = int((num_steps * num_iter) / cycle_time)
+                    rets = np.zeros((N,), dtype=float)
+                    vels = np.zeros((N,),  dtype=float)
+                    vehs = np.zeros((N,),  dtype=float)
+                    acts = np.zeros((N, num_dbs),  dtype=int)
 
-            for i in range(num_iter):
+                for i in range(num_iter):
 
-                _rets = data['rewards'][i]
-                _vels = data['velocities'][i]
-                _vehs = data['per_step_vehs'][i]
-                _acts = np.array(data["rl_actions"][i])
-                for t in range(0, num_steps, cycle_time):
+                    _rets = data['rewards'][i]
+                    _vels = data['velocities'][i]
+                    _vehs = data['vehicles'][i]
+                    _acts = np.array(data["rl_actions"][i])
 
-                    cycle = int(i * (num_steps / cycle_time) + t / cycle_time)
-                    ind = slice(t, t + cycle_time)
-                    vels[cycle] = \
-                        (nf * vels[cycle] + np.mean(_vels[ind])) / (nf + 1)
-                    rets[cycle] = \
-                        (nf * rets[cycle] + np.sum(_rets[ind])) / (nf + 1)
-                    vehs[cycle] = \
-                        (nf * vehs[cycle] + np.mean(_vehs[ind])) / (nf + 1)
-                    # 0x02 per_step_actions
-                    if len(_acts) == num_steps:
-                        acts[cycle, nf] = \
-                            round(np.array(_acts[ind]).mean())
-                    else:
-                        # 0x03 actions per decision
-                        acts[cycle, nf] = _acts[cycle]
+                    for t in range(0, num_steps, cycle_time):
 
+                        cycle = int(i * (num_steps / cycle_time) + t / cycle_time)
+                        ind = slice(t, t + cycle_time)
+                        vels[cycle] = \
+                            (nf * vels[cycle] + np.mean(_vels[ind])) / (nf + 1)
+                        rets[cycle] = \
+                            (nf * rets[cycle] + np.sum(_rets[ind])) / (nf + 1)
+                        vehs[cycle] = \
+                            (nf * vehs[cycle] + np.mean(_vehs[ind])) / (nf + 1)
+                        # 0x02 per_step_actions
+                        if len(_acts) == num_steps:
+                            acts[cycle, nf] = \
+                                round(np.array(_acts[ind]).mean())
+                        else:
+                            # 0x03 actions per decision
+                            acts[cycle, nf] = _acts[cycle]
+            else:
+                if nf == 0:
+                    rets = np.zeros((num_steps, num_dbs), dtype=float)
+                    vels = np.zeros((num_steps, num_dbs), dtype=float)
+                    vehs = np.zeros((num_steps, num_dbs), dtype=float)
+                    acts = np.zeros((num_steps, num_dbs), dtype=int)
+
+                for i in range(num_iter):
+
+                    _rets = data['rewards'][i]
+                    _vels = data['velocities'][i]
+                    _vehs = data['vehicles'][i]
+                    _acts = np.array(data["rl_actions"][i])
+
+                    vels[:, nf] = \
+                        (nf * vels[:, nf] + _vels) / (nf + 1)
+                    rets[:, nf] = \
+                        (nf * rets[:, nf] + _rets) / (nf + 1)
+                    vehs[:, nf] = \
+                        (nf * vehs[:, nf] + _vehs) / (nf + 1)
+
+                    acts[:, nf] = _acts.flatten()
         _, ax1 = plt.subplots()
         ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
 
@@ -119,7 +154,7 @@ if __name__ == '__main__':
         ax2.tick_params(axis='y', labelcolor=color)
 
         plt.title(f'{phase_split}:speed and count\n({db_type}, n={num_dbs})')
-        plt.savefig(f'{files_dir}{phase_split}_{db_type}_velsvehs_{period}.png')
+        plt.savefig(f'{files_dir}{phase_split}_{db_type}_velsvehs.png')
         plt.show()
 
 
@@ -142,6 +177,8 @@ if __name__ == '__main__':
         ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
         ax1.set_ylabel('ratio optimal action')
 
+        import pdb
+        pdb.set_trace()
         cumacts = np.cumsum(acts == optact, axis=0)
         weights = np.arange(1, len(acts) + 1)
 
