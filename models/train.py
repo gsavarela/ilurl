@@ -135,7 +135,7 @@ if __name__ == '__main__':
     additional_params.update(ADDITIONAL_TLS_PARAMS)
     additional_params['long_cycle_time'] = args.long_phase
     additional_params['short_cycle_time'] = args.short_phase
-    additional_params['target_velocity'] = 4
+    additional_params['target_velocity'] = 10
 
     env_params = EnvParams(evaluate=True,
                            additional_params=additional_params)

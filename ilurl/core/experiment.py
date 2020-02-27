@@ -81,7 +81,9 @@ class Experiment:
     """
 
     def __init__(self, env, dir_path=EMISSION_PATH, train=True, policies=None):
-        """Instantiate Experiment."""
+        """
+        Instantiate Experiment.
+        """
         if not train and policies is None:
             raise ValueError(
                 f"In validation mode an array of policies must be provided"
@@ -144,11 +146,12 @@ class Experiment:
                 'output should be generated. If you do not wish to generate '
                 'emissions, set the convert_to_csv parameter to False.')
 
-        info_dict = {}
         if rl_actions is None:
 
             def rl_actions(*_):
                 return None
+
+        info_dict = {}
 
         vels = []
         vehs = []
@@ -157,6 +160,7 @@ class Experiment:
         rewards = []
 
         for i in range(num_runs):
+
             logging.info("Iter #" + str(i))
 
             vel_list = []
@@ -164,12 +168,16 @@ class Experiment:
             rew_list = []
             act_list = []
             obs_list = []
-            state = self.env.reset()
 
             veh_i = []
             vel_i = []
+
+            state = self.env.reset()
+
             for j in tqdm(range(num_steps)):
+
                 state, reward, done, _ = self.env.step(rl_actions(state))
+
                 veh_i.append(len(self.env.k.vehicle.get_ids()))
                 vel_i.append(
                     np.nanmean(self.env.k.vehicle.get_speed(
@@ -193,7 +201,6 @@ class Experiment:
                 if done:
                     break
 
-                # for every 100 decisions -- save Q
                 if self._is_save_q_table():
                     n = int(j / self.save_step) + 1
                     filename = \
@@ -228,10 +235,12 @@ class Experiment:
 
         rets = [np.nanmean(rew_list) for rew_list in rewards]
         velocities = [np.nanmean(ret_list) for ret_list in vels]
+
         print("Average, std return: {}, {}".format(np.nanmean(rets),
                                                    np.nanstd(rets)))
         print("Average, std speed: {}, {}".format(np.nanmean(velocities),
                                                   np.nanstd(velocities)))
+
         self.env.terminate()
 
         print('emissions', f'{self.env.sim_params.emission_path}/{self.env.network.name}')
