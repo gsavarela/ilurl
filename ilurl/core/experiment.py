@@ -220,14 +220,6 @@ class Experiment:
                     Round {i}\treturn: {sum(rew_list):0.2f}\tavg speed:{np.mean(vel_list)}
                   """)
 
-            if show_plot:
-                _rets = [np.sum(rew_list) for rew_list in rewards]
-                _vels = [np.nanmean(vel_list) for vel_list in vels]
-                self.ax1.plot(_rets, 'c-')
-                self.ax2.plot(_vels, 'b-')
-                plt.draw()
-                plt.pause(0.01)
-
         info_dict["id"] = self.env.network.name
         info_dict["rewards"] = per_cycle_rewards
         info_dict["velocities"] = vels
