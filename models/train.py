@@ -63,7 +63,11 @@ def get_arguments():
 
     parser.add_argument('--sumo-emission', '-e',
                         dest='emission', type=str2bool, default=False, nargs='?',
-                       help='Saves emission data from simulation on /data/emissions')
+                        help='Saves emission data from simulation on /data/emissions')
+
+    parser.add_argument('--save-RL-agent', '-a', dest='save_RL_agent',
+                        type=str2bool, default=False, nargs='?',
+                        help='Saves RL agent parameters throughout training')
 
 
     parser.add_argument('--tls-short', '-S', dest='short_phase',
@@ -102,6 +106,8 @@ def print_arguments(args):
     print('\tSUMO render: {0}'.format(args.render))
     print('\tSUMO emission: {0}'.format(args.emission))
     print('\tSUMO step: {0}'.format(args.step))
+
+    print('\tSave RL agent: {0}'.format(args.save_RL_agent)) 
 
     print('\tTLS short: {0}'.format(args.short_phase))
     print('\tTLS long: {0}'.format(args.long_phase))
@@ -170,7 +176,10 @@ if __name__ == '__main__':
         network=network
     )
 
-    exp = Experiment(env=env, dir_path=path, train=True)
+    exp = Experiment(env=env,
+                    dir_path=path,
+                    train=True,
+                    save_agent=args.save_RL_agent)
 
     print('Running experiment...')
 

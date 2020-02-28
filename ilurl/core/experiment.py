@@ -80,7 +80,7 @@ class Experiment:
         the environment object the simulator will run
     """
 
-    def __init__(self, env, dir_path=EMISSION_PATH, train=True, policies=None):
+    def __init__(self, env, dir_path=EMISSION_PATH, train=True, save_agent=False, policies=None):
         """
         Instantiate Experiment.
         """
@@ -94,6 +94,7 @@ class Experiment:
         self.train = train
         self.dir_path = dir_path
         self.Qs = policies
+        self.save_agent = save_agent
         # fails gracifully if an environment with no cycle time
         # is provided
         self.cycle = getattr(env, 'cycle_time', None)
@@ -201,7 +202,7 @@ class Experiment:
                 if done:
                     break
 
-                if self._is_save_q_table():
+                if self.save_agent and self._is_save_q_table():
                     n = int(j / self.save_step) + 1
                     filename = \
                         f'{self.env.network.name}.Q.{i + 1}-{n}.pickle'
