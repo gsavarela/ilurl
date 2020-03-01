@@ -80,18 +80,16 @@ class Experiment:
         the environment object the simulator will run
     """
 
-    def __init__(self, env, dir_path=EMISSION_PATH, train=True, policies=None):
+    def __init__(self, env, dir_path=EMISSION_PATH, train=True):
         """Instantiate Experiment."""
-        if not train and policies is None:
-            raise ValueError(
-                f"In validation mode an array of policies must be provided"
-            )
-
         sim_step = env.sim_params.sim_step
+        # garantees that the enviroment has stoped
+        if not train:
+            env.stop = True
+
         self.env = env
         self.train = train
         self.dir_path = dir_path
-        self.Qs = policies
         # fails gracifully if an environment with no cycle time
         # is provided
         self.cycle = getattr(env, 'cycle_time', None)
@@ -194,7 +192,7 @@ class Experiment:
                     break
 
                 # for every 100 decisions -- save Q
-                if self._is_save_q_table():
+                if self._is_save_q_table_step():
                     n = int(j / self.save_step) + 1
                     filename = \
                         f'{self.env.network.name}.Q.{i + 1}-{n}.pickle'
@@ -202,10 +200,6 @@ class Experiment:
                     self.env.dump(self.dir_path,
                                   filename,
                                   attr_name='Q')
-
-                elif self._is_swap_q_table():
-                    if i < len(self.Qs):
-                        self.env.Q = self.Qs[i]
 
             vels.append(vel_list)
             vehs.append(veh_list)
@@ -257,12 +251,7 @@ class Experiment:
             return self.env.duration == 0.0
         return self.step_counter % self.save_step == 0
 
-    def _is_save_q_table(self):
+    def _is_save_q_table_step(self):
         if self.env.step_counter % (100 * self.save_step) == 0:
             return self.train and hasattr(self.env, 'dump') and self.dir_path
-        return False
-
-    def _is_swap_q_table(self):
-        if self.env.step_counter % (100 * self.save_step) == 0:
-            return not self.train
         return False
