@@ -56,15 +56,20 @@ def get_arguments():
                         Q-table. This argument if provided takes the 
                         precedence over time parameter''')
 
+    parser.add_argument('--num_processors', '-p', dest='num_processors',
+                        type=int, default=1, nargs='?',
+                        help='Number of synchronous num_processors')
+
+    parser.add_argument('--render', '-r', dest='render', type=str2bool,
+                        default=False, nargs='?',
+                        help='Renders the simulation') 
+
     parser.add_argument('--switch', '-w', dest='switch', type=str2bool,
                         default=False, nargs='?',
                         help=
                         '''Rollout demand distribution can be either
                         `lane` or `switch` defaults to lane''')
 
-    parser.add_argument('--render', '-r', dest='render', type=str2bool,
-                        default=False, nargs='?',
-                        help='Renders the simulation') 
     return parser.parse_args()
 
 
@@ -98,6 +103,7 @@ def evaluate(env_params, sim_params, ql_params, network, horizon, qtb):
     Returns:
     --------
         * info: dict
+        evaluation metrics for experiment
 
     """
     env1 = TrafficLightQLEnv(
@@ -323,6 +329,11 @@ if __name__ == '__main__':
     x = 'w' if args.switch else 'l'
     render = args.render
     cycles = args.cycles
+    num_processors = args.num_processors
+
+    if num_processors >= mp.cpu_count():
+        num_processors = mp.cpu_count()-1
+        print(f'Number of num_processors downgraded to {num_processors}')
 
     paths = glob(f"{dir_pickle}/*.pickle")
     if not any(paths):
@@ -368,13 +379,13 @@ if __name__ == '__main__':
                 qtb)
             return ret
 
-        # TODO: to do enable multiprocessing
-        # pool = mp.Pool(3)
-        # results = pool.map(gn, qtbs.items())
-        # pool.close()
-
-        results = [fn(qtb) for qtb in qtbs.values()]
-        info = concat(results, horizon)
+        if num_processors > 1:
+            pool = mp.Pool(num_processors)
+            results = pool.map(fn, qtbs.values())
+            pool.close()
+        else:
+            results = [fn(qtb) for qtb in qtbs.values()]
+        info = concat(results, [horizon] * len(results))
         filename = '_'.join(exid[:2])
         file_path = f'{dir_pickle}/{filename}.eval.json'
         with open(file_path, 'w') as f:

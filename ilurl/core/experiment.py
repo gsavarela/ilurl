@@ -220,12 +220,11 @@ class Experiment:
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions
 
-        rets = [np.nanmean(rew_list) for rew_list in rewards]
-        velocities = [np.nanmean(ret_list) for ret_list in vels]
-        print("Average, std return: {}, {}".format(np.nanmean(rets),
-                                                   np.nanstd(rets)))
-        print("Average, std speed: {}, {}".format(np.nanmean(velocities),
-                                                  np.nanstd(velocities)))
+        rets = (np.nanmean(rewards).round(2), np.nanstd(rewards).round(2))
+        velocities = (np.nanmean(vels).round(2), np.nanstd(vels).round(2))
+
+        print(f"Average, std return: {rets[0]}, {rets[1]}")
+        print(f"Average, std speed: {velocities[0]}, {velocities[1]}")
         self.env.terminate()
 
         print('emissions', f'{self.env.sim_params.emission_path}/{self.env.network.name}')
