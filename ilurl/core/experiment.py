@@ -80,25 +80,21 @@ class Experiment:
         the environment object the simulator will run
     """
 
-    def __init__(self, env, dir_path=EMISSION_PATH, train=True, save_agent=False, policies=None):
-        """
-        Instantiate Experiment.
-        """
-        if not train and policies is None:
-            raise ValueError(
-                f"In validation mode an array of policies must be provided"
-            )
-
+    def __init__(self, env, dir_path=EMISSION_PATH, train=True, save_agent=False):
+        """Instantiate Experiment."""
         sim_step = env.sim_params.sim_step
+        # garantees that the enviroment has stoped
+        if not train:
+            env.stop = True
+
         self.env = env
         self.train = train
         self.dir_path = dir_path
-        self.Qs = policies
-        self.save_agent = save_agent
         # fails gracifully if an environment with no cycle time
         # is provided
         self.cycle = getattr(env, 'cycle_time', None)
         self.save_step = getattr(env, 'cycle_time', 1) / sim_step
+        self.save_agent = save_agent
 
         logging.info(" Starting experiment {} at {}".format(
             env.network.name, str(datetime.datetime.utcnow())))
@@ -211,10 +207,6 @@ class Experiment:
                                   filename,
                                   attr_name='Q')
 
-                elif self._is_swap_q_table():
-                    if i < len(self.Qs):
-                        self.env.Q = self.Qs[i]
-
             vels.append(vel_list)
             vehs.append(veh_list)
             observation_spaces.append(obs_list)
@@ -234,17 +226,16 @@ class Experiment:
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions
 
-        rets = [np.nanmean(rew_list) for rew_list in rewards]
-        velocities = [np.nanmean(ret_list) for ret_list in vels]
+        rets = (np.nanmean(rewards).round(2), np.nanstd(rewards).round(2))
+        velocities = (np.nanmean(vels).round(2), np.nanstd(vels).round(2))
 
-        print("Average, std return: {}, {}".format(np.nanmean(rets),
-                                                   np.nanstd(rets)))
-        print("Average, std speed: {}, {}".format(np.nanmean(velocities),
-                                                  np.nanstd(velocities)))
-
+        print(f"Average, std return: {rets[0]}, {rets[1]}")
+        print(f"Average, std speed: {velocities[0]}, {velocities[1]}")
         self.env.terminate()
 
-        print('emissions', f'{self.env.sim_params.emission_path}/{self.env.network.name}')
+        _save_path = self.env.sim_params.emission_path
+        _filename = self.env.network.name
+        print('emissions', f'{_save_path}/{_filename}')
         if self.env.sim_params.emission_path:
             # wait a short period of time to ensure the xml file is readable
             time.sleep(0.1)
@@ -267,12 +258,7 @@ class Experiment:
             return self.env.duration == 0.0
         return self.step_counter % self.save_step == 0
 
-    def _is_save_q_table(self):
+    def _is_save_q_table_step(self):
         if self.env.step_counter % (100 * self.save_step) == 0:
             return self.train and hasattr(self.env, 'dump') and self.dir_path
-        return False
-
-    def _is_swap_q_table(self):
-        if self.env.step_counter % (100 * self.save_step) == 0:
-            return not self.train
         return False
