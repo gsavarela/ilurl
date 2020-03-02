@@ -198,7 +198,7 @@ class Experiment:
                 if done:
                     break
 
-                if self.save_agent and self._is_save_q_table():
+                if self.save_agent and self._is_save_q_table_step():
                     n = int(j / self.save_step) + 1
                     filename = \
                         f'{self.env.network.name}.Q.{i + 1}-{n}.pickle'
