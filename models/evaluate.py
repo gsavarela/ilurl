@@ -408,6 +408,6 @@ if __name__ == '__main__':
         info['processed_at'] = \
             datetime.now().strftime('%Y-%m-%d%H%M%S.%f')
         filename = '_'.join(exid[:2])
-        file_path = f'{dir_pickle}/{filename}.eval.json'
+        file_path = f'{dir_pickle}/{filename}.{x}.eval.info.json'
         with open(file_path, 'w') as f:
             json.dump(info, f)
