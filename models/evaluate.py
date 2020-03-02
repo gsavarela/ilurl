@@ -8,15 +8,14 @@
 __author__ = 'Guilherme Varela'
 __date__ = '2019-09-24'
 
+from datetime import datetime
 import multiprocessing as mp
-from copy import deepcopy
 from collections import defaultdict, OrderedDict
 import re
 import os
 from glob import glob
 import json
 import argparse
-import pdb
 
 import dill
 
@@ -123,7 +122,7 @@ def evaluate(env_params, sim_params, ql_params, network, horizon, qtb):
     return result
 
 
-def concat(evaluations, horizon):
+def concat(evaluations):
     """Receives an experiments' json and merges it's contents
 
     Params:
@@ -153,30 +152,48 @@ def concat(evaluations, horizon):
                     result[k] = result[k] + v
                 else:
                     result[k].append(v)
-        result['horizon'] = horizon
     return result
 
 
 def parse_all(paths):
-    parsed_dict = defaultdict(dict)
-    for path in paths:
-        data = parse(path)
-        # store argument condition
-        if data is not None:
-            if len(data) == 4:
-                key = data[1:]
-                key1 = None  # nested key
-            elif len(data) == 6:
-                key = tuple(list(data[1:3]) + [data[-1]])
-                key1 = data[3:5]  # nested key
-            else:
-                raise ValueError(f'{data} not recognized')
+    """Parse paths: splitting into environments and experiments.
 
-            if key1 is None:
-                parsed_dict[key]['env'] = path
+    Params:
+    -------
+        * paths: list
+            list of source paths pointing to either environment
+            or experiment pickle files
+
+    Returns:
+    -------
+        * env2path: dict
+            dict with paths pointing to pickled env instances
+
+        * qtb2path: dict of dicts
+            dict with paths pointing to pickled cycles to Q-tables
+            mappings
+
+    """
+    env2path = {}
+    qtb2path = defaultdict(dict)
+    for path in paths:
+        nuple = parse(path)
+        # store argument condition
+        if nuple is not None:
+            # this nuple encodes an env path
+            if len(nuple) == 4:
+                key = nuple[1:]
+                env2path[key] = path
+            elif len(nuple) == 6:
+                # this nuple encodes a q-table
+                key = tuple(list(nuple[1:3]) + [nuple[-1]])
+                key1 = nuple[3:5]  # nested key
+
+                qtb2path[key][key1] = path
             else:
-                parsed_dict[key][key1] = path
-    return parsed_dict
+                raise ValueError(f'{nuple} not recognized')
+
+    return env2path, qtb2path
 
 
 def parse(x):
@@ -251,7 +268,7 @@ def parse(x):
     return source_dir, network_id, timestamp, iter, cycles, ext
 
 
-def sort_all(data):
+def sort_all(qtb2path):
     """Performs sort accross multiple experiments, within
     each experiment
 
@@ -267,11 +284,8 @@ def sort_all(data):
 
     """
     result = defaultdict(OrderedDict)
-    for exid, qtbs in data.items():
-        result[exid]['env'] = qtbs['env']
-        tmp = {k: v for k, v in qtbs.items() if k != 'env'}
-        tmp = sort_tables(tmp.items())
-        for trial, path in tmp.items():
+    for exid, qtbs in qtb2path.items():
+        for trial, path in sort_tables(qtbs.items()).items():
             result[exid][trial] = path
     return result
 
@@ -310,13 +324,13 @@ def load_all(data):
 
     """
     result = defaultdict(OrderedDict)
-
-    for exid, keys_paths in data.items():
-        for key, path in keys_paths.items():
+    for exid, path_or_dict in data.items():
+        if isinstance(path_or_dict, str):
             # traffic light object
-            if key == 'env':
-                result[exid]['env'] = TrafficLightQLEnv.load(path)
-            else:
+            result[exid] = TrafficLightQLEnv.load(path_or_dict)
+        elif isinstance(path_or_dict, dict):
+            # q-table
+            for key, path in path_or_dict.items():
                 with open(path, 'rb') as f:
                     result[exid][key] = dill.load(f)
     return result
@@ -341,25 +355,27 @@ if __name__ == '__main__':
 
     # process data
     # converts paths into dictionary
-    data = parse_all(paths)
+    env2path, qtb2path = parse_all(paths)
     # sort experiments by instances and cycles
-    data = sort_all(data)
+    qtb2path = sort_all(qtb2path)
     # converts paths into objects
-    data = load_all(data)
-    num_experiments = len(data)
-    # one element will be the environment
-    num_rollouts = sum([len(d) - 1 for d in data.values()])
+    env2obj = load_all(env2path)
+    qtb2obj = load_all(qtb2path)
+    num_experiments = len(env2obj)
+    total_rollouts = sum([len(d) for d in qtb2obj.keys()])
     i = 1
     results = []
-    for exid, qtbs in data.items():
+    for exid, qtbs in qtb2obj.items():
+
+        num_rollouts = len(qtbs)
         print(f"""
                 experiment:\t{i}/{num_experiments}
                 network_id:\t{exid[0]}
                 timestamp:\t{exid[1]}
-                rollouts:\t{len(qtbs) - 1}/{num_rollouts}
+                rollouts:\t{num_rollouts}/{total_rollouts}
               """)
 
-        env = qtbs.pop('env')
+        env = env2obj[exid]
         cycle_time = getattr(env, 'cycle_time', 1)
         env_params = env.env_params
         sim_params = env.sim_params
@@ -385,7 +401,12 @@ if __name__ == '__main__':
             pool.close()
         else:
             results = [fn(qtb) for qtb in qtbs.values()]
-        info = concat(results, [horizon] * len(results))
+        info = concat(results)
+        # add some metadata into it
+        info['horizon'] = [horizon] * len(results)
+        info['rollouts'] = list(qtbs.keys())
+        info['processed_at'] = \
+            datetime.now().strftime('%Y-%m-%d%H%M%S.%f')
         filename = '_'.join(exid[:2])
         file_path = f'{dir_pickle}/{filename}.eval.json'
         with open(file_path, 'w') as f:
