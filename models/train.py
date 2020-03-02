@@ -162,7 +162,7 @@ if __name__ == '__main__':
     # net_id = 'intersection'
     # network = Network.load(net_id, net_path)
     
-    ql_params = QLParams(epsilon=0.10, alpha=0.05,
+    ql_params = QLParams(epsilon=0.10, alpha=0.5,
                          states=('speed', 'count'),
                          rewards={'type': 'target_velocity',
                                   'costs': None},
