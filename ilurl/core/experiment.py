@@ -230,9 +230,11 @@ class Experiment:
                         agent_updates_counter += 1
 
                         # Save train log.
-                        if self.log_info and (agent_updates_counter % log_info_interval == 0):
+                        if self.log_info and \
+                            (agent_updates_counter % self.log_info_interval == 0):
 
-                            filename = f"{self.dir_path}{self.env.network.name}.{i + 1}.train.json"
+                            filename = \
+                                f"{self.dir_path}{self.env.network.name}.{i + 1}.train.json"
 
                             info_dict["rewards"] = rewards
                             info_dict["velocities"] = vels
@@ -261,7 +263,8 @@ class Experiment:
             # Save train log.
             if self.save_info:
 
-                filename = f"{self.dir_path}{self.env.network.name}.{i + 1}.train.json"
+                filename = \
+                    f"{self.dir_path}{self.env.network.name}.{i + 1}.train.json"
 
                 info_dict["rewards"] = rewards
                 info_dict["velocities"] = vels
