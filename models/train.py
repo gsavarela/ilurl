@@ -42,10 +42,6 @@ def get_arguments():
                         default=360, nargs='?',
                         help='Simulation\'s real world time in seconds')
 
-    parser.add_argument('--experiment-iterations', '-i', dest='num_iterations', type=int,
-                        default=1, nargs='?',
-                        help='Number of times to repeat the experiment')
-
     parser.add_argument('--experiment-pickle', '-p', dest='pickle', type=str2bool,
                         default=True, nargs='?',
                         help='Whether to pickle the environment (allowing to reproduce)')
@@ -112,7 +108,6 @@ def str2bool(v):
 def print_arguments(args):
     print('Arguments:')
     print('\tExperiment time: {0}'.format(args.time))
-    print('\tExperiment iterations: {0}'.format(args.num_iterations))
     print('\tExperiment pickle: {0}'.format(args.pickle))
     print('\tExperiment save info: {0}'.format(args.save_info))
     print('\tExperiment log info: {0}'.format(args.log_info))
@@ -193,7 +188,6 @@ if __name__ == '__main__':
     exp = Experiment(env=env,
                     dir_path=path,
                     train=True,
-                    save_info=args.save_info,
                     log_info=args.log_info,
                     log_info_interval=args.log_info_interval,
                     save_agent=args.save_RL_agent,
@@ -203,15 +197,24 @@ if __name__ == '__main__':
 
     start = time.time()
 
-    _ = exp.run(
-        args.num_iterations,
+    info_dict = exp.run(
         int(args.time / args.step)
     )
 
     print(f'Elapsed time {time.time() - start}')
 
+    # Save train log.
+    if args.save_info:
+
+        filename = \
+             f"{env.network.name}.train.json"
+
+        info_path = os.path.join(path, filename)
+        with open(info_path, 'w') as fj:
+            json.dump(info_dict, fj)
+
+    # Save parameters pickle.
     if args.pickle:
-        # TODO: save running parameters
 
         if hasattr(env, 'dump'):
             env.dump(path)

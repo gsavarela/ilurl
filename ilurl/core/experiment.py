@@ -84,7 +84,6 @@ class Experiment:
                 env,
                 dir_path=EMISSION_PATH,
                 train=True,
-                save_info=True,
                 log_info=False,
                 log_info_interval=20,
                 save_agent=False):
@@ -98,8 +97,6 @@ class Experiment:
             path to dump experiment results
         train : bool
             whether to train agent
-        save_info : bool
-            whether to save experiment info at the end of each run
         log_info : bool
             whether to log experiment info into json file throughout training
         log_info_interval : int
@@ -120,7 +117,6 @@ class Experiment:
         # is provided
         self.cycle = getattr(env, 'cycle_time', None)
         self.save_step = getattr(env, 'cycle_time', 1) / sim_step
-        self.save_info = save_info
         self.log_info = log_info
         self.log_info_interval = log_info_interval
         self.save_agent = save_agent
@@ -133,7 +129,6 @@ class Experiment:
 
     def run(
             self,
-            num_runs,
             num_steps,
             rl_actions=None,
             convert_to_csv=False
@@ -143,8 +138,6 @@ class Experiment:
 
         Parameters
         ----------
-        num_runs : int
-            number of runs the experiment should perform
         num_steps : int
             number of steps to be performs in each run of the experiment
         rl_actions : method, optional
@@ -178,100 +171,84 @@ class Experiment:
             def rl_actions(*_):
                 return None
 
-        for i in range(num_runs):
+        info_dict = {}
+        info_dict["id"] = self.env.network.name
+        info_dict["cycle"] = self.cycle
+        info_dict["save_step"] = self.save_step
 
-            logging.info("Iter #" + str(i))
+        vels = []
+        vehs = []
+        observation_spaces = []
+        actions = []
+        rewards = []
 
-            info_dict = {}
-            info_dict["id"] = self.env.network.name
-            info_dict["cycle"] = self.cycle
-            info_dict["save_step"] = self.save_step
+        veh_i = []
+        vel_i = []
 
-            vels = []
-            vehs = []
-            observation_spaces = []
-            actions = []
-            rewards = []
+        agent_updates_counter = 0
 
-            veh_i = []
-            vel_i = []
+        state = self.env.reset()
 
-            agent_updates_counter = 0
+        for j in tqdm(range(num_steps)):
 
-            state = self.env.reset()
+            state, reward, done, _ = self.env.step(rl_actions(state))
 
-            for j in tqdm(range(num_steps)):
-
-                state, reward, done, _ = self.env.step(rl_actions(state))
-
-                veh_i.append(len(self.env.k.vehicle.get_ids()))
-                vel_i.append(
-                    np.nanmean(self.env.k.vehicle.get_speed(
-                        self.env.k.vehicle.get_ids()
-                        )
+            veh_i.append(len(self.env.k.vehicle.get_ids()))
+            vel_i.append(
+                np.nanmean(self.env.k.vehicle.get_speed(
+                    self.env.k.vehicle.get_ids()
                     )
                 )
+            )
 
-                if self._is_save_step():
+            if self._is_save_step():
 
-                    observation_spaces.append(
-                        list(self.env.get_observation_space()))
-                    actions.append(
-                        getattr(self.env, 'rl_action', None))
-                    rewards.append(round(reward, 4))
+                observation_spaces.append(
+                    list(self.env.get_observation_space()))
+                actions.append(
+                    getattr(self.env, 'rl_action', None))
+                rewards.append(round(reward, 4))
 
-                    vehs.append(np.nanmean(veh_i).round(4))
-                    vels.append(np.nanmean(vel_i).round(4))
-                    veh_i = []
-                    vel_i = []
+                vehs.append(np.nanmean(veh_i).round(4))
+                vels.append(np.nanmean(vel_i).round(4))
+                veh_i = []
+                vel_i = []
 
-                    agent_updates_counter += 1
+                agent_updates_counter += 1
 
-                    # Save train log.
-                    if self.log_info and \
-                        (agent_updates_counter % self.log_info_interval == 0):
+                # Save train log.
+                if self.log_info and \
+                    (agent_updates_counter % self.log_info_interval == 0):
 
-                        filename = \
-                            f"{self.dir_path}{self.env.network.name}.{i + 1}.train.json"
-
-                        info_dict["rewards"] = rewards
-                        info_dict["velocities"] = vels
-                        info_dict["vehicles"] = vehs
-                        info_dict["observation_spaces"] = observation_spaces
-                        info_dict["rl_actions"] = actions
-
-                        with open(filename, 'w') as fj:
-                            json.dump(info_dict, fj)
-
-                if done:
-                    break
-
-                if self.save_agent and self._is_save_q_table_step():
-                    n = int(j / self.save_step) + 1
                     filename = \
-                        f'{self.env.network.name}.Q.{i + 1}-{n}.pickle'
+                        f"{self.dir_path}{self.env.network.name}.train.json"
 
-                    self.env.dump(self.dir_path,
-                                  filename,
-                                  attr_name='Q')
+                    info_dict["rewards"] = rewards
+                    info_dict["velocities"] = vels
+                    info_dict["vehicles"] = vehs
+                    info_dict["observation_spaces"] = observation_spaces
+                    info_dict["rl_actions"] = actions
 
+                    with open(filename, 'w') as fj:
+                        json.dump(info_dict, fj)
 
-            print(f"Round {i}\treturn: {sum(rewards):0.2f}\tavg speed:{np.mean(vels)}")
+            if done:
+                break
 
-            info_dict["rewards"] = rewards
-            info_dict["velocities"] = vels
-            info_dict["vehicles"] = vehs
-            info_dict["observation_spaces"] = observation_spaces
-            info_dict["rl_actions"] = actions
-
-            # Save train log.
-            if self.save_info:
-
+            if self.save_agent and self._is_save_q_table_step():
+                n = int(j / self.save_step) + 1
                 filename = \
-                    f"{self.dir_path}{self.env.network.name}.{i + 1}.train.json"
+                    f'{self.env.network.name}.Q.{n}-1.pickle' # TODO: this is a fix to not break models/evaluate.py
 
-                with open(filename, 'w') as fj:
-                    json.dump(info_dict, fj)
+                self.env.dump(self.dir_path,
+                                filename,
+                                attr_name='Q')
+
+        info_dict["rewards"] = rewards
+        info_dict["velocities"] = vels
+        info_dict["vehicles"] = vehs
+        info_dict["observation_spaces"] = observation_spaces
+        info_dict["rl_actions"] = actions
 
         self.env.terminate()
 
