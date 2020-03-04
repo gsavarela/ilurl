@@ -1,7 +1,6 @@
 """Analyses aggregate experiment files e.g info and envs"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-02-13'
-
 import os
 import argparse
 import json
@@ -14,10 +13,11 @@ ROOT_PATH = os.environ['ILURL_HOME']
 
 # EXPERIMENTS_PATH = f'{ROOT_PATH}/data/emissions/'
 EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x04/'
+
 CYCLE = 90
 TIME = 9000
-# CONFIG_DIRS = ('4545', '5040', '5436', '6030')
-CONFIG_DIRS = ('6030',)
+CONFIG_DIRS = ('4545', '5040', '5436', '6030')
+# CONFIG_DIRS = ('5040',)
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -58,8 +58,6 @@ if __name__ == '__main__':
 
     for config_dir in CONFIG_DIRS:
         files_dir = f'{EXPERIMENTS_PATH}{config_dir}/'
-
-
         paths = sorted(glob(f"{files_dir}*.{ext}"))
         num_dbs = len(paths)
         phase_split = f'{config_dir[:2]}x{config_dir[2:]}'
@@ -74,6 +72,7 @@ if __name__ == '__main__':
                     # new: information already comes in cycles
                     cycle_time = data['cycle']
                     group_by = False
+                    
                 else:
                     # legacy: information was either by episode or sim_step
                     # 0x00, 0x01, 0x02, 0x03
@@ -119,28 +118,26 @@ if __name__ == '__main__':
                             acts[cycle, nf] = _acts[cycle]
             else:
                 if nf == 0:
-                    rets = np.zeros((num_steps, num_dbs), dtype=float)
-                    vels = np.zeros((num_steps, num_dbs), dtype=float)
-                    vehs = np.zeros((num_steps, num_dbs), dtype=float)
-                    acts = np.zeros((num_steps, num_dbs), dtype=int)
+                    N = num_steps * num_iter
+                    rets = np.zeros((N, num_dbs), dtype=float)
+                    vels = np.zeros((N, num_dbs), dtype=float)
+                    vehs = np.zeros((N, num_dbs), dtype=float)
+                    acts = np.zeros((N, num_dbs), dtype=int)
 
+                # concatenates vertically the contents
                 for i in range(num_iter):
 
-                    _rets = data['rewards'][i]
-                    _vels = data['velocities'][i]
+                    start = i * num_steps
+                    finish = (i + 1) * num_steps
                     _vehs = data['vehicles'][i]
                     _acts = np.array(data["rl_actions"][i])
 
-                    vels[:, nf] = \
-                        (nf * vels[:, nf] + _vels) / (nf + 1)
-                    rets[:, nf] = \
-                        (nf * rets[:, nf] + _rets) / (nf + 1)
-                    vehs[:, nf] = \
-                        (nf * vehs[:, nf] + _vehs) / (nf + 1)
-
-                    acts[:, nf] = _acts.flatten()
+                    vels[start:finish, nf] = data['velocities'][i]
+                    rets[start:finish, nf] = data['rewards'][i]
+                    vehs[start:finish, nf] = data['vehicles'][i]
+                    acts[start:finish, nf] = np.array(data["rl_actions"][i]).flatten()
         _, ax1 = plt.subplots()
-        ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
+        ax1.set_xlabel(f'Cycles ({np.mean(cycle_time)} sec)')
 
         color = 'tab:blue'
         ax1.set_ylabel('Avg. speed', color=color)
@@ -160,7 +157,7 @@ if __name__ == '__main__':
 
         color = 'tab:cyan'
         _, ax1 = plt.subplots()
-        ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
+        ax1.set_xlabel(f'Cycles ({np.mean(cycle_time)} sec)')
 
         ax1.set_ylabel('Avg. Reward per Cycle', color=color)
         ax2.tick_params(axis='y', labelcolor=color)
@@ -174,7 +171,7 @@ if __name__ == '__main__':
         optact = 0.0
         _, ax1 = plt.subplots()
         color = 'tab:orange'
-        ax1.set_xlabel(f'Cycles ({cycle_time} sec)')
+        ax1.set_xlabel(f'Cycles ({np.mean(cycle_time)} sec)')
         ax1.set_ylabel('ratio optimal action')
 
         cumacts = np.cumsum(acts == optact, axis=0)

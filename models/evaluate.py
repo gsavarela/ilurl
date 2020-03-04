@@ -22,18 +22,7 @@ import dill
 from ilurl.core.experiment import Experiment
 from ilurl.envs.base import TrafficLightQLEnv
 from ilurl.networks.base import Network
-
-# TODO: Generalize for any parameter
-ILURL_HOME = os.environ['ILURL_HOME']
-
-EMISSION_PATH = \
-    f'{ILURL_HOME}/data/emissions/'
-
-NET_PATH = \
-    f'{ILURL_HOME}/data/networks/'
-
-TIMESTAMP_PROG = re.compile(r'[0-9]{8}\-[0-9]{8,}\.[0-9]+')
-
+from ilurl.utils import parse
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -45,7 +34,7 @@ def get_arguments():
 
     # TODO: validate against existing networks
     parser.add_argument('dir_pickle', type=str, nargs='?',
-                        default=f'{EMISSION_PATH}', help='Path to pickle')
+                         help='Path to pickle')
 
 
     parser.add_argument('--cycles', '-c', dest='cycles', type=int,
@@ -195,79 +184,6 @@ def parse_all(paths):
 
     return env2path, qtb2path
 
-
-def parse(x):
-    """Splits experiment string, parsing contents
-
-    Params:
-    -------
-        * x: string
-        Representing a source path,
-        if x is not valid returns None,
-
-        if x is an agent returns:
-            source_dir, network_id, timestamp, ext
-
-        if x is a Q-table returns:
-            source_dir, network_id, timestamp, iter, cycle, ext
-
-    Returns:
-    -------
-        * source_dir: string
-            string representing source directory
-
-        * network_id: string
-            the network the experiment
-
-        * timestamp: string
-            representation of datetime the experimentation began
-
-        * iter: integer
-            iteration representing a history, i.e rollout number,
-            if string encodes a Q-table
-
-        * cycle: integer
-            number of cycles within the history/rollout
-
-    Usage:
-    ------
-    > x =  \
-        'data/experiments/0x04/6030/' +
-        'intersection_20200227-1131341582803094.6042109' +
-        '.Q.1-8.pickle'
-    > y = parse(x)
-    > y[0]
-    > 'data/experiments/0x04/6030/'
-    > y[1:]
-    > ('intersection', '20200227-1131341582803094.6042109', 1, 8, 'pickle')
-    """
-
-    *dirs, name = x.split('/')
-    if not dirs:
-        return None
-    source_dir = '/'.join(dirs)
-
-    result = TIMESTAMP_PROG.search(name)
-    if result is None:
-        return None
-    timestamp = result.group()
-    # everything that comes before
-    start, finish = result.span()
-    network_id = name[:start - 1]   # remove underscore
-    ext = name[finish + 1:]
-    if len(ext.split('.')) == 1:
-        return source_dir, network_id, timestamp, ext
-    else:
-        q, code, ext = ext.split('.')
-
-    if q != 'Q':
-        return None
-
-    iter, cycles = [int(c) for c in code.split('-')]
-
-    return source_dir, network_id, timestamp, iter, cycles, ext
-
-
 def sort_all(qtb2path):
     """Performs sort accross multiple experiments, within
     each experiment
@@ -347,7 +263,7 @@ if __name__ == '__main__':
 
     if num_processors >= mp.cpu_count():
         num_processors = mp.cpu_count()-1
-        print(f'Number of num_processors downgraded to {num_processors}')
+        print(f'Number of processors downgraded to {num_processors}')
 
     paths = glob(f"{dir_pickle}/*.pickle")
     if not any(paths):
@@ -365,9 +281,10 @@ if __name__ == '__main__':
     total_rollouts = sum([len(d) for d in qtb2obj.keys()])
     i = 1
     results = []
+    num_rollouts = 0
     for exid, qtbs in qtb2obj.items():
 
-        num_rollouts = len(qtbs)
+        num_rollouts += len(qtbs)
         print(f"""
                 experiment:\t{i}/{num_experiments}
                 network_id:\t{exid[0]}
@@ -408,6 +325,7 @@ if __name__ == '__main__':
         info['processed_at'] = \
             datetime.now().strftime('%Y-%m-%d%H%M%S.%f')
         filename = '_'.join(exid[:2])
-        file_path = f'{dir_pickle}/{filename}.eval.json'
+        file_path = f'{dir_pickle}/{filename}.{x}.eval.info.json'
         with open(file_path, 'w') as f:
             json.dump(info, f)
+        i += 1

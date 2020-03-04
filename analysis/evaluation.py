@@ -13,30 +13,27 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT_PATH = os.environ['ILURL_HOME']
-# EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x01/'
-EXPERIMENTS_PATH = f'{ROOT_PATH}/data/emissions/'
+EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x04/'
+# EXPERIMENTS_PATH = f'{ROOT_PATH}/data/emissions/'
 
-#CONFIG_DIRS = ('4545', '5040', '5436', '6030')
-CONFIG_DIRS = ('4545', '5040', '6030')
+CONFIG_DIRS = ('4545', '5040', '5436', '6030')
 
 if __name__ == '__main__':
-
     for config_dir in CONFIG_DIRS:
         path = f'{EXPERIMENTS_PATH}{config_dir}/'
-        file_paths = sorted(glob(f"{path}*.[0-9].eval.info.json"))
+        file_paths = sorted(glob(f"{path}*.eval.info.json"))
 
-        returns = []
-        or file_path in file_paths:
+        rewards = []
+        for file_path in file_paths:
             with open(file_path, 'r') as f:
                 db = json.load(f)
-                ret = np.array(db['rewards']).sum(axis=1)
-                returns.append(ret)
-                t = len(db['rewards'][0])
+                rew = np.array(db['rewards']).sum(axis=1)
+                rewards.append(rew)
 
-        # convert rewards to returns
-        returns = np.concatenate(returns)
-        y = np.mean(returns, axis=0)
-        err = np.std(returns, axis=0)
+        # convert rewards to rewards
+        rewards = np.concatenate(rewards)
+        y = np.mean(rewards, axis=0)
+        err = np.std(rewards, axis=0)
         y_error = [err, err]
         num_iterations = len(y)
         x = [int(t / 90) * i for i in range(num_iterations)]
@@ -53,8 +50,8 @@ if __name__ == '__main__':
 
         # Must recover best policy and experiment
         batch, policy = np.unravel_index(
-            np.argmax(returns, axis=None),
-            returns.shape
+            np.argmax(rewards, axis=None),
+            rewards.shape
         )
         
         # policyid == policy_index first policy in the 

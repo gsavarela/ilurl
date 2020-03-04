@@ -27,14 +27,13 @@ import matplotlib.pyplot as plt
 from ilurl.envs.base import TrafficLightQLEnv
 
 ROOT_DIR = os.environ['ILURL_HOME']
-# EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x02/"
 EMISSION_DIR = f"{ROOT_DIR}/data/experiments/0x04/"
-# CONFIG_DIR = ('4545', '5040', '5434', '6030')
-CONFIG_DIR = ('6030',)
+CONFIG_DIR = ('4545', '5040', '5436', '6030')
+# CONFIG_DIR = ('5040', '6030')
 
 if __name__ == '__main__':
     # this loop acumulates experiments
-    ext = '.9000.l.info.json'
+    ext = '.l.eval.info.json'
     phases = defaultdict(list)
     labels = []
     desired_velocity = None
@@ -111,5 +110,5 @@ if __name__ == '__main__':
         ax.legend()
         ax.grid(True)
         plt.title(f'{split}: observation space (N={N})')
-        plt.savefig(f'{EMISSION_DIR}{config_dir}/{split}.png')
+        plt.savefig(f'{EMISSION_DIR}{config_dir}/{split}_scatter.png')
         plt.show()
