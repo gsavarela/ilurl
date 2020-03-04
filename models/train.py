@@ -46,11 +46,6 @@ def get_arguments():
                         default=True, nargs='?',
                         help='Whether to pickle the environment (allowing to reproduce)')
 
-    parser.add_argument('--experiment-save-info', '-j', dest='save_info', type=str2bool,
-                        default=True, nargs='?',
-                        help='Whether to save experiment-related data in a JSON file, \
-                         at the end of each experiment')
-
     parser.add_argument('--experiment-log', '-l', dest='log_info', type=str2bool,
                         default=False, nargs='?',
                         help='Whether to save experiment-related data in a JSON file \
@@ -109,7 +104,6 @@ def print_arguments(args):
     print('Arguments:')
     print('\tExperiment time: {0}'.format(args.time))
     print('\tExperiment pickle: {0}'.format(args.pickle))
-    print('\tExperiment save info: {0}'.format(args.save_info))
     print('\tExperiment log info: {0}'.format(args.log_info))
     print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
     print('\tExperiment save RL agent: {0}'.format(args.save_RL_agent)) 
@@ -204,14 +198,12 @@ if __name__ == '__main__':
     print(f'Elapsed time {time.time() - start}')
 
     # Save train log.
-    if args.save_info:
+    filename = \
+            f"{env.network.name}.train.json"
 
-        filename = \
-             f"{env.network.name}.train.json"
-
-        info_path = os.path.join(path, filename)
-        with open(info_path, 'w') as fj:
-            json.dump(info_dict, fj)
+    info_path = os.path.join(path, filename)
+    with open(info_path, 'w') as fj:
+        json.dump(info_dict, fj)
 
     # Save parameters pickle.
     if args.pickle:

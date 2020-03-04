@@ -238,7 +238,7 @@ class Experiment:
             if self.save_agent and self._is_save_q_table_step():
                 n = int(j / self.save_step) + 1
                 filename = \
-                    f'{self.env.network.name}.Q.{n}-1.pickle' # TODO: this is a fix to not break models/evaluate.py
+                    f'{self.env.network.name}.Q.1-{n}.pickle' # TODO: this is a fix to not break models/evaluate.py
 
                 self.env.dump(self.dir_path,
                                 filename,
