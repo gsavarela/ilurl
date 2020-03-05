@@ -44,6 +44,11 @@ def get_arguments():
                         default=100, nargs='?',
                         help='Number of cycles for a single rollout of a Q-table.')
 
+
+    parser.add_argument('--limit', '-l', dest='limit',
+                        type=int, default=500, nargs='?',
+                        help='Use only Q-tables generated until `-l` cycle')
+
     parser.add_argument('--num_processors', '-p', dest='num_processors',
                         type=int, default=1, nargs='?',
                         help='Number of synchronous num_processors')
@@ -239,7 +244,7 @@ def sort_tables(qtbs):
     return OrderedDict(qtbs)
 
 
-def filter_tables(qtbs2path, skip):
+def filter_tables(qtbs2path, skip, limit):
     """Remove qids which are not multiple of skip
 
 
@@ -251,7 +256,10 @@ def filter_tables(qtbs2path, skip):
             values: <string>
 
     *   skip: int
-            multiple to keep
+            keep multiples of cycles indicated by skip
+
+    *   limit: int
+            keep Q-tables trained up until limit
 
     Returns:
     -------
@@ -259,9 +267,12 @@ def filter_tables(qtbs2path, skip):
             possibly with some elements removed
 
     """
+    def fn(x):
+        return x[1] % skip == 0 and x[1] <= limit
+
     return {
             expid:
-            {qid: qtb for qid, qtb in qtbs.items() if qid[1] % skip == 0}
+            {qid: qtb for qid, qtb in qtbs.items() if fn(qid)}
             for expid, qtbs in qtbs2path.items()
     }
 
@@ -307,6 +318,7 @@ if __name__ == '__main__':
     num_processors = args.num_processors
     num_rollouts = args.num_rollouts
     skip = args.skip
+    limit = args.limit
 
     if num_processors >= mp.cpu_count():
         num_processors = mp.cpu_count() - 1
@@ -319,7 +331,7 @@ if __name__ == '__main__':
     pattern = f'{prefix}.Q.*'
     _, qtb2path = parse_all(glob(pattern))
     # remove paths
-    qtb2path = filter_tables(qtb2path, skip)
+    qtb2path = filter_tables(qtb2path, skip, limit)
     # sort experiments by instances and cycles
     qtb2path = sort_all(qtb2path)
     # converts paths into objects
@@ -371,8 +383,11 @@ if __name__ == '__main__':
         keys = list(qtbs.keys())
         if (1, 0) not in keys:
             keys = [(1, 0)] + keys
-        info['horizon'] = {k[1]:horizon * cycles for k in keys}
+        info['horizon'] = horizon 
         info['rollouts'] = [k[1] for k in keys]
+        info['num_rollouts'] = num_rollouts
+        info['limit'] = limit
+        info['skip'] = skip
         info['processed_at'] = \
             datetime.now().strftime('%Y-%m-%d%H%M%S.%f')
         filename = '_'.join(exid[:2])
