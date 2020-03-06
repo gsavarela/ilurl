@@ -80,8 +80,31 @@ class Experiment:
         the environment object the simulator will run
     """
 
-    def __init__(self, env, dir_path=EMISSION_PATH, train=True, save_agent=False):
-        """Instantiate Experiment."""
+    def __init__(self,
+                env,
+                dir_path=EMISSION_PATH,
+                train=True,
+                log_info=False,
+                log_info_interval=20,
+                save_agent=False):
+        """
+
+        Parameters
+        ----------
+        env : flow.envs.Env
+            the environment object the simulator will run
+        dir_path : int
+            path to dump experiment results
+        train : bool
+            whether to train agent
+        log_info : bool
+            whether to log experiment info into json file throughout training
+        log_info_interval : int
+            json file log interval (in number of agent-update steps)
+        save_agent : bool
+            whether to save RL agent parameters throughout training
+
+        """
         sim_step = env.sim_params.sim_step
         # garantees that the enviroment has stoped
         if not train:
@@ -94,6 +117,8 @@ class Experiment:
         # is provided
         self.cycle = getattr(env, 'cycle_time', None)
         self.save_step = getattr(env, 'cycle_time', 1) / sim_step
+        self.log_info = log_info
+        self.log_info_interval = log_info_interval
         self.save_agent = save_agent
 
         logging.info(" Starting experiment {} at {}".format(
@@ -104,7 +129,6 @@ class Experiment:
 
     def run(
             self,
-            num_runs,
             num_steps,
             rl_actions=None,
             convert_to_csv=False
@@ -114,8 +138,6 @@ class Experiment:
 
         Parameters
         ----------
-        num_runs : int
-            number of runs the experiment should perform
         num_steps : int
             number of steps to be performs in each run of the experiment
         rl_actions : method, optional
@@ -128,11 +150,12 @@ class Experiment:
         Returns
         -------
         info_dict : dict
-            contains returns, average speed per step
+            contains returns, average speed per step (last run)
         """
-        # raise an error if convert_to_csv is set to True but no emission
+
+        # Raise an error if convert_to_csv is set to True but no emission
         # file will be generated, to avoid getting an error at the end of the
-        # simulation
+        # simulation.
         if convert_to_csv and self.env.sim_params.emission_path is None:
             raise ValueError(
                 'The experiment was run with convert_to_csv set '
@@ -149,6 +172,9 @@ class Experiment:
                 return None
 
         info_dict = {}
+        info_dict["id"] = self.env.network.name
+        info_dict["cycle"] = self.cycle
+        info_dict["save_step"] = self.save_step
 
         vels = []
         vehs = []
@@ -156,86 +182,79 @@ class Experiment:
         actions = []
         rewards = []
 
-        for i in range(num_runs):
+        veh_i = []
+        vel_i = []
 
-            logging.info("Iter #" + str(i))
+        agent_updates_counter = 0
 
-            vel_list = []
-            veh_list = []
-            rew_list = []
-            act_list = []
-            obs_list = []
+        state = self.env.reset()
 
-            veh_i = []
-            vel_i = []
+        for j in tqdm(range(num_steps)):
 
-            state = self.env.reset()
+            state, reward, done, _ = self.env.step(rl_actions(state))
 
-            for j in tqdm(range(num_steps)):
-
-                state, reward, done, _ = self.env.step(rl_actions(state))
-
-                veh_i.append(len(self.env.k.vehicle.get_ids()))
-                vel_i.append(
-                    np.nanmean(self.env.k.vehicle.get_speed(
-                        self.env.k.vehicle.get_ids()
-                        )
+            veh_i.append(len(self.env.k.vehicle.get_ids()))
+            vel_i.append(
+                np.nanmean(self.env.k.vehicle.get_speed(
+                    self.env.k.vehicle.get_ids()
                     )
                 )
+            )
 
-                if self._is_save_step():
-                    obs_list.append(
-                        list(self.env.get_observation_space()))
-                    act_list.append(
-                        getattr(self.env, 'rl_action', None))
-                    rew_list.append(round(reward, 4))
+            if self._is_save_step():
 
-                    veh_list.append(np.nanmean(veh_i).round(4))
-                    vel_list.append(np.nanmean(vel_i).round(4))
-                    veh_i = []
-                    vel_i = []
+                observation_spaces.append(
+                    list(self.env.get_observation_space()))
+                actions.append(
+                    getattr(self.env, 'rl_action', None))
+                rewards.append(round(reward, 4))
 
-                if done:
-                    break
+                vehs.append(np.nanmean(veh_i).round(4))
+                vels.append(np.nanmean(vel_i).round(4))
+                veh_i = []
+                vel_i = []
 
-                if self.save_agent and self._is_save_q_table_step():
-                    n = int(j / self.save_step) + 1
+                agent_updates_counter += 1
+
+                # Save train log.
+                if self.log_info and \
+                    (agent_updates_counter % self.log_info_interval == 0):
+
                     filename = \
-                        f'{self.env.network.name}.Q.{i + 1}-{n}.pickle'
+                        f"{self.dir_path}{self.env.network.name}.train.json"
 
-                    self.env.dump(self.dir_path,
-                                  filename,
-                                  attr_name='Q')
+                    info_dict["rewards"] = rewards
+                    info_dict["velocities"] = vels
+                    info_dict["vehicles"] = vehs
+                    info_dict["observation_spaces"] = observation_spaces
+                    info_dict["rl_actions"] = actions
 
-            vels.append(vel_list)
-            vehs.append(veh_list)
-            observation_spaces.append(obs_list)
-            actions.append(act_list)
-            rewards.append(rew_list)
+                    with open(filename, 'w') as fj:
+                        json.dump(info_dict, fj)
 
-            print(f"""
-                    Round {i}\treturn: {sum(rew_list):0.2f}\tavg speed:{np.mean(vel_list)}
-                  """)
+            if done:
+                break
 
-        info_dict["id"] = self.env.network.name
-        info_dict["cycle"] = self.cycle
-        info_dict["save_step"] = self.save_step
+            if self.save_agent and self._is_save_q_table_step():
+                n = int(j / self.save_step) + 1
+                filename = \
+                    f'{self.env.network.name}.Q.1-{n}.pickle' # TODO: this is a fix to not break models/evaluate.py
+
+                self.env.dump(self.dir_path,
+                                filename,
+                                attr_name='Q')
+
         info_dict["rewards"] = rewards
         info_dict["velocities"] = vels
         info_dict["vehicles"] = vehs
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions
 
-        rets = (np.nanmean(rewards).round(2), np.nanstd(rewards).round(2))
-        velocities = (np.nanmean(vels).round(2), np.nanstd(vels).round(2))
-
-        print(f"Average, std return: {rets[0]}, {rets[1]}")
-        print(f"Average, std speed: {velocities[0]}, {velocities[1]}")
         self.env.terminate()
 
-        _save_path = self.env.sim_params.emission_path
-        _filename = self.env.network.name
-        print('emissions', f'{_save_path}/{_filename}')
+        print('Experiment:', f'{self.dir_path}{self.env.network.name}')
+
+        # Convert xml to csv.
         if self.env.sim_params.emission_path:
             # wait a short period of time to ensure the xml file is readable
             time.sleep(0.1)
@@ -245,7 +264,7 @@ class Experiment:
                     "{0}-emission.xml".format(self.env.network.name)
 
                 emission_path = os.path.join(
-                    self.env.sim_params.emission_pathself.dir_path,
+                    self.env.sim_params.emission_path,self.dir_path,
                     emission_filename
                 )
 

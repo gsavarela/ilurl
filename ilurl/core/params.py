@@ -58,7 +58,7 @@ class QLParams:
             self,
             epsilon=3e-2,
             alpha=5e-2,
-            gamma=0.95,
+            gamma=0.9,
             c=2,
             initial_value=0,
             max_speed=35,
