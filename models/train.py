@@ -73,6 +73,9 @@ def get_arguments():
                         dest='emission', type=str2bool, default=False, nargs='?',
                         help='Saves emission data from simulation on /data/emissions')
 
+    parser.add_argument('--save-RL-agent', '-a', dest='save_RL_agent',
+                        type=str2bool, default=True, nargs='?',
+                        help='Saves RL agent parameters throughout training')
 
     parser.add_argument('--tls-short', '-S', dest='short_phase',
                         type=int, default=45, nargs='?',
@@ -165,7 +168,7 @@ if __name__ == '__main__':
     # net_id = 'intersection'
     # network = Network.load(net_id, net_path)
     
-    ql_params = QLParams(epsilon=0.10, alpha=0.5,
+    ql_params = QLParams(epsilon=0.10, alpha=0.50,
                          states=('speed', 'count'),
                          rewards={'type': 'target_velocity',
                                   'costs': None},

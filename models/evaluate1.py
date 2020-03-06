@@ -1,13 +1,16 @@
-'''Evaluation script for smart grid network
+'''Evaluation: evaluates 1 experiment
 
- TODO:
- ----
-    * add directory to read rou.xml files
+   * loads one experiment file.
+   * loads all Q-tables, from that experiment.
+   * filter Q-tables from S to S steps.
+   * for each table runs K experiments.
+   
 '''
 
 __author__ = 'Guilherme Varela'
-__date__ = '2019-09-24'
+__date__ = '2020-03-04'
 
+import pdb
 from datetime import datetime
 import multiprocessing as mp
 from collections import defaultdict, OrderedDict
@@ -33,24 +36,30 @@ def get_arguments():
     )
 
     # TODO: validate against existing networks
-    parser.add_argument('dir_pickle', type=str, nargs='?',
-                         help='Path to pickle')
+    parser.add_argument('pickle_path', type=str, nargs='?',
+                         help='Path to an environment saved as pickle')
 
 
     parser.add_argument('--cycles', '-c', dest='cycles', type=int,
                         default=100, nargs='?',
-                        help=
-                        '''Number of cycles for a single rollout of a
-                        Q-table. This argument if provided takes the 
-                        precedence over time parameter''')
+                        help='Number of cycles for a single rollout of a Q-table.')
+
+
+    parser.add_argument('--limit', '-l', dest='limit',
+                        type=int, default=500, nargs='?',
+                        help='Use only Q-tables generated until `-l` cycle')
 
     parser.add_argument('--num_processors', '-p', dest='num_processors',
                         type=int, default=1, nargs='?',
                         help='Number of synchronous num_processors')
 
-    parser.add_argument('--render', '-r', dest='render', type=str2bool,
-                        default=False, nargs='?',
-                        help='Renders the simulation') 
+    parser.add_argument('--num_rollouts', '-r', dest='num_rollouts',
+                        type=int, default=12, nargs='?',
+                        help='''Number of repetitions for each table''')
+
+    parser.add_argument('--sample', '-s', dest='skip',
+                        type=int, default=500, nargs='?',
+                        help='''Sample every `sample` experiments.''')
 
     parser.add_argument('--switch', '-w', dest='switch', type=str2bool,
                         default=False, nargs='?',
@@ -100,14 +109,15 @@ def evaluate(env_params, sim_params, ql_params, network, horizon, qtb):
         ql_params,
         network
     )
-    env1.Q = qtb
+    if qtb is not None:
+        env1.Q = qtb
     env1.stop = True
     eval = Experiment(
         env1,
         dir_path=None,
         train=False,
     )
-    result = eval.run(horizon)
+    result = eval.run(1, horizon)
     return result
 
 
@@ -127,20 +137,29 @@ def concat(evaluations):
               `numeric` params are appended
 
     """
-    result = defaultdict(list)
-    for evl in evaluations:
-        id = evl.pop('id')
+    result = {}
+    for id_qtb in evaluations:
+        qid, qtb = id_qtb
+        id = qtb.pop('id')
         if 'id' not in result:
             result['id'] = id
         elif result['id'] != id:
             raise ValueError(
                 'Tried to concatenate evaluations from different experiments')
-        for k, v in evl.items():
+        for k, v in qtb.items():
             if k != 'id':
+                # TODO: check if integer fields match
+                # such as cycle, save_step, etc
                 if isinstance(v, list):
-                    result[k] = result[k] + v
+                    if k not in result:
+                        result[k] = defaultdict(list)
+                    result[k][qid[1]].append(v)
                 else:
-                    result[k].append(v)
+                    if k in result:
+                        if result[k] != v:
+                            raise ValueError(f'key:\t{k}\t{result[k]} and {v} should match')
+                    else:
+                        result[k] = v
     return result
 
 
@@ -225,6 +244,39 @@ def sort_tables(qtbs):
     return OrderedDict(qtbs)
 
 
+def filter_tables(qtbs2path, skip, limit):
+    """Remove qids which are not multiple of skip
+
+
+    Params:
+    ------
+    *   qtbs2path: dictionary of dictionary
+            keys: <tuple> parsed experiment id
+            keys: <tuple> parsed qtb id
+            values: <string>
+
+    *   skip: int
+            keep multiples of cycles indicated by skip
+
+    *   limit: int
+            keep Q-tables trained up until limit
+
+    Returns:
+    -------
+    *   qtbs2path: dictionary of dictionary
+            possibly with some elements removed
+
+    """
+    def fn(x):
+        return x[1] % skip == 0 and x[1] <= limit
+
+    return {
+            expid:
+            {qid: qtb for qid, qtb in qtbs.items() if fn(qid)}
+            for expid, qtbs in qtbs2path.items()
+    }
+
+
 def load_all(data):
     """Converts path variable into objects
 
@@ -245,87 +297,102 @@ def load_all(data):
             # traffic light object
             result[exid] = TrafficLightQLEnv.load(path_or_dict)
         elif isinstance(path_or_dict, dict):
+            
             # q-table
             for key, path in path_or_dict.items():
                 with open(path, 'rb') as f:
                     result[exid][key] = dill.load(f)
+        else:
+            raise ValueError(
+                f'path_or_dict must be str, dict or None -- got {type(path_or_dict)}')
     return result
 
 
 if __name__ == '__main__':
     args = get_arguments()
 
-    dir_pickle = args.dir_pickle
+    pickle_path = args.pickle_path
+    pickle_dir = '/'.join(pickle_path.split('/')[:-1])
     x = 'w' if args.switch else 'l'
-    render = args.render
     cycles = args.cycles
     num_processors = args.num_processors
+    num_rollouts = args.num_rollouts
+    skip = args.skip
+    limit = args.limit
 
     if num_processors >= mp.cpu_count():
-        num_processors = mp.cpu_count()-1
+        num_processors = mp.cpu_count() - 1
         print(f'Number of processors downgraded to {num_processors}')
 
-    paths = glob(f"{dir_pickle}/*.pickle")
-    if not any(paths):
-        raise Exception("Environment pickles must be saved on root")
-
-    # process data
-    # converts paths into dictionary
-    env2path, qtb2path = parse_all(paths)
+    # process data: converts paths into dictionary
+    env2path, _ = parse_all([pickle_path])
+    # build Q-tables pattern
+    prefix = '.'.join(pickle_path.split('.')[:2])
+    pattern = f'{prefix}.Q.*'
+    _, qtb2path = parse_all(glob(pattern))
+    # remove paths
+    qtb2path = filter_tables(qtb2path, skip, limit)
     # sort experiments by instances and cycles
     qtb2path = sort_all(qtb2path)
     # converts paths into objects
     env2obj = load_all(env2path)
     qtb2obj = load_all(qtb2path)
     num_experiments = len(env2obj)
-    total_rollouts = sum([len(d) for d in qtb2obj.keys()])
     i = 1
     results = []
-    num_rollouts = 0
     for exid, qtbs in qtb2obj.items():
-
-        num_rollouts += len(qtbs)
-        print(f"""
-                experiment:\t{i}/{num_experiments}
-                network_id:\t{exid[0]}
-                timestamp:\t{exid[1]}
-                rollouts:\t{num_rollouts}/{total_rollouts}
-              """)
 
         env = env2obj[exid]
         cycle_time = getattr(env, 'cycle_time', 1)
         env_params = env.env_params
         sim_params = env.sim_params
-        sim_params.render = render
 
         horizon = int((cycle_time * cycles) / sim_params.sim_step)
         ql_params = env.ql_params
         network = env.network
 
-        def fn(qtb):
-            ret = evaluate(
-                env_params,
-                sim_params,
-                ql_params,
-                network,
-                horizon,
-                qtb)
-            return ret
+        def fn(id_qtb):
+            qid, qtb = id_qtb
+            ret = evaluate(env_params, sim_params, ql_params,
+                           network, horizon, qtb)
+            return (qid, ret)
 
+
+        # rollouts x qtbs
+        # it doest have the blank table
+        if (1, 0) not in qtbs:
+            _qtbs = [((1, 0), None)] * num_rollouts
+        _qtbs += list(qtbs.items()) * num_rollouts
+
+        print(f"""
+                experiment:\t{i}/{num_experiments}
+                network_id:\t{exid[0]}
+                timestamp:\t{exid[1]}
+                rollouts:\t{len(_qtbs)}
+              """)
         if num_processors > 1:
             pool = mp.Pool(num_processors)
-            results = pool.map(fn, qtbs.values())
+            results = pool.map(fn, _qtbs)
             pool.close()
         else:
-            results = [fn(qtb) for qtb in qtbs.values()]
+            results = [fn(qtb) for qtb in _qtbs]
         info = concat(results)
+
         # add some metadata into it
-        info['horizon'] = [horizon] * len(results)
-        info['rollouts'] = list(qtbs.keys())
+        # TODO: generate tables Q0
+        keys = list(qtbs.keys())
+        if (1, 0) not in keys:
+            keys = [(1, 0)] + keys
+        info['horizon'] = horizon 
+        info['rollouts'] = [k[1] for k in keys]
+        info['num_rollouts'] = num_rollouts
+        info['limit'] = limit
+        info['skip'] = skip
         info['processed_at'] = \
             datetime.now().strftime('%Y-%m-%d%H%M%S.%f')
         filename = '_'.join(exid[:2])
-        file_path = f'{dir_pickle}/{filename}.{x}.eval.info.json'
+        file_path = f'{pickle_dir}/{filename}.{x}.eval.info.json'
         with open(file_path, 'w') as f:
             json.dump(info, f)
+        print(file_path)
         i += 1

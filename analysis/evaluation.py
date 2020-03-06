@@ -3,7 +3,7 @@
 
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-22'
-
+import pdb
 import os
 import json
 from glob import glob
@@ -13,48 +13,44 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT_PATH = os.environ['ILURL_HOME']
-# EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x01/'
-EXPERIMENTS_PATH = f'{ROOT_PATH}/data/emissions/'
+EXPERIMENTS_PATH = f'{ROOT_PATH}/data/experiments/0x04/'
+# EXPERIMENTS_PATH = f'{ROOT_PATH}/data/emissions/'
 
-#CONFIG_DIRS = ('4545', '5040', '5436', '6030')
-CONFIG_DIRS = ('4545', '5040', '6030')
+CONFIG_DIRS = ('4545', '5040', '5436', '6030')
 
 if __name__ == '__main__':
-
     for config_dir in CONFIG_DIRS:
         path = f'{EXPERIMENTS_PATH}{config_dir}/'
-        file_paths = sorted(glob(f"{path}*.[0-9].eval.info.json"))
+        file_paths = sorted(glob(f"{path}*.eval.info.json"))
 
-        returns = []
-        or file_path in file_paths:
+        rewards = []
+        for file_path in file_paths:
             with open(file_path, 'r') as f:
                 db = json.load(f)
-                ret = np.array(db['rewards']).sum(axis=1)
-                returns.append(ret)
-                t = len(db['rewards'][0])
+                reward = np.concatenate(db['rewards'], axis=0)
+                rewards.append(reward)
 
-        # convert rewards to returns
-        returns = np.concatenate(returns)
-        y = np.mean(returns, axis=0)
-        err = np.std(returns, axis=0)
+        # convert rewards to rewards
+        rewards = np.vstack(rewards).T
+        t, n = rewards.shape
+        y = np.mean(rewards, axis=1)
+        err = np.std(rewards, axis=1)
         y_error = [err, err]
         num_iterations = len(y)
-        x = [int(t / 90) * i for i in range(num_iterations)]
-
 
         # Must savefig.
         label = f'{config_dir[:2]}x{config_dir[2:]}'
         plt.xlabel('Cycles (90 sec.)')
         plt.ylabel('Reward (Km/h)')
-        plt.errorbar(x, y, yerr=y_error, fmt='-o')
+        plt.errorbar(np.arange(1, t + 1), y, yerr=y_error, fmt='-o')
         plt.title(f'Evaluation Phases: {label}')
         plt.savefig(f'{path}{label}.png')
         plt.show()
 
         # Must recover best policy and experiment
         batch, policy = np.unravel_index(
-            np.argmax(returns, axis=None),
-            returns.shape
+            np.argmax(rewards, axis=None),
+            rewards.shape
         )
         
         # policyid == policy_index first policy in the 
