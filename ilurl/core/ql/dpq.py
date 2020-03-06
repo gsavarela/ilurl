@@ -1,4 +1,6 @@
 """Implementation of dynamic programming TD methods with function approximation"""
+import numpy as np
+
 from ilurl.core.params import QLParams
 from ilurl.core.ql.choice import choice_eps_greedy, choice_ucb
 from ilurl.core.ql.define import dpq_tls
@@ -13,6 +15,10 @@ class DPQ(object):
         self.gamma = ql_params.gamma
         self.epsilon = ql_params.epsilon
         self.Q = dpq_tls(ql_params.states.rank, ql_params.states.depth,
+                         ql_params.actions.rank, ql_params.actions.depth,
+                         ql_params.initial_value)
+                
+        self.state_counter = dpq_tls(ql_params.states.rank, ql_params.states.depth,
                          ql_params.actions.rank, ql_params.actions.depth,
                          ql_params.initial_value)
 
@@ -55,8 +61,17 @@ class DPQ(object):
         return choosen
 
     def update(self, s, a, r, s1):
+
         if not self.stop:
-            dpq_update(self.gamma, self.alpha, self.Q, s, a, r, s1)
+
+            # Update (state, action) counter.
+            self.state_counter[s][a] += 1
+
+            # Calculate learning rate.
+            lr = 1 / np.power(1 + self.state_counter[s][a], 2/3)
+
+            # Q-learning update.
+            dpq_update(self.gamma, lr, self.Q, s, a, r, s1)
 
     @property
     def stop(self):

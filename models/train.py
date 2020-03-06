@@ -31,27 +31,35 @@ def get_arguments():
     parser = argparse.ArgumentParser(
         description="""
             This script runs a traffic light simulation based on
-            custom environment with with presets saved on data/networks
+            custom environment with presets saved on data/networks
         """
     )
 
-    # TODO: validate against existing networks
     parser.add_argument('network', type=str, nargs='?', default='intersection',
                         help='Network to be simulated')
 
-
     parser.add_argument('--experiment-time', '-t', dest='time', type=int,
-                        default=360, nargs='?', help='Simulation\'s real world time in seconds')
-
-
-    parser.add_argument('--experiment-iterations', '-i', dest='num_iterations', type=int,
-                        default=1, nargs='?',
-                        help='Number of times to repeat the experiment')
-
+                        default=360, nargs='?',
+                        help='Simulation\'s real world time in seconds')
 
     parser.add_argument('--experiment-pickle', '-p', dest='pickle', type=str2bool,
-                        default=1, nargs='?',
-                        help='Pickle the environment allowing to reproduce')
+                        default=True, nargs='?',
+                        help='Whether to pickle the environment (allowing to reproduce)')
+
+    parser.add_argument('--experiment-log', '-l', dest='log_info', type=str2bool,
+                        default=False, nargs='?',
+                        help='Whether to save experiment-related data in a JSON file \
+                         thoughout training (allowing to live track training)')
+
+    parser.add_argument('--experiment-log-interval', dest='log_info_interval', type=int,
+                        default=20, nargs='?',
+                        help='[ONLY APPLIES IF --experiment-log is TRUE] \
+                        Log into json file interval (in agent update steps)')
+
+    parser.add_argument('--experiment-save-agent', '-a', dest='save_RL_agent', type=str2bool,
+                        default=False, nargs='?',
+                        help='Whether to save RL-agent parameters throughout training')
+
 
     parser.add_argument('--sumo-render', '-r', dest='render', type=str2bool,
                         default=False, nargs='?',
@@ -65,24 +73,19 @@ def get_arguments():
                         dest='emission', type=str2bool, default=False, nargs='?',
                         help='Saves emission data from simulation on /data/emissions')
 
-    parser.add_argument('--save-RL-agent', '-a', dest='save_RL_agent',
-                        type=str2bool, default=False, nargs='?',
-                        help='Saves RL agent parameters throughout training')
-
 
     parser.add_argument('--tls-short', '-S', dest='short_phase',
                         type=int, default=45, nargs='?',
                         help='Short phase length in seconds of the cycle')
 
-    
     parser.add_argument('--tls-long', '-L', dest='long_phase',
                         type=int, default=45, nargs='?',
                         help='Long phase length in seconds of the cycle')
 
-
-    parser.add_argument('--inflows-switch', '-W', dest='switch',
+    parser.add_argument('--tls-inflows-switch', '-W', dest='switch',
                         type=str2bool, default=False, nargs='?',
-                        help='''Assign higher probability of spawning a vehicle every other hour on opposite sides''')
+                        help='Assign higher probability of spawning a vehicle \
+                        every other hour on opposite sides')
 
     return parser.parse_args()
 
@@ -100,18 +103,18 @@ def str2bool(v):
 def print_arguments(args):
     print('Arguments:')
     print('\tExperiment time: {0}'.format(args.time))
-    print('\tExperiment iterations: {0}'.format(args.num_iterations))
     print('\tExperiment pickle: {0}'.format(args.pickle))
+    print('\tExperiment log info: {0}'.format(args.log_info))
+    print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
+    print('\tExperiment save RL agent: {0}'.format(args.save_RL_agent)) 
 
     print('\tSUMO render: {0}'.format(args.render))
     print('\tSUMO emission: {0}'.format(args.emission))
     print('\tSUMO step: {0}'.format(args.step))
 
-    print('\tSave RL agent: {0}'.format(args.save_RL_agent)) 
-
     print('\tTLS short: {0}'.format(args.short_phase))
     print('\tTLS long: {0}'.format(args.long_phase))
-    print('\tInflows switch: {0}\n'.format(args.switch))
+    print('\tTLS inflows switch: {0}\n'.format(args.switch))
 
 
 if __name__ == '__main__':
@@ -162,7 +165,7 @@ if __name__ == '__main__':
     # net_id = 'intersection'
     # network = Network.load(net_id, net_path)
     
-    ql_params = QLParams(epsilon=0.10, alpha=0.05,
+    ql_params = QLParams(epsilon=0.10, alpha=0.5,
                          states=('speed', 'count'),
                          rewards={'type': 'target_velocity',
                                   'costs': None},
@@ -179,32 +182,31 @@ if __name__ == '__main__':
     exp = Experiment(env=env,
                     dir_path=path,
                     train=True,
-                    save_agent=args.save_RL_agent)
+                    log_info=args.log_info,
+                    log_info_interval=args.log_info_interval,
+                    save_agent=args.save_RL_agent,
+                    )
 
     print('Running experiment...')
 
     start = time.time()
 
     info_dict = exp.run(
-        args.num_iterations,
         int(args.time / args.step)
     )
 
     print(f'Elapsed time {time.time() - start}')
 
+    # Save train log.
+    filename = \
+            f"{env.network.name}.train.json"
+
+    info_path = os.path.join(path, filename)
+    with open(info_path, 'w') as fj:
+        json.dump(info_dict, fj)
+
+    # Save parameters pickle.
     if args.pickle:
-        # save info dict
-        # save pickle environment
-        # TODO: save with running parameters
-
-        # general process information
-        x = 'l' if inflows_type == 'lane' else 'w'
-        filename = \
-             f"{env.network.name}.{args.time}.{x}.info.json"
-
-        info_path = os.path.join(path, filename)
-        with open(info_path, 'w') as fj:
-            json.dump(info_dict, fj)
 
         if hasattr(env, 'dump'):
             env.dump(path)
