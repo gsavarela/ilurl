@@ -67,12 +67,7 @@ class Experiment:
     Once you have included this in your environment, run your Experiment object
     as follows:
 
-        >>> exp.run(num_runs=1, num_steps=1000, convert_to_csv=True)
-
-    After the experiment is complete, look at the "./data" directory. There
-    will be two files, one with the suffix .xml and another with the suffix
-    .csv. The latter should be easily interpretable from any csv reader (e.g.
-    Excel), and can be parsed using tools such as numpy and pandas.
+        >>> exp.run(num_runs=1, num_steps=1000)
 
     Attributes
     ----------
@@ -106,7 +101,7 @@ class Experiment:
 
         """
         sim_step = env.sim_params.sim_step
-        # garantees that the enviroment has stoped
+        # guarantees that the enviroment has stopped
         if not train:
             env.stop = True
 
@@ -130,8 +125,7 @@ class Experiment:
     def run(
             self,
             num_steps,
-            rl_actions=None,
-            convert_to_csv=False
+            rl_actions=None
     ):
         """
         Run the given scenario for a set number of runs and steps per run.
@@ -143,28 +137,12 @@ class Experiment:
         rl_actions : method, optional
             maps states to actions to be performed by the RL agents (if
             there are any)
-        convert_to_csv : bool
-            Specifies whether to convert the emission file created by sumo
-            into a csv file
 
         Returns
         -------
         info_dict : dict
             contains returns, average speed per step (last run)
         """
-
-        # Raise an error if convert_to_csv is set to True but no emission
-        # file will be generated, to avoid getting an error at the end of the
-        # simulation.
-        if convert_to_csv and self.env.sim_params.emission_path is None:
-            raise ValueError(
-                'The experiment was run with convert_to_csv set '
-                'to True, but no emission file will be generated. If you wish '
-                'to generate an emission file, you should set the parameter '
-                'emission_path in the simulation parameters (SumoParams or '
-                'AimsunParams) to the path of the folder where emissions '
-                'output should be generated. If you do not wish to generate '
-                'emissions, set the convert_to_csv parameter to False.')
 
         if rl_actions is None:
 
@@ -255,22 +233,6 @@ class Experiment:
         self.env.terminate()
 
         print('Experiment:', f'{self.dir_path}{self.env.network.name}')
-
-        # Convert xml to csv.
-        if self.env.sim_params.emission_path:
-            # wait a short period of time to ensure the xml file is readable
-            time.sleep(0.1)
-
-            if convert_to_csv:
-                emission_filename = \
-                    "{0}-emission.xml".format(self.env.network.name)
-
-                emission_path = os.path.join(
-                    self.env.sim_params.emission_path,self.dir_path,
-                    emission_filename
-                )
-
-                emission_to_csv(emission_path)
 
         return info_dict
 
