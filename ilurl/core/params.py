@@ -57,7 +57,7 @@ class QLParams:
     def __init__(
             self,
             epsilon=3e-2,
-            alpha=5e-2,
+            alpha=5e-1,
             gamma=0.9,
             c=2,
             initial_value=0,

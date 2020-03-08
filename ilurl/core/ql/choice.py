@@ -35,18 +35,23 @@ def choice_eps_greedy(actions, values, epsilon):
     -------
     action
         An element from the actions element array
+
+    explored
+        Whether action is randomly picked or not
     """
     # greedy action -- handles the case where
     # all values are zero: or are equal.
     if rand() <= epsilon or all_eq(values):
         # Take a random action
         idx = choice(len(values))
+        explored = True
     else:
         idx = argmax(values)
+        explored = False
 
     # Take action A observe R and S'
     action = actions[idx]
-    return action
+    return action, explored
 
 
 def choice_optimistic(actions_values):

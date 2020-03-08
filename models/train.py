@@ -144,7 +144,7 @@ if __name__ == '__main__':
     additional_params.update(ADDITIONAL_TLS_PARAMS)
     additional_params['long_cycle_time'] = args.long_phase
     additional_params['short_cycle_time'] = args.short_phase
-    additional_params['target_velocity'] = 10
+    additional_params['target_velocity'] = 20
 
     env_params = EnvParams(evaluate=True,
                            additional_params=additional_params)
@@ -165,12 +165,12 @@ if __name__ == '__main__':
     # net_id = 'intersection'
     # network = Network.load(net_id, net_path)
     
-    ql_params = QLParams(epsilon=0.10, alpha=0.5,
+    ql_params = QLParams(epsilon=0.10,
                          states=('speed', 'count'),
                          rewards={'type': 'target_velocity',
                                   'costs': None},
-                         num_traffic_lights=1, c=10,
-                         choice_type='ucb')
+                         num_traffic_lights=1,
+                         choice_type='eps-greedy')
 
     env = TrafficLightQLEnv(
         env_params=env_params,

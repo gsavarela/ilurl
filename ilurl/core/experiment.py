@@ -228,6 +228,7 @@ class Experiment:
                     info_dict["vehicles"] = vehs
                     info_dict["observation_spaces"] = observation_spaces
                     info_dict["rl_actions"] = actions
+                    info_dict["explored"] = getattr(self.env.dpq, 'explored', None)
 
                     with open(filename, 'w') as fj:
                         json.dump(info_dict, fj)
@@ -249,6 +250,7 @@ class Experiment:
         info_dict["vehicles"] = vehs
         info_dict["observation_spaces"] = observation_spaces
         info_dict["rl_actions"] = actions
+        info_dict["explored"] = getattr(self.env.dpq, 'explored', None)
 
         self.env.terminate()
 
