@@ -234,11 +234,15 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         # the edges that control a phase
         self.phase_component_ids = {}
-        self.traffic_light_ids = []
+        self.traffic_light_node_ids = []
 
         # helper function
         def tls_filter(node_id, conn):
-            return 'tl' in conn and node_id == conn['tl'] and conn['dir'] == 's'
+            return node_id == conn.get('tl') and conn['dir'] == 's'
+
+        # helper function
+        def tls_filter1(node_id, conn):
+            return node_id == conn.get('tl') and 'linkIndex' in conn
 
         for node in self.network.nodes:
             if node['type'] == 'traffic_light':
@@ -250,44 +254,68 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 self.outgoing_edge_ids[nodeid] = \
                     [e['id'] for e in self.network.edges if e['from'] == nodeid]
 
-                self.traffic_light_ids.append(nodeid)
+                self.traffic_light_node_ids.append(nodeid)
 
 
                 
-                # for each tls extract connections
-                # TODO: generalize for more then two phases
-                import pdb
-                pdb.set_trace()
-                straight_connections = \
-                    [conn for conn in self.network.connections
-                          if tls_filter(nodeid, conn)]
+                
+                # # for each tls extract connections
+                # # TODO: generalize for more then two phases
+                # straight_connections = \
+                #     [conn for conn in self.network.connections
+                #           if tls_filter(nodeid, conn)]
 
-                # Get identifier fields: assumption edges with opposite
-                # orientation are the negative to each other
-                # or, they are symetric
-                connections_ids = [
-                    tuple(int(conn[key]) for key in ('from', 'to', 'linkIndex'))
-                    for conn in straight_connections
-                ]
+                # # Get identifier fields: assumption edges with opposite
+                # # orientation are the negative to each other
+                # # or, they are symetric
+                # connections_ids = [
+                #     tuple(int(conn[key]) for key in ('from', 'to', 'linkIndex'))
+                #     for conn in straight_connections
+                # ]
                
-                
-                phase_0_gen = enumerate(min(connections_ids, key=lambda x: x[2])[:2])
-                phases_0 = [
-                    str(-connid) if (i + 1) % 2 == 0 else str(connid)
-                    for i, connid in phase_0_gen
-                ]
+                # 
+                # phase_0_gen = enumerate(min(connections_ids, key=lambda x: x[2])[:2])
+                # phases_0 = [
+                #     str(-connid) if (i + 1) % 2 == 0 else str(connid)
+                #     for i, connid in phase_0_gen
+                # ]
 
-                phase_1_gen = enumerate(max(connections_ids, key=lambda x: x[2])[:2])
-                phases_1 = [
-                    str(-connid) if (i + 1) % 2 == 0 else str(connid)
-                    for i, connid in phase_1_gen
-                ]
+                # phase_1_gen = enumerate(max(connections_ids, key=lambda x: x[2])[:2])
+                # phases_1 = [
+                #     str(-connid) if (i + 1) % 2 == 0 else str(connid)
+                #     for i, connid in phase_1_gen
+                # ]
+                # 
+                # # Only two phases supported
+                # self.phase_component_ids[nodeid] = {
+                #     0:phases_0, 1:phases_1
+                # }
+                # assert set(phases_0 + phases_1) == set(self.incoming_edge_ids[nodeid])
+
+
+                tls_properties = self.network.traffic_lights.get_properties()
+                # parse programs to define phases
+                if 'programID' not in tls_properties[nodeid]:
+                    errmsg = f'Traffic Light at junction {nodeid}'
+                    raise ValueError(f'{errmsg} must have at least one program')
                 
-                # Only two phases supported
-                self.phase_component_ids[nodeid] = {
-                    0:phases_0, 1:phases_1
-                }
-                assert set(phases_0 + phases_1) == set(self.incoming_edge_ids[nodeid])
+                # green and yellow are considered to be one phase
+                phases = tls_properties[nodeid]['phases']
+                links = {int(conn['linkIndex']): conn['from']
+                         for conn in self.network.connections
+                         if tls_filter1(nodeid, conn)}
+                 
+                # phase components defined by the incoming edges
+                # that are 'Green' or 'green' we ignore 'Y' as
+                # a phase.
+                phase_components = {}
+                for i, phase_i in enumerate(phases[::2]):
+                    state_i = phase_i['state']
+                    component_i = {eid for lnk, eid in links.items()
+                                   if state_i[lnk] in ('g', 'G')}
+                    phase_components[i] = sorted(component_i)
+                self.phase_component_ids[nodeid] = phase_components
+                
 
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
@@ -296,7 +324,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         traffic_lights = self.network.traffic_lights.get_properties()
         for i, action in enumerate(rl_mask):
-            node_id = self.traffic_light_ids[i]
+            node_id = self.traffic_light_node_ids[i]
             traffic_light = traffic_lights[node_id]
             if self.currently_yellow[i] == 1:  # currently yellow
                 self.last_change[i] += self.sim_step
@@ -373,7 +401,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         for tls in range(self.num_traffic_lights):
 
-            node_id = self.traffic_light_ids[tls]
+            node_id = self.traffic_light_node_ids[tls]
             for phase, edges in self.phase_component_ids[node_id].items():
                  
                 self.incoming[node_id][phase][self.duration] = \
@@ -429,7 +457,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
             observations = []
             for tls in range(self.num_traffic_lights):
 
-                nid = self.traffic_light_ids[tls]
+                nid = self.traffic_light_node_ids[tls]
                 for phase in self.phase_component_ids[nid]:
 
                     incoming = self.incoming[nid][phase]
@@ -752,6 +780,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.memo_observation_space = {}
 
         
+    def define_phases(self):
+        pass
 
     # TODO: Copy & Paste dependency on TrafficLightGridEnv
     # ===============================
@@ -787,7 +817,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         if edge_id == "":
             return -10
 
-        if edge_id in self.traffic_light_ids:
+        if edge_id in self.traffic_light_node_ids:
             return 0
         edge_len = self.k.scenario.edge_length(edge_id)
         relative_pos = self.k.vehicle.get_position(veh_id)
