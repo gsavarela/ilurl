@@ -256,6 +256,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 
                 # for each tls extract connections
                 # TODO: generalize for more then two phases
+                import pdb
+                pdb.set_trace()
                 straight_connections = \
                     [conn for conn in self.network.connections
                           if tls_filter(nodeid, conn)]

@@ -2,6 +2,7 @@
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-30'
 import math
+import numpy as np
 
 import flow.core.params as flow_params
 
@@ -42,7 +43,7 @@ Bounds = namedtuple('Bounds', 'rank depth')
 Rewards = namedtuple('Rewards', 'type costs')
 
 ADDITIONAL_PARAMS = {
-    # every `switch`seconds concentrate flow in one direction
+    # every `switch` seconds concentrate flow in one direction
      "switch": 900
 }
 
@@ -57,7 +58,7 @@ class QLParams:
     def __init__(
             self,
             epsilon=3e-2,
-            alpha=5e-2,
+            alpha=5e-1,
             gamma=0.9,
             c=2,
             initial_value=0,
@@ -167,11 +168,11 @@ class QLParams:
 
     @property
     def category_speeds(self):
-        return (2.28, 3.11)
+        return [2.28, 5.50]
 
     @property
     def category_counts(self):
-        return (8.56, 26.58)
+        return [8.56, 13.00]
 
     def set_states(self, states_tuple):
         self.states_labels = states_tuple
@@ -294,62 +295,47 @@ class QLParams:
         return flattened
 
     def _categorize_speed(self, speed):
-        """Converts a float speed into a category
-        
-           Segregates into 3 categories estimated
-           from environment analysis/hist
         """
-        # intersection
-        if speed >= self.category_speeds[-1]:  # hightest 25%
-            return 2
-        elif speed <= self.category_speeds[0]:  # lowest 25%
-            return 0
-        else:
-            return 1
+            Converts a float speed into a category (integer).
+        """
+        return np.digitize(speed, bins=self.category_speeds).tolist()
 
     def _categorize_count(self, count):
-        """Converts a int count into a category
-        
-           Segregates into 3 categories estimated
-           from environment analysis/hist
         """
-        if count >= self.category_counts[-1]:    # highest 25%
-            return 2
-        elif count <= self.category_counts[0]:  # lowest 25%
-            return 0
-        else:
-            return 1
-
-    def _categorize_flow(self, flow_per_cycle):
-        """Converts float flow into a category
-
-            UPDATES:
-            -------
-            2017-09-27 histogram analysis sugest the following
-            breakdowns for the quantiles of 20% and 75% for
-            the varable flow_per_cyle
+            Converts a float count into a category (integer).
         """
-        if flow_per_cycle > .5067: # Top 25% data-points
-            return 2
+        return np.digitize(count, bins=self.category_counts).tolist()
 
-        if flow_per_cycle > .2784:  # Average 20% -- 75%  data-points
-            return 1
-        return 0  # Bottom 20% data-points
+    # def _categorize_flow(self, flow_per_cycle):
+    #     """Converts float flow into a category
+    # 
+    #         UPDATES:
+    #         -------
+    #         2017-09-27 histogram analysis sugest the following
+    #         breakdowns for the quantiles of 20% and 75% for
+    #         the varable flow_per_cyle
+    #     """
+    #     if flow_per_cycle > .5067: # Top 25% data-points
+    #         return 2
+    # 
+    #     if flow_per_cycle > .2784:  # Average 20% -- 75%  data-points
+    #         return 1
+    #     return 0  # Bottom 20% data-points
 
-    def _categorize_queue(self, queue_per_cycle):
-        """Converts float queue into a category
-
-            UPDATES:
-            -------
-            2017-09-27 histogram analysis sugest the following
-            breakdowns for the quantiles of 20% and 75% for
-            the varable queue_per_cyle
-        """
-        if queue_per_cycle > .2002:  # Top 25% data-points
-            return 2
-        if queue_per_cycle > .1042:  # Average 20% -- 75%  data-points
-            return 1
-        return 0  # Bottom 20% data-points
+    # def _categorize_queue(self, queue_per_cycle):
+    #     """Converts float queue into a category
+    # 
+    #         UPDATES:
+    #         -------
+    #         2017-09-27 histogram analysis sugest the following
+    #         breakdowns for the quantiles of 20% and 75% for
+    #         the varable queue_per_cyle
+    #     """
+    #     if queue_per_cycle > .2002:  # Top 25% data-points
+    #         return 2
+    #     if queue_per_cycle > .1042:  # Average 20% -- 75%  data-points
+    #         return 1
+    #     return 0  # Bottom 20% data-points
 
 
 class InFlows(flow_params.InFlows):
