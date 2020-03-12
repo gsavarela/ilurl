@@ -183,10 +183,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         self.min_switch_time = env_params.additional_params["switch_time"]
 
-
-        # neighbouring maps neighbourhood edges
-        self.init_observation_scope_filter()
-
         # TODO: Allow for mixed networks with actuated, controlled and static
         # traffic light configurations
         self.tl_type = env_params.additional_params.get('tl_type')
@@ -219,73 +215,13 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
     def Q(self, Q):
         self.dpq.Q = Q
 
-    def init_observation_scope_filter(self):
-        """
-        Returns edges attached to the node center#{node_id}.
-
-        This function should be provided by Kernel#Scenario,
-        effectively unbinding the Grid enviroment names from
-        the agent implementation -- that doesn't seem to be
-        an option.
-
-        """
-        self.incoming_edge_ids = {}
-        self.outgoing_edge_ids = {}
-
-        # the edges that control a phase
-        self.phase_incoming_edges = {}
-        self.phase_indicator = {}
-        self.traffic_light_node_ids = []
-
-        # helper function
-        def _filter(node_id, conn):
-            return node_id == conn.get('tl') and 'linkIndex' in conn
-
-        for node in self.network.nodes:
-            if node['type'] == 'traffic_light':
-                # RIGHT to LEFT
-                nodeid = node['id']
-                self.incoming_edge_ids[nodeid] = \
-                    [e['id'] for e in self.network.edges if e['to'] == nodeid]
-
-                self.outgoing_edge_ids[nodeid] = \
-                    [e['id'] for e in self.network.edges if e['from'] == nodeid]
-
-                self.traffic_light_node_ids.append(nodeid)
-
-                tls_properties = self.network.traffic_lights.get_properties()
-                # parse programs to define phases
-                if 'programID' not in tls_properties[nodeid]:
-                    errmsg = f'Traffic Light at junction {nodeid}'
-                    raise ValueError(f'{errmsg} must have at least one program')
-                
-                # green and yellow are considered to be one phase
-                phases = tls_properties[nodeid]['phases']
-                links = {int(conn['linkIndex']): conn['from']
-                         for conn in self.network.connections
-                         if _filter(nodeid, conn)}
-                 
-                # phase components defined by the incoming edges
-                # that are 'Green' or 'green' we ignore 'Y' as
-                # a phase.
-                phase_components = {}
-                for i, phase_i in enumerate(phases[::2]):
-                    state_i = phase_i['state']
-                    component_i = {eid for lnk, eid in links.items()
-                                   if state_i[lnk] in ('g', 'G')}
-                    phase_components[i] = sorted(component_i)
-                self.phase_incoming_edges[nodeid] = phase_components
-                self.phase_indicator[nodeid] = 0
-
     def _apply_rl_actions(self, rl_actions):
         """See class definition."""
         rl_mask = [int(x) for x in list('{0:0b}'.format(rl_actions))]
         rl_mask = [0] * (self.num_traffic_lights - len(rl_mask)) + rl_mask
-        traffic_lights = self.network.traffic_lights.get_properties()
         for i, action in enumerate(rl_mask):
-            node_id = self.traffic_light_node_ids[i]
-            phases = traffic_lights[node_id]['phases']
-            phase_ind = self.phase_indicator[node_id]
+            node_id = self.network.tls_ids[i]
+            states = self.network.states[node_id]
             if self.currently_yellow[i] == 1:  # currently yellow
                 self.last_change[i] += self.sim_step
                 # Check if our timer has exceeded the yellow phase, meaning it
@@ -293,19 +229,16 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 if self.last_change[i] >= self.min_switch_time:
                     # change of phase: circular incremeent
                     self.phase_indicator[node_id] = \
-                            (self.phase_indicator[node_id] + 1) % len(phases)
-                    phase = phases[self.phase_indicator[node_id]]
-
-                    next_state = phase['state']
+                            (self.phase_indicator[node_id] + 1) % len(states)
+                    next_state = states[self.phase_indicator[node_id]]
                     self.k.traffic_light.set_state(
                         node_id=node_id, state=next_state)
                     self.currently_yellow[i] = 0
             else:
                 if action:
                     self.phase_indicator[node_id] = \
-                        (self.phase_indicator[node_id] + 1) % len(phases)
-                    phase = phases[self.phase_indicator[node_id]]
-                    next_state = phase['state']
+                        (self.phase_indicator[node_id] + 1) % len(states)
+                    next_state = states[self.phase_indicator[node_id]]
                     # TODO: Check those configurations
                     self.k.traffic_light.set_state(
                         node_id=node_id, state=next_state)
@@ -354,23 +287,20 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                      #if self.get_distance_to_intersection(veh_id) <
                      #   0.5 * self.k.scenario.edge_length(edge_id)]
             speeds = [
-                self.k.vehicle.get_speed(veh_id)
+               self.k.vehicle.get_speed(veh_id)
                 for veh_id in veh_ids
             ]
             return veh_ids, speeds
 
         for tls in range(self.num_traffic_lights):
 
-            node_id = self.traffic_light_node_ids[tls]
-            for phase, edges in self.phase_incoming_edges[node_id].items():
+            # node_id = self.traffic_light_node_ids[tls]
+            node_id = self.network.tls_ids[tls]
+            # for phase, edges in self.phase_incoming_edges[node_id].items():
+            for phase, edges in self.network.phases[node_id].items():
                  
                 self.incoming[node_id][phase][self.duration] = \
                                     extract(edges)
-
-                # TODO: Add parameter to control
-                # self.outgoing[node_id][self.duration] = \
-                #                     extract(self.outgoing_edge_ids[node_id])
-
 
     def get_observation_space(self):
         """
@@ -418,11 +348,9 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
             observations = []
             for tls in range(self.num_traffic_lights):
 
-                nid = self.traffic_light_node_ids[tls]
-                for phase in self.phase_incoming_edges[nid]:
-
+                nid = self.network.tls_ids[tls]
+                for phase in self.network.phases[nid]:
                     incoming = self.incoming[nid][phase]
-                    # outgoing = self.outgoing[nid][phase]
                     values = []
                     for label in self.ql_params.states_labels:
 
@@ -479,7 +407,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                             # count += len(self.outgoing[nid][prev][1]) \
                             #          if prev in self.outgoing[nid] else 0.0
                             # counts[prev] = count
-                            weights = np.array(list(counts.values()))
+                            # weights = np.array(list(counts.values()))
 
                             mem = self.memo_speeds[nid][phase]
                             speeds = []
@@ -641,10 +569,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self._apply_rl_actions(idx)
 
         # Update timer.
-        self.duration = round(
-            self.duration + self.sim_step,
-            2,
-        ) % self.cycle_time
+        self.duration = \
+            round(self.duration + self.sim_step, 2) % self.cycle_time
 
     def compute_reward(self, rl_actions, **kwargs):
         """
@@ -711,23 +637,21 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # allowed to flow. 0 is flowing top to bottom, 1 is left to right
         # For third column, 0 signifies yellow and 1 green or red
         # initialize parameters which must be  reset between trials
-        configs = self.network.traffic_lights.get_properties()
 
         i = 0
-        self.incoming = {} 
-        # self.outgoing = {}
+        self.incoming = {}
 
         self.memo_speeds = {}
         self.memo_counts = {}
         self.memo_flows = {}
         self.memo_queue = {}
 
+        self.phase_indicator = {}
         current_phase = 0
-        for node_id, config in configs.items():
-            num_phases = len(self.phase_incoming_edges[node_id])
+        for node_id in self.network.tls_ids:
+            num_phases = len(self.network.phases[node_id])
             self.phase_indicator[node_id] = current_phase
-            p0 = config['phases'][current_phase]
-            s0 = p0['state']
+            s0 = self.network.states[node_id][0]
             self.k.traffic_light.set_state(node_id=node_id, state=s0)
             self.currently_yellow[i] = 1 if s0[0].lower() == 'y' else 0
             i += 1
@@ -777,7 +701,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         if edge_id == "":
             return -10
 
-        if edge_id in self.traffic_light_node_ids:
+        # if edge_id in self.traffic_light_node_ids:
+        if edge_id in self.network.tls_ids[i]:
             return 0
         edge_len = self.k.scenario.edge_length(edge_id)
         relative_pos = self.k.vehicle.get_position(veh_id)
