@@ -218,7 +218,8 @@ class Network(FlowNetwork):
     def phases(self):
         """Returns a nodeid x sets of non conflicting movement patterns.
             The sets are index by integers and the moviment patterns are
-            expressed as lists of approaches. 
+            expressed as lists of approaches. We consider only incoming
+            approaches to be controlled by phases.
             
 
         Returns:
@@ -248,6 +249,7 @@ class Network(FlowNetwork):
             self._cached_phases = {}
             def fn(x, n):
                 return x.get('tl') == nid and 'linkIndex' in x
+
             for nid in self.tls_ids:
                 # green and yellow are considered to be one phase
                 self._cached_phases[nid] = {}
@@ -260,10 +262,17 @@ class Network(FlowNetwork):
                 for state in states:
                     components = {eid for lnk, eid in links.items()
                                   if state[lnk] in ('G','g')}
-
                     if components:
-                        self._cached_phases[nid][i] = sorted(components)
-                        i += 1
+                        found = False
+                        for j in range(0, i + 1):
+                            if j in self._cached_phases[nid]:
+                                found = \
+                                    sorted(components) == self._cached_phases[nid][j]
+                                if found:
+                                    break
+                        if not found:
+                            self._cached_phases[nid][i] = sorted(components)
+                            i += 1
         return self._cached_phases
 
     @property

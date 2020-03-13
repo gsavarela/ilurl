@@ -15,7 +15,6 @@ from ilurl.loaders.nets import get_edges, get_routes, get_path
 from ilurl.loaders.vtypes import get_vehicle_types
 
 # number of phases is fixed
-NUM_PHASES = 2
 STATE_FEATURES = ('speed', 'count', 'flow', 'queue')
 ''' Bounds : namedtuple
         provide the settings to describe discrete variables ( e.g actions ). Or
@@ -67,7 +66,7 @@ class QLParams:
                 'type': 'weighted_average',
                 'costs': None
             },
-            num_traffic_lights=1,
+            phases_per_traffic_light=[2],
             states=('speed', 'count'),
             actions=('fast_slow_green', ),
             choice_type='eps-greedy'
@@ -87,6 +86,9 @@ class QLParams:
         * c: upper confidence bound (ucb) exploration constant.
         * rewards: namedtuple
                     see above
+        * phases_per_traffic_light: list<int>
+            number of phases per intersection
+            
         * states: namedtuple
             Create discrete categorizations from continous variables
             ( e.g states )
@@ -176,13 +178,13 @@ class QLParams:
 
     def set_states(self, states_tuple):
         self.states_labels = states_tuple
-        rank = self.num_traffic_lights * len(states_tuple) * NUM_PHASES
+        rank = sum(self.phases_per_traffic_light) * len(states_tuple)
         depth = 3
         self.states = Bounds(rank, depth)
 
     def set_actions(self, actions_tuple):
         self.actions_labels = actions_tuple
-        rank = self.num_traffic_lights * len(actions_tuple)
+        rank = len(self.phases_per_traffic_light) * len(actions_tuple)
         depth = 2
         self.actions = Bounds(rank, depth)
 
