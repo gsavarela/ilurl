@@ -11,8 +11,6 @@ import time
 from flow.core.params import SumoParams, EnvParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 
-from flow.core.params import InFlows
-
 from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS
 from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
 
@@ -107,7 +105,7 @@ def print_arguments(args):
     print('\tExperiment pickle: {0}'.format(args.pickle))
     print('\tExperiment log info: {0}'.format(args.log_info))
     print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
-    print('\tExperiment save RL agent: {0}'.format(args.save_RL_agent)) 
+    print('\tExperiment save RL agent: {0}'.format(args.save_RL_agent))
 
     print('\tSUMO render: {0}'.format(args.render))
     print('\tSUMO emission: {0}'.format(args.emission))
@@ -143,8 +141,7 @@ if __name__ == '__main__':
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
     additional_params.update(ADDITIONAL_TLS_PARAMS)
-    additional_params['long_cycle_time'] = args.long_phase
-    additional_params['short_cycle_time'] = args.short_phase
+    additional_params['cycle_split'] = (args.short_phase, args.long_phase)
     additional_params['target_velocity'] = 20
 
     env_params = EnvParams(evaluate=True,

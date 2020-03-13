@@ -29,14 +29,7 @@ QL_PARAMS = {
     'gamma': 0.999,
 }
 ADDITIONAL_TLS_PARAMS = {
-    # short_cycle_time is the time it takes for a direction to enter
-    # the yellow state e.g
-    # GrGr -> yryr or rGrG -> yGyG
-    'short_cycle_time': 45,
-    # slow_time same effect as short_cycle_time but taking longer
-    'long_cycle_time': 45,
-    # switch_time is the time it takes to exit the yellow state e.g
-    # yryr -> rGrG or ryry -> GrGr
+    'cycle_split': (45, 45),
     'switch_time': 6
 }
 
@@ -163,26 +156,31 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                                                 network,
                                                 simulator=simulator)
         # Check constrains on minimum duration
-        if self.switch_time > self.short_cycle_time:
+        short_cycle_time, long_cycle_time = self.cycle_split
+        if self.switch_time > short_cycle_time:
             raise ValueError('''Fast phase time must be
                 greater than minimum switch time''')
 
-        if self.short_cycle_time > self.long_cycle_time:
+        if short_cycle_time > long_cycle_time:
             raise ValueError('''Fast phase time must be
                 lesser than or equal to slow phase time''')
 
-        self.cycle_time = self.long_cycle_time + self.short_cycle_time
+        self.cycle_time = long_cycle_time + short_cycle_time
 
         # keeps the internal value of sim step
         self.sim_step = sim_params.sim_step
 
         # assumption every traffic light will be controlled
-        self.num_traffic_lights = len(network.traffic_lights.get_properties())
+        self.num_traffic_lights = len(network.tls_ids)
 
         self.steps = env_params.horizon
 
         self.min_switch_time = env_params.additional_params["switch_time"]
 
+        # Builds alternative programs -- static programs are made of
+        # states and durations. alternative programs are based from
+        # static programs: they keep the states but change durations
+        self._init_alternative_programs(ql_params.actions.depth)
         # TODO: Allow for mixed networks with actuated, controlled and static
         # traffic light configurations
         self.tl_type = env_params.additional_params.get('tl_type')
@@ -215,36 +213,26 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
     def Q(self, Q):
         self.dpq.Q = Q
 
-    def _apply_rl_actions(self, rl_actions):
-        """See class definition."""
-        rl_mask = [int(x) for x in list('{0:0b}'.format(rl_actions))]
-        rl_mask = [0] * (self.num_traffic_lights - len(rl_mask)) + rl_mask
-        for i, action in enumerate(rl_mask):
-            node_id = self.network.tls_ids[i]
-            states = self.network.states[node_id]
-            if self.currently_yellow[i] == 1:  # currently yellow
-                self.last_change[i] += self.sim_step
-                # Check if our timer has exceeded the yellow phase, meaning it
-                # should switch to red
-                if self.last_change[i] >= self.min_switch_time:
-                    # change of phase: circular incremeent
-                    self.phase_indicator[node_id] = \
-                            (self.phase_indicator[node_id] + 1) % len(states)
-                    next_state = states[self.phase_indicator[node_id]]
-                    self.k.traffic_light.set_state(
-                        node_id=node_id, state=next_state)
-                    self.currently_yellow[i] = 0
-            else:
-                if action:
-                    self.phase_indicator[node_id] = \
-                        (self.phase_indicator[node_id] + 1) % len(states)
-                    next_state = states[self.phase_indicator[node_id]]
-                    # TODO: Check those configurations
-                    self.k.traffic_light.set_state(
-                        node_id=node_id, state=next_state)
-                    self.last_change[i] = 0.0
-                    self.direction[i] = not self.direction[i]
-                    self.currently_yellow[i] = 'y' in next_state.lower()
+    # TODO: generalize delegation
+    @property
+    def tls_ids(self):
+        return self.network.tls_ids
+
+    @property
+    def tls_phases(self):
+        return self.network.phases
+
+    @property
+    def tls_states(self):
+        return self.network.states
+
+    @property
+    def tls_durations(self):
+        if not hasattr(self, '_cached_tls_durations'):
+            self._cached_tls_durations = {
+                tid: np.cumsum(durations).tolist()
+                for tid, durations in self.network.durations.items()}
+        return self._cached_tls_durations
 
     #############
 
@@ -293,11 +281,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
             return veh_ids, speeds
 
         for tls in range(self.num_traffic_lights):
-
-            # node_id = self.traffic_light_node_ids[tls]
-            node_id = self.network.tls_ids[tls]
-            # for phase, edges in self.phase_incoming_edges[node_id].items():
-            for phase, edges in self.network.phases[node_id].items():
+            node_id = self.tls_ids[tls]
+            for phase, edges in self.tls_phases[node_id].items():
                  
                 self.incoming[node_id][phase][self.duration] = \
                                     extract(edges)
@@ -341,15 +326,15 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         if (prev not in self.memo_observation_space) or self.step_counter <= 2:
             # Make the average between cycles
-            t =  max(self.duration, self.sim_step) \
+            t = max(self.duration, self.sim_step) \
                  if self.step_counter * self.sim_step < self.cycle_time \
                  else self.cycle_time
 
             observations = []
             for tls in range(self.num_traffic_lights):
 
-                nid = self.network.tls_ids[tls]
-                for phase in self.network.phases[nid]:
+                nid = self.tls_ids[tls]
+                for phase in self.tls_phases[nid]:
                     incoming = self.incoming[nid][phase]
                     values = []
                     for label in self.ql_params.states_labels:
@@ -486,41 +471,56 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
             action = None
         return action
 
-    def control_actions(self, static=False):
-        """
-        Either switch traffic light for the frame or keep orientation.
-
+    def cl_actions(self, static=False):
+        """Executes the control action according to a program
+            
+        Params:
+        ------
+            * static: boolean
+                If true execute the default program or change states at
+                duration == tls_durations for each tls.
+                Otherwise; (i) fetch the rl_action, (ii) fetch program,
+                (iii) execute control action for program
         """
         ret = []
         if static:
-            if self.duration == 0 and self.step_counter > 1 or \
-                    self.duration == self.short_cycle_time or \
-                    self.duration == self.cycle_time - self.switch_time:
-                ret = tuple([1] * self.num_traffic_lights)
-            else:
-                ret = tuple([0] * self.num_traffic_lights)
+            # if self.duration == 0 and self.step_counter > 1 or \
+            #         self.duration == short_cycle_time or \
+            #         self.duration == self.cycle_time - self.switch_time:
+            #     ret = tuple([1] * self.num_traffic_lights)
+            # else:
+            #     ret = tuple([0] * self.num_traffic_lights)
+            def fn(x, t):
+                return (x == 0 and self.step_counter > 1) or \
+                    x in self.tls_durations[t]
 
+            ret = [int(fn(self.duration, tid)) for tid in self.tls_ids]
         else:
-            if self.duration == self.short_cycle_time - self.switch_time:
-                # Short phase
-                if self.short_cycle_time == self.long_cycle_time:
-                    # handles the case of both phases are the same
-                    ret = tuple([1] * self.num_traffic_lights)
-                else:
-                    directions = [int(d[0]) for d in self.direction]
-                    diracts = zip(directions, self.rl_action)
-                    ret = tuple([int(d == a) for d, a in diracts])
-                    self.control_action = ret
+            def gn(x, t, y):
+                return (x == 0 and self.step_counter > 1) or \
+                    x in self.alt_progs[t][self.rl_action[y]]
+            ret = [int(gn(self.duration, tid, i))
+                   for i, tid in enumerate(self.tls_ids)]
+            # if self.duration == short_cycle_time - self.switch_time:
+            #     # Short phase
+            #     if short_cycle_time == long_cycle_time:
+            #         # handles the case of both phases are the same
+            #         ret = tuple([1] * self.num_traffic_lights)
+            #     else:
+            #         directions = [int(d[0]) for d in self.direction]
+            #         diracts = zip(directions, self.rl_action)
+            #         ret = tuple([int(d == a) for d, a in diracts])
+            #         self.control_action = ret
 
-            elif self.duration == self.long_cycle_time - self.switch_time:
-                # Long phase
-                ret = tuple(
-                    [1 if ca == 0 else 0 for ca in self.control_action])
-            elif self.duration == self.cycle_time - self.switch_time:
-                ret = tuple([1] * self.num_traffic_lights)  # switch to init
-            else:
-                ret = tuple([0] * self.num_traffic_lights)  # do nothing
-        return ret
+            # elif self.duration == long_cycle_time - self.switch_time:
+            #     # Long phase
+            #     ret = tuple(
+            #         [1 if ca == 0 else 0 for ca in self.control_action])
+            # elif self.duration == self.cycle_time - self.switch_time:
+            #     ret = tuple([1] * self.num_traffic_lights)  # switch to init
+            # else:
+            #     ret = tuple([0] * self.num_traffic_lights)  # do nothing
+        return tuple(ret)
 
     def apply_rl_actions(self, rl_actions):
         """
@@ -563,7 +563,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
             self.memo_observation_space = {}
 
         #  _apply_rl_actions -- actions have to be on integer format.
-        idx = self._to_index(self.control_actions(static=False))
+        idx = self._to_index(self.cl_actions(static=False))
 
         # Update traffic lights' control signals.
         self._apply_rl_actions(idx)
@@ -571,6 +571,45 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # Update timer.
         self.duration = \
             round(self.duration + self.sim_step, 2) % self.cycle_time
+
+    def _apply_rl_actions(self, rl_actions):
+        """See class definition."""
+        rl_mask = [int(x) for x in list('{0:0b}'.format(rl_actions))]
+        rl_mask = [0] * (self.num_traffic_lights - len(rl_mask)) + rl_mask
+
+        for i, action in enumerate(rl_mask):
+            node_id = self.tls_ids[i]
+            states = self.tls_states[node_id]
+            if action == 1:
+                self.phase_indicator[node_id] = \
+                        (self.phase_indicator[node_id] + 1) % len(states)
+                next_state = states[self.phase_indicator[node_id]]
+                self.k.traffic_light.set_state(
+                    node_id=node_id, state=next_state)
+            
+            # if self.currently_yellow[i] == 1:  # currently yellow
+            #     self.last_change[i] += self.sim_step
+            #     # Check if our timer has exceeded the yellow phase, meaning it
+            #     # should switch to red
+            #     if self.last_change[i] >= self.min_switch_time:
+            #         # change of phase: circular incremeent
+            #         self.phase_indicator[node_id] = \
+            #                 (self.phase_indicator[node_id] + 1) % len(states)
+            #         next_state = states[self.phase_indicator[node_id]]
+            #         self.k.traffic_light.set_state(
+            #             node_id=node_id, state=next_state)
+            #         self.currently_yellow[i] = 0
+            # else:
+            #     if action:
+            #         self.phase_indicator[node_id] = \
+            #             (self.phase_indicator[node_id] + 1) % len(states)
+            #         next_state = states[self.phase_indicator[node_id]]
+            #         # TODO: Check those configurations
+            #         self.k.traffic_light.set_state(
+            #             node_id=node_id, state=next_state)
+            #         self.last_change[i] = 0.0
+            #         self.direction[i] = not self.direction[i]
+            #         self.currently_yellow[i] = 'y' in next_state.lower()
 
     def compute_reward(self, rl_actions, **kwargs):
         """
@@ -623,14 +662,14 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # Keeps track of the last time the traffic lights in an intersection
         # were allowed to change (the last time the lights were allowed to
         # change from a red-green state to a red-yellow state.)
-        self.last_change = np.zeros((self.num_traffic_lights, 1))
+        # self.last_change = np.zeros((self.num_traffic_lights, 1))
         # Keeps track of the direction of the intersection (the direction that
         # is currently being allowed to flow. 0 indicates flow from top to
         # bottom, and 1 indicates flow from left to right.)
-        self.direction = np.zeros((self.num_traffic_lights, 1))
+        # self.direction = np.zeros((self.num_traffic_lights, 1))
         # Value of 1 indicates that the intersection is in a red-yellow state.
         # value 0 indicates that the intersection is in a red-green state.
-        self.currently_yellow = np.zeros((self.num_traffic_lights, 1))
+        # self.currently_yellow = np.zeros((self.num_traffic_lights, 1))
         
         # when this hits min_switch_time we change from yellow to red
         # the second column indicates the direction that is currently being
@@ -648,12 +687,12 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         self.phase_indicator = {}
         current_phase = 0
-        for node_id in self.network.tls_ids:
-            num_phases = len(self.network.phases[node_id])
+        for node_id in self.tls_ids:
+            num_phases = len(self.tls_phases[node_id])
             self.phase_indicator[node_id] = current_phase
-            s0 = self.network.states[node_id][0]
+            s0 = self.tls_states[node_id][0]
             self.k.traffic_light.set_state(node_id=node_id, state=s0)
-            self.currently_yellow[i] = 1 if s0[0].lower() == 'y' else 0
+            # self.currently_yellow[i] = 1 if s0[0].lower() == 'y' else 0
             i += 1
 
             self.incoming[node_id] = {p: {} for p in range(num_phases)}
@@ -667,6 +706,51 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.memo_observation_space = {}
 
         
+    def _init_alternative_programs(self, actions_depth):
+        """Generates alternative programs based on `static` programs and split.
+            Alternative program preserve states, but affects duration (timing)
+            of the preferential (straight) crossing.
+
+            Returns:
+            --------
+                * alt_progs: dict<str, dict<int, list<int>>
+                    The keys are tls_ids and action respectively
+                    list<int> is the list of durations.
+        """
+        self.alt_progs = {}
+        for tid in self.tls_ids:
+            static_durations = self.network.durations[tid]
+            cycle_time = sum(static_durations)
+            if cycle_time != self.cycle_time:
+                raise ValueError(
+                    f'cycle_time for {tid} != split_time {self.cycle_time}')
+
+            # TODO: use network.connections to verify those are straight
+            # crossings -- assumption straight crossing have the largest
+            # duration
+            m = max(static_durations)
+            # indexes for preferential crossings
+            preferentials = \
+                [i for i, d in enumerate(static_durations) if d == m]
+            if actions_depth != len(preferentials):
+                raise ValueError(f'actions_depth != # preferential crossings')
+                
+            self.alt_progs[tid] = {}
+            for act in range(actions_depth):
+                alt_prog = []
+                next_act = act
+                delta = 0
+                for i, d in enumerate(static_durations):
+                    if i in preferentials:
+                        delta = self.cycle_split[next_act] - \
+                                    int(cycle_time / len(preferentials))
+                        next_act = (next_act + 1) % len(preferentials)
+                    alt_prog.append(d + delta)
+                    delta = 0
+                self.alt_progs[tid][act] = np.cumsum(alt_prog).tolist()
+        return self.alt_progs
+
+
     # TODO: Copy & Paste dependency on TrafficLightGridEnv
     # ===============================
     # ============ UTILS ============
@@ -701,8 +785,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         if edge_id == "":
             return -10
 
-        # if edge_id in self.traffic_light_node_ids:
-        if edge_id in self.network.tls_ids[i]:
+        if edge_id in self.tls_ids[i]:
             return 0
         edge_len = self.k.scenario.edge_length(edge_id)
         relative_pos = self.k.vehicle.get_position(veh_id)

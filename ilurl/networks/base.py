@@ -294,7 +294,38 @@ class Network(FlowNetwork):
                        if fn(configs[nid])]
                  for nid in self.tls_ids}
         return self._cached_states
-    
+
+    @property
+    def durations(self):
+        """Gives the times or durations in seconds for each of the states
+        on the default programID = 1
+
+        Returns:
+        -------
+            * durations: list<int>
+                a list of integer representing the time in seconds, each
+                state is alloted on the default static program.
+
+        Usage:
+        ------
+        > network.durations
+        > {'247123161': [39, 6, 39, 6]}
+
+        REF:
+        ----
+            http://sumo.sourceforge.net/userdoc/Simulation/Traffic_Lights.html
+        """
+        if not hasattr(self, '_cached_durations'):
+            configs = self.traffic_lights.get_properties()
+
+            def fn(x):
+                return x['type'] == 'static' and x['programID'] == 1
+
+            self._cached_durations = {
+                 nid: [int(p['duration']) for p in configs[nid]['phases']
+                       if fn(configs[nid])]
+                 for nid in self.tls_ids}
+        return self._cached_durations
 
     @property
     def tls_ids(self):
