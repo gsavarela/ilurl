@@ -143,7 +143,10 @@ class Experiment:
         info_dict : dict
             contains returns, average speed per step (last run)
         """
+<<<<<<< HEAD
 
+=======
+>>>>>>> feature/intersection-single
         if rl_actions is None:
 
             def rl_actions(*_):
@@ -183,8 +186,6 @@ class Experiment:
 
                 observation_spaces.append(
                     list(self.env.get_observation_space()))
-                actions.append(
-                    getattr(self.env, 'rl_action', None))
                 rewards.append(round(reward, 4))
 
                 vehs.append(np.nanmean(veh_i).round(4))
@@ -193,7 +194,6 @@ class Experiment:
                 vel_i = []
 
                 agent_updates_counter += 1
-
                 # Save train log.
                 if self.log_info and \
                     (agent_updates_counter % self.log_info_interval == 0):
@@ -201,11 +201,13 @@ class Experiment:
                     filename = \
                         f"{self.dir_path}{self.env.network.name}.train.json"
 
+                    pdb.set_trace()
                     info_dict["rewards"] = rewards
                     info_dict["velocities"] = vels
                     info_dict["vehicles"] = vehs
                     info_dict["observation_spaces"] = observation_spaces
-                    info_dict["rl_actions"] = actions
+                    info_dict["rl_actions"] = self.env.actions_log
+                    info_dict["states"] = self.env.states_log
                     info_dict["explored"] = getattr(self.env.dpq, 'explored', None)
 
                     with open(filename, 'w') as fj:
@@ -227,7 +229,9 @@ class Experiment:
         info_dict["velocities"] = vels
         info_dict["vehicles"] = vehs
         info_dict["observation_spaces"] = observation_spaces
-        info_dict["rl_actions"] = actions
+
+        info_dict["rl_actions"] = self.env.actions_log
+        info_dict["states"] = self.env.states_log
         info_dict["explored"] = getattr(self.env.dpq, 'explored', None)
 
         self.env.terminate()

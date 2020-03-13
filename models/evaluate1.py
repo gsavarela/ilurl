@@ -117,7 +117,7 @@ def evaluate(env_params, sim_params, ql_params, network, horizon, qtb):
         dir_path=None,
         train=False,
     )
-    result = eval.run(1, horizon)
+    result = eval.run(horizon)
     return result
 
 

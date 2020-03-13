@@ -11,8 +11,6 @@ import time
 from flow.core.params import SumoParams, EnvParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 
-from flow.core.params import InFlows
-
 from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS
 from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
 
@@ -51,12 +49,14 @@ def get_arguments():
                         help='Whether to save experiment-related data in a JSON file \
                          thoughout training (allowing to live track training)')
 
-    parser.add_argument('--experiment-log-interval', dest='log_info_interval', type=int,
-                        default=20, nargs='?',
+    parser.add_argument('--experiment-log-interval',
+                        dest='log_info_interval', type=int, default=20,
+                        nargs='?',
                         help='[ONLY APPLIES IF --experiment-log is TRUE] \
                         Log into json file interval (in agent update steps)')
 
-    parser.add_argument('--experiment-save-agent', '-a', dest='save_RL_agent', type=str2bool,
+    parser.add_argument('--experiment-save-agent', '-a',
+                        dest='save_RL_agent', type=str2bool,
                         default=False, nargs='?',
                         help='Whether to save RL-agent parameters throughout training')
 
@@ -72,10 +72,6 @@ def get_arguments():
     parser.add_argument('--sumo-emission', '-e',
                         dest='emission', type=str2bool, default=False, nargs='?',
                         help='Saves emission data from simulation on /data/emissions')
-
-    parser.add_argument('--save-RL-agent', '-a', dest='save_RL_agent',
-                        type=str2bool, default=True, nargs='?',
-                        help='Saves RL agent parameters throughout training')
 
     parser.add_argument('--tls-short', '-S', dest='short_phase',
                         type=int, default=45, nargs='?',
@@ -109,7 +105,7 @@ def print_arguments(args):
     print('\tExperiment pickle: {0}'.format(args.pickle))
     print('\tExperiment log info: {0}'.format(args.log_info))
     print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
-    print('\tExperiment save RL agent: {0}'.format(args.save_RL_agent)) 
+    print('\tExperiment save RL agent: {0}'.format(args.save_RL_agent))
 
     print('\tSUMO render: {0}'.format(args.render))
     print('\tSUMO emission: {0}'.format(args.emission))
@@ -145,8 +141,7 @@ if __name__ == '__main__':
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
     additional_params.update(ADDITIONAL_TLS_PARAMS)
-    additional_params['long_cycle_time'] = args.long_phase
-    additional_params['short_cycle_time'] = args.short_phase
+    additional_params['cycle_split'] = (args.short_phase, args.long_phase)
     additional_params['target_velocity'] = 20
 
     env_params = EnvParams(evaluate=True,

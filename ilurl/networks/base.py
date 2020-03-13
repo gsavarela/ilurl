@@ -176,3 +176,173 @@ class Network(FlowNetwork):
 
     def specify_types(self, net_params):
         return get_types(self.network_id)
+
+    @property
+    def approaches(self):
+        """Returns the incoming approaches for a traffic light junction
+
+        Params:
+        ------
+        * nodeid: string
+            a valid nodeid in self.nodes
+
+        Returns:
+        ------
+        * approaches: dict<string, list<string>>
+            list of mappings from node_id -> incoming edge ids
+        
+        Usage:
+        -----
+         > network.approaches
+         > {'247123161': ['-238059324', '-238059328', '309265401', '383432312']}
+        DEF:
+        ---
+        A roadway meeting at an intersection is referred to as an approach. At any general intersection, there are two kinds of approaches: incoming approaches and outgoing approaches. An incoming approach is one on which cars can enter the intersection.
+
+        REF:
+        ---
+            * Wei et al., 2019
+            http://arxiv.org/abs/1904.08117
+        """
+        
+        if not hasattr(self, '_cached_approaches'):
+            # define approaches
+            self._cached_approaches = {
+                nid: [e['id']
+                          for e in self.edges if e['to'] == nid]
+                for nid in self.tls_ids
+            }
+        return self._cached_approaches
+
+    @property
+    def phases(self):
+        """Returns a nodeid x sets of non conflicting movement patterns.
+            The sets are index by integers and the moviment patterns are
+            expressed as lists of approaches. 
+            
+
+        Returns:
+        ------
+        * phases: dict<string,dict<int, list<string>>>
+            keys: nodeid, phase_index
+            list<string>: list of approaches
+        
+        Usage:
+        -----
+        > network.phases
+        > {'247123161': {0: ['-238059324', '383432312'], \
+                         1: ['-238059328', '309265401']}}
+        DEF:
+        ---
+        A phase is a combination of movement signals which are non-conflicting.
+        The relation from states to phases is such that phases "disregards" 
+        yellow configurations. usually num_phases = num_states / 2
+
+        REF:
+        ---
+        Wei et al., 2019
+        http://arxiv.org/abs/1904.08117
+        """
+
+        if not hasattr(self, '_cached_phases'):
+            self._cached_phases = {}
+            def fn(x, n):
+                return x.get('tl') == nid and 'linkIndex' in x
+            for nid in self.tls_ids:
+                # green and yellow are considered to be one phase
+                self._cached_phases[nid] = {}
+                connections = [c for c in self.connections if fn(c, nid)]
+                states = self.states[nid]
+                links = {int(conn['linkIndex']): conn['from']
+                         for conn in connections if 'linkIndex' in conn}
+                i = 0
+                components = {}
+                for state in states:
+                    components = {eid for lnk, eid in links.items()
+                                  if state[lnk] in ('G','g')}
+
+                    if components:
+                        self._cached_phases[nid][i] = sorted(components)
+                        i += 1
+        return self._cached_phases
+
+    @property
+    def states(self):
+        """states wrt to programID = 1 for traffic light nodes
+
+        Returns:
+        -------
+            * states: dict<string, list<string>>
+
+        Usage:
+        ------
+        > network.states
+        > {'247123161': ['GGrrrGGrrr', 'yyrrryyrrr', 'rrGGGrrGGG', 'rryyyrryyy']}O
+
+        REF:
+        ----
+            http://sumo.sourceforge.net/userdoc/Simulation/Traffic_Lights.html
+        """
+        if not hasattr(self, '_cached_states'):
+            configs = self.traffic_lights.get_properties()
+
+            def fn(x):
+                return x['type'] == 'static' and x['programID'] == 1
+
+            self._cached_states = {
+                 nid: [p['state'] for p in configs[nid]['phases']
+                       if fn(configs[nid])]
+                 for nid in self.tls_ids}
+        return self._cached_states
+
+    @property
+    def durations(self):
+        """Gives the times or durations in seconds for each of the states
+        on the default programID = 1
+
+        Returns:
+        -------
+            * durations: list<int>
+                a list of integer representing the time in seconds, each
+                state is alloted on the default static program.
+
+        Usage:
+        ------
+        > network.durations
+        > {'247123161': [39, 6, 39, 6]}
+
+        REF:
+        ----
+            http://sumo.sourceforge.net/userdoc/Simulation/Traffic_Lights.html
+        """
+        if not hasattr(self, '_cached_durations'):
+            configs = self.traffic_lights.get_properties()
+
+            def fn(x):
+                return x['type'] == 'static' and x['programID'] == 1
+
+            self._cached_durations = {
+                 nid: [int(p['duration']) for p in configs[nid]['phases']
+                       if fn(configs[nid])]
+                 for nid in self.tls_ids}
+        return self._cached_durations
+
+    @property
+    def tls_ids(self):
+        """List of nodes which are also traffic light signals
+
+        Returns
+        -------
+            * nodeids: list<string>
+        Usage:
+        -----
+        # intersection
+        > network.tls_ids
+        ['247123161']
+
+        """
+        if not hasattr(self, '_cached_tls_ids'):
+            self.cached_tls_ids = \
+                [n['id'] for n in self.nodes if n['type'] == 'traffic_light']
+        return self.cached_tls_ids
+    
