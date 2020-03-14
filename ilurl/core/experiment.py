@@ -230,6 +230,13 @@ class Experiment:
         info_dict["states"] = list(self.env.states_log.values())
         info_dict["explored"] = getattr(self.env.dpq, 'explored', None)
 
+        # Save final Q-table.
+        filename = \
+                f'{self.env.network.name}.Q.final.pickle'
+        self.env.dump(self.dir_path,
+                        filename,
+                        attr_name='Q')
+
         self.env.terminate()
 
         print('Experiment:', f'{self.dir_path}{self.env.network.name}')
