@@ -163,11 +163,12 @@ if __name__ == '__main__':
     # net_id = 'intersection'
     # network = Network.load(net_id, net_path)
     
+    phases_per_tls = [len(network.phases[t]) for t in network.tls_ids]
     ql_params = QLParams(epsilon=0.10, alpha=0.50,
                          states=('speed', 'count'),
                          rewards={'type': 'target_velocity',
                                   'costs': None},
-                         num_traffic_lights=1,
+                         phases_per_traffic_light=phases_per_tls,
                          choice_type='eps-greedy')
 
     env = TrafficLightQLEnv(

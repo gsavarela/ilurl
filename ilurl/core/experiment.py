@@ -202,8 +202,8 @@ class Experiment:
                     info_dict["velocities"] = vels
                     info_dict["vehicles"] = vehs
                     info_dict["observation_spaces"] = observation_spaces
-                    info_dict["rl_actions"] = self.env.actions_log
-                    info_dict["states"] = self.env.states_log
+                    info_dict["rl_actions"] = list(self.env.actions_log.values())
+                    info_dict["states"] = list(self.env.states_log.values())
                     info_dict["explored"] = getattr(self.env.dpq, 'explored', None)
 
                     with open(filename, 'w') as fj:
@@ -226,8 +226,8 @@ class Experiment:
         info_dict["vehicles"] = vehs
         info_dict["observation_spaces"] = observation_spaces
 
-        info_dict["rl_actions"] = self.env.actions_log
-        info_dict["states"] = self.env.states_log
+        info_dict["rl_actions"] = list(self.env.actions_log.values())
+        info_dict["states"] = list(self.env.states_log.values())
         info_dict["explored"] = getattr(self.env.dpq, 'explored', None)
 
         self.env.terminate()

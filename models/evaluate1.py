@@ -10,7 +10,6 @@
 __author__ = 'Guilherme Varela'
 __date__ = '2020-03-04'
 
-import pdb
 from datetime import datetime
 import multiprocessing as mp
 from collections import defaultdict, OrderedDict
