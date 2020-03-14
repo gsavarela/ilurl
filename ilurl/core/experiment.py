@@ -143,10 +143,6 @@ class Experiment:
         info_dict : dict
             contains returns, average speed per step (last run)
         """
-<<<<<<< HEAD
-
-=======
->>>>>>> feature/intersection-single
         if rl_actions is None:
 
             def rl_actions(*_):
