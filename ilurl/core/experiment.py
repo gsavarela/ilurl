@@ -19,7 +19,6 @@ import tempfile
 import time
 from collections import defaultdict
 
-
 from tqdm import tqdm
 
 import numpy as np
@@ -197,7 +196,6 @@ class Experiment:
                     filename = \
                         f"{self.dir_path}{self.env.network.name}.train.json"
 
-                    pdb.set_trace()
                     info_dict["rewards"] = rewards
                     info_dict["velocities"] = vels
                     info_dict["vehicles"] = vehs
@@ -231,8 +229,6 @@ class Experiment:
         info_dict["explored"] = getattr(self.env.dpq, 'explored', None)
 
         self.env.terminate()
-
-        print('Experiment:', f'{self.dir_path}{self.env.network.name}')
 
         return info_dict
 

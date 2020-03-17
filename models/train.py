@@ -122,9 +122,18 @@ if __name__ == '__main__':
 
     print_arguments(args)
 
-    path = f'{EMISSION_PATH}{args.long_phase}{args.short_phase}/'
+    inflows_type = 'switch' if args.switch else 'lane'
+    network = Network(
+        network_id=args.network,
+        horizon=args.time,
+        demand_type=inflows_type
+    )
+
+    path = f'{EMISSION_PATH}{network.name}/'
     if not os.path.isdir(path):
         os.mkdir(path)
+
+    print('Experiment: {0}\n'.format(path))
 
     sumo_args = {
         'render': args.render,
@@ -147,22 +156,6 @@ if __name__ == '__main__':
     env_params = EnvParams(evaluate=True,
                            additional_params=additional_params)
 
-    inflows_type = 'switch' if args.switch else 'lane'
-    network = Network(
-        network_id=args.network,
-        horizon=args.time,
-        demand_type=inflows_type
-    )
-
-    # UNCOMMENT to build evaluation
-    # networks over static distributions
-    # Network.make(
-    #     args.network, args.time, inflows_type, 1
-    # )
-    # net_path = 'data/networks/intersection/intersection.0.450000.l.rou.xml'
-    # net_id = 'intersection'
-    # network = Network.load(net_id, net_path)
-    
     phases_per_tls = [len(network.phases[t]) for t in network.tls_ids]
     ql_params = QLParams(epsilon=0.10, alpha=0.50,
                          states=('speed', 'count'),
