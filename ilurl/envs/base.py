@@ -68,46 +68,8 @@ class TrafficLightEnv(AccelEnv, Serializer):
     * discrete: determines whether the action space is meant to be
                 discrete or continuous.
 
-    Q-Learning
-    ----------
-    * epsilon: small positive number representing the change of
-                the agent taking a random action [1].
-    * alpha: positive number between 0 and 1 representing the
-                 update rate [1].
-    * gamma: positive number between 0 and 1 representing the
-                discount rate for the rewards [1].
-
-   References:
-    [1] Sutton et Barto, Reinforcement Learning 2nd Ed 2018
-
-    States
-        An observation is the vehicle data, taken at each intersecting
-        edge for the k-th traffic light. Futhermore, the traffic light
-        accesses only the vehicles on the range of half an edge length.
-        Currently only the number of vehicles and their speed are being
-        evaluated and ordered into 3 categories:
-
-                        0 ("low"), 1 ("medium"), 2 ("high").
-
-    Actions
-        The action space consist of a list of float variables ranging
-        from 0-1 specifying whether a traffic light is supposed to
-        switch or not. The actions are sent to the traffic light in the
-        grid from left to right and then top to bottom.
-
-    Rewards
-        The reward is the negative per vehicle delay minus a penalty for
-        switching traffic lights
-
-    Termination
-        A rollout is terminated once the time horizon is reached.
-
-    Additional
-        Vehicles are rerouted to the start of their original routes
-        once they reach the end of the network in order to ensure a
-        constant number of vehicles.
     """
-
+    
     def __init__(self,
                  env_params,
                  sim_params,
@@ -140,8 +102,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
         self.steps = env_params.horizon
 
-        # self.min_switch_time = env_params.additional_params["switch_time"]
-
         self.actions_log = {}
         self.states_log = {}
 
@@ -157,7 +117,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
         self.agent = agent
         self.reward_calculator = RewardCalculator(env_params, self.agent.ql_params)
         self.rl_action = None
-
 
     @property
     def stop(self):
@@ -195,8 +154,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
                 tid: np.cumsum(durations).tolist()
                 for tid, durations in self.network.durations.items()}
         return self._cached_tls_durations
-
-    #############
 
     def update_observation_space(self):
         """

@@ -8,7 +8,23 @@ from ilurl.core.ql.update import dpq_update
 
 
 class DPQ(object):
+
     def __init__(self, ql_params):
+        """
+        Q-Learning agent
+
+        ----------
+        * epsilon: small positive number representing the change of
+                    the agent taking a random action [1].
+        * alpha: positive number between 0 and 1 representing the
+                    update rate [1].
+        * gamma: positive number between 0 and 1 representing the
+                    discount rate for the rewards [1].
+
+        References:
+            [1] Sutton et Barto, Reinforcement Learning 2nd Ed 2018
+            
+        """
 
         # Store Q-learning parameters.
         self.ql_params = ql_params
