@@ -20,9 +20,9 @@ TLS_PARAMS = {
 }
 
 
-class TrafficLightQLEnv(AccelEnv, Serializer):
+class TrafficLightEnv(AccelEnv, Serializer):
     """
-    Environment used to train traffic lights.
+    Environment used to train traffic light systems.
 
     This is a single TFLQLAgent controlling a variable number of
     traffic lights (TFL) with discrete features defined as such:
@@ -127,7 +127,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 val = env_params.additional_params[p]
                 setattr(self, p, val)
 
-        super(TrafficLightQLEnv, self).__init__(env_params,
+        super(TrafficLightEnv, self).__init__(env_params,
                                                 sim_params,
                                                 network,
                                                 simulator=simulator)
@@ -153,28 +153,27 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         self.discrete = env_params.additional_params.get("discrete", False)
 
-        # Q learning stuff
-        self.dpq = agent
-        self.reward_calculator = RewardCalculator(env_params, self.dpq.ql_params)
+        # RL agent.
+        self.agent = agent
+        self.reward_calculator = RewardCalculator(env_params, self.agent.ql_params)
         self.rl_action = None
 
 
-    # delegates properties to dpq
     @property
     def stop(self):
-        return self.dpq.stop
+        return self.agent.stop
 
     @stop.setter
     def stop(self, stop):
-        self.dpq.stop = stop
+        self.agent.stop = stop
 
     @property
     def Q(self):
-        return self.dpq.Q
+        return self.agent.Q
 
     @Q.setter
     def Q(self, Q):
-        self.dpq.Q = Q
+        self.agent.Q = Q
 
     # TODO: generalize delegation
     @property
@@ -210,18 +209,13 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         Updates the following data structures:
 
         * incoming: nested dict
-               outer keys: int
+            outer keys: int
                     traffic_light_id
-               inner keys: float
+            inner keys: float
                     frame_id of observations ranging from 0 to duration
-               values: list
+            values: list
                     vehicle speeds at frame or edge
-        RETURNS:
-        --------
         """
-        # TODO: insert paramter to control the observable distance
-        # TODO: each intersection is claiming all edge -- this
-        # is an error
         def extract(edge_ids):
             veh_ids = []
             for edge_id in edge_ids:
@@ -287,7 +281,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 for phase in self.tls_phases[nid]:
                     incoming = self.incoming[nid][phase]
                     values = []
-                    for label in self.dpq.ql_params.states_labels:
+                    for label in self.agent.ql_params.states_labels:
 
                         if label in ('count',):
                             counts = self.memo_counts[nid][phase]
@@ -331,46 +325,33 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         """
         # Categorize.
         categorized = \
-            self.dpq.ql_params.categorize_space(self.get_observation_space())
+            self.agent.ql_params.categorize_space(self.get_observation_space())
         
         # Flatten.
         flattened = \
-            self.dpq.ql_params.flatten_space(categorized)
+            self.agent.ql_params.flatten_space(categorized)
 
         return tuple(flattened)
 
     def rl_actions(self, state):
         """
-        rl_action:
-            0 fast green — on vertical ~ slow green on horizontal
-            1 slow green — on vertical ~ fast green on horizontal
+        Return the selected action given the state of the environment.
 
-                                    direction = 0   direction = 1
-                                    ------------    -------------
-
-            rl_action = 0           |    |               |    |
-            -------------           | FG |               | Sr |
-                                    |    |               |    |
-                            --------x    x------    -----x    x-----
-                                Fr          Fr        SG        SG
-                            --------x    x------    -----x    x-----
-                                    |    |               |    |
-                                    | FG |               | Sr |
-                                    |    |               |    |
-
-            rl_action = 1           |    |               |    |
-            -------------           | SG |               | Fr |
-                                    |    |               |    |
-                            --------x    x------    -----x    x-----
-                                Sr          Sr        FG        FG
-                            --------x    x------    -----x    x-----
-                                    |    |               |    |
-                                    | SG |               | Fr |
-                                    |    |               |    |
+        Params:
+        ------
+            state : array_like
+            information on the state of the vehicles, which is provided to the
+            agent
+        
+        Returns
+        -------
+            action : array_like
+                information on the state of the vehicles, which is
+                provided to the agent
 
         """
         if self.duration == 0:
-            action = self.dpq.rl_actions(tuple(state))
+            action = self.agent.rl_actions(tuple(state))
 
             self.rl_action = action
 
@@ -379,6 +360,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
             self.states_log[cycles] = state
         else:
             action = None
+
         return action
 
     def cl_actions(self, static=False):
@@ -417,7 +399,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
     def apply_rl_actions(self, rl_actions):
         """
-        Specify the actions to be performed by the rl agent(s).
+        Specify the actions to be performed by the RL agent(s).
 
         Parameters
         ----------
@@ -445,7 +427,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                     int(self.step_counter / (self.cycle_time * self.sim_step)) 
                 prev_state = self.states_log[cycles - 1]
                 prev_action = self.actions_log[cycles - 1]
-                self.dpq.update(prev_state, prev_action, reward, state)
+                self.agent.update(prev_state, prev_action, reward, state)
                 
             self.memo_rewards = {}
             self.memo_observation_space = {}
@@ -503,7 +485,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         return self.memo_rewards[self.duration]
 
     def reset(self):
-        super(TrafficLightQLEnv, self).reset()
+        super(TrafficLightEnv, self).reset()
         self._reset()
 
     def _reset(self):

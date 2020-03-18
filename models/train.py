@@ -10,7 +10,7 @@ import time
 from flow.core.params import SumoParams, EnvParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 
-from ilurl.envs.base import TrafficLightQLEnv, TLS_PARAMS
+from ilurl.envs.base import TrafficLightEnv, TLS_PARAMS
 
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
@@ -157,7 +157,7 @@ if __name__ == '__main__':
 
     QL_agent = DPQ(ql_params)
 
-    env = TrafficLightQLEnv(
+    env = TrafficLightEnv(
         env_params=env_params,
         sim_params=sim_params,
         agent=QL_agent,
