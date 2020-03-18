@@ -11,8 +11,7 @@ import re
 import numpy as np
 
 from flow.core import rewards
-# from flow.envs.loop.loop_accel import AccelEnv, ADDITIONAL_ENV_PARAMS
-from flow.envs.ring.accel import AccelEnv, ADDITIONAL_ENV_PARAMS
+from flow.envs.ring.accel import AccelEnv
 
 from ilurl.core.ql.dpq import DPQ
 from ilurl.core.ql.reward import RewardCalculator
@@ -28,11 +27,13 @@ QL_PARAMS = {
     # gamma is the discount rate for value function
     'gamma': 0.999,
 }
+
 ADDITIONAL_TLS_PARAMS = {
     'cycle_split': (45, 45),
     'switch_time': 6
 }
 
+PROGRAMS = {'247123161': {0: [24, 30, 84, 90], 1: [54, 60, 84, 90]}}
 
 class TrafficLightQLEnv(AccelEnv, Serializer):
     """
@@ -183,7 +184,9 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         # Builds alternative programs -- static programs are made of
         # states and durations. alternative programs are based from
         # static programs: they keep the states but change durations
-        self._init_alternative_programs(ql_params.actions.depth)
+        #self._init_alternative_programs(ql_params.actions.depth)
+        self.alt_progs = PROGRAMS
+
         # TODO: Allow for mixed networks with actuated, controlled and static
         # traffic light configurations
         self.tl_type = env_params.additional_params.get('tl_type')
@@ -268,8 +271,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 veh_ids += \
                     [veh_id
                      for veh_id in self.k.vehicle.get_ids_by_edge(edge_id)]
-                     #if self.get_distance_to_intersection(veh_id) <
-                     #   0.5 * self.k.scenario.edge_length(edge_id)]
             speeds = [
                self.k.vehicle.get_speed(veh_id)
                 for veh_id in veh_ids
@@ -578,90 +579,3 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         self.memo_rewards = {}
         self.memo_observation_space = {}
-
-    def _init_alternative_programs(self, actions_depth):
-        """Generates alternative programs based on `static` programs and split.
-            Alternative program preserve states, but affects duration (timing)
-            of the preferential (straight) crossing.
-
-            Returns:
-            --------
-                * alt_progs: dict<str, dict<int, list<int>>
-                    The keys are tls_ids and action respectively
-                    list<int> is the list of durations.
-        """
-        self.alt_progs = {}
-        for tid in self.tls_ids:
-            static_durations = self.network.durations[tid]
-            cycle_time = sum(static_durations)
-            if cycle_time != self.cycle_time:
-                raise ValueError(
-                    f'cycle_time for {tid} != split_time {self.cycle_time}')
-
-            # TODO: use network.connections to verify those are straight
-            # crossings -- assumption straight crossing have the largest
-            # duration
-            m = max(static_durations)
-            # indexes for preferential crossings
-            preferentials = \
-                [i for i, d in enumerate(static_durations) if d == m]
-            if actions_depth != len(preferentials):
-                raise ValueError(f'actions_depth != # preferential crossings')
-                
-            self.alt_progs[tid] = {}
-            for act in range(actions_depth):
-                alt_prog = []
-                next_act = act
-                delta = 0
-                for i, d in enumerate(static_durations):
-                    if i in preferentials:
-                        delta = self.cycle_split[next_act] - \
-                                    int(cycle_time / len(preferentials))
-                        next_act = (next_act + 1) % len(preferentials)
-                    alt_prog.append(d + delta)
-                    delta = 0
-                self.alt_progs[tid][act] = np.cumsum(alt_prog).tolist()
-        return self.alt_progs
-
-
-    # TODO: Copy & Paste dependency on TrafficLightGridEnv
-    # ===============================
-    # ============ UTILS ============
-    # ===============================
-
-    def get_distance_to_intersection(self, veh_ids):
-        """Determine the distance from a vehicle to its next intersection.
-
-        Parameters
-        ----------
-        veh_ids : str or str list
-            vehicle(s) identifier(s)
-
-        Returns
-        -------
-        float (or float list)
-            distance to closest intersection
-        """
-        if isinstance(veh_ids, list):
-            return [self.get_distance_to_intersection(veh_id)
-                    for veh_id in veh_ids]
-        return self.find_intersection_dist(veh_ids)
-
-    def find_intersection_dist(self, veh_id):
-        """Return distance from intersection.
-
-        Return the distance from the vehicle's current position to the position
-        of the node it is heading toward.
-        """
-        edge_id = self.k.vehicle.get_edge(veh_id)
-        # FIXME this might not be the best way of handling this
-        if edge_id == "":
-            return -10
-
-        if edge_id in self.tls_ids[i]:
-            return 0
-        edge_len = self.k.scenario.edge_length(edge_id)
-        relative_pos = self.k.vehicle.get_position(veh_id)
-        dist = edge_len - relative_pos
-        return dist
-

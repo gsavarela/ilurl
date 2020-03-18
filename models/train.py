@@ -93,6 +93,7 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def print_arguments(args):
+
     print('Arguments:')
     print('\tExperiment time: {0}'.format(args.time))
     print('\tExperiment pickle: {0}'.format(args.pickle))
