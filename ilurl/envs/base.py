@@ -1,7 +1,7 @@
 '''
             Traffic Light Environments
 
-    Extends the flow's green wave environmenets
+    Extends the flow's green wave environment
 '''
 __author__ = "Guilherme Varela"
 __date__ = "2019-12-10"
@@ -14,16 +14,6 @@ from ilurl.core.ql.dpq import DPQ
 from ilurl.core.ql.reward import RewardCalculator
 from ilurl.utils.serialize import Serializer
 
-QL_PARAMS = {
-    # epsilon is the chance to adopt a random action instead of
-    # a greedy action - if is None then adopt optimistic values
-    # see class definitino for details
-    'epsilon': None,
-    # alpha is the learning rate the weight given to new knowledge
-    'alpha': 5e-2,
-    # gamma is the discount rate for value function
-    'gamma': 0.999,
-}
 
 TLS_PARAMS = {
     'programs': {'247123161': {0: [24, 30, 84, 90], 1: [54, 60, 84, 90]}},
@@ -126,22 +116,12 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                  network,
                  simulator='traci'):
 
-
-        # those parameters are going to be forwarded to learning engine
-        for p in QL_PARAMS:
-            if not hasattr(ql_params, p):
-                raise KeyError(
-                    'Q-learning parameter "{}" not supplied'.format(p))
-            else:
-                # dynamicaly set attributes for Q-learning attributes
-                val = getattr(ql_params, p)
-                setattr(self, p, val)
-
         # Traffic light system parameters.
         #
         #   - programs
         #   - cycle time
-        # TODO: check programs. diffferent cycle times for each intersection.
+        # TODO: check programs.
+        # TODO: different cycle times for each intersection.
         for p in TLS_PARAMS:
             if p not in env_params.additional_params:
                 raise KeyError(

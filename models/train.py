@@ -5,13 +5,12 @@ __date__ = '2020-01-08'
 import os
 import json
 import argparse
-import math
 import time
 
 from flow.core.params import SumoParams, EnvParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 
-from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS, TLS_PARAMS
+from ilurl.envs.base import TrafficLightQLEnv, TLS_PARAMS
 
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
