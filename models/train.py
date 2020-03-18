@@ -17,7 +17,6 @@ from ilurl.core.experiment import Experiment
 
 from ilurl.networks.base import Network
 
-# TODO: Generalize for any parameter
 ILURL_HOME = os.environ['ILURL_HOME']
 
 EMISSION_PATH = \
@@ -141,10 +140,12 @@ if __name__ == '__main__':
     additional_params.update(ADDITIONAL_ENV_PARAMS)
     additional_params.update(TLS_PARAMS)
     additional_params['target_velocity'] = 20
-    #print(additional_params)
 
     env_params = EnvParams(evaluate=True,
                            additional_params=additional_params)
+
+    # Agent.
+    from ilurl.core.ql.dpq import DPQ
 
     phases_per_tls = [len(network.phases[t]) for t in network.tls_ids]
     ql_params = QLParams(epsilon=0.10, alpha=0.50,
@@ -154,10 +155,12 @@ if __name__ == '__main__':
                          phases_per_traffic_light=phases_per_tls,
                          choice_type='eps-greedy')
 
+    QL_agent = DPQ(ql_params)
+
     env = TrafficLightQLEnv(
         env_params=env_params,
         sim_params=sim_params,
-        ql_params=ql_params,
+        agent=QL_agent,
         network=network
     )
 

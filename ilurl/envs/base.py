@@ -10,7 +10,6 @@ import numpy as np
 from flow.core import rewards
 from flow.envs.ring.accel import AccelEnv
 
-from ilurl.core.ql.dpq import DPQ
 from ilurl.core.ql.reward import RewardCalculator
 from ilurl.utils.serialize import Serializer
 
@@ -112,14 +111,11 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
     def __init__(self,
                  env_params,
                  sim_params,
-                 ql_params,
+                 agent,
                  network,
                  simulator='traci'):
 
         # Traffic light system parameters.
-        #
-        #   - programs
-        #   - cycle time
         # TODO: check programs.
         # TODO: different cycle times for each intersection.
         for p in TLS_PARAMS:
@@ -158,9 +154,8 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         self.discrete = env_params.additional_params.get("discrete", False)
 
         # Q learning stuff
-        self.ql_params = ql_params
-        self.dpq = DPQ(ql_params)
-        self.reward_calculator = RewardCalculator(env_params, ql_params)
+        self.dpq = agent
+        self.reward_calculator = RewardCalculator(env_params, self.dpq.ql_params)
         self.rl_action = None
 
 
@@ -292,7 +287,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 for phase in self.tls_phases[nid]:
                     incoming = self.incoming[nid][phase]
                     values = []
-                    for label in self.ql_params.states_labels:
+                    for label in self.dpq.ql_params.states_labels:
 
                         if label in ('count',):
                             counts = self.memo_counts[nid][phase]
@@ -336,11 +331,11 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
         """
         # Categorize.
         categorized = \
-            self.ql_params.categorize_space(self.get_observation_space())
+            self.dpq.ql_params.categorize_space(self.get_observation_space())
         
         # Flatten.
         flattened = \
-            self.ql_params.flatten_space(categorized)
+            self.dpq.ql_params.flatten_space(categorized)
 
         return tuple(flattened)
 

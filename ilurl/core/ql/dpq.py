@@ -10,6 +10,9 @@ from ilurl.core.ql.update import dpq_update
 class DPQ(object):
     def __init__(self, ql_params):
 
+        # Store Q-learning parameters.
+        self.ql_params = ql_params
+
         self.stop = False
 
         # Learning rate.
