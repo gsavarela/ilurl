@@ -73,13 +73,6 @@ def get_arguments():
                         dest='emission', type=str2bool, default=False, nargs='?',
                         help='Saves emission data from simulation on /data/emissions')
 
-    parser.add_argument('--tls-short', '-S', dest='short_phase',
-                        type=int, default=45, nargs='?',
-                        help='Short phase length in seconds of the cycle')
-
-    parser.add_argument('--tls-long', '-L', dest='long_phase',
-                        type=int, default=45, nargs='?',
-                        help='Long phase length in seconds of the cycle')
 
     parser.add_argument('--tls-inflows-switch', '-W', dest='switch',
                         type=str2bool, default=False, nargs='?',
@@ -111,8 +104,6 @@ def print_arguments(args):
     print('\tSUMO emission: {0}'.format(args.emission))
     print('\tSUMO step: {0}'.format(args.step))
 
-    print('\tTLS short: {0}'.format(args.short_phase))
-    print('\tTLS long: {0}'.format(args.long_phase))
     print('\tTLS inflows switch: {0}\n'.format(args.switch))
 
 
@@ -150,7 +141,7 @@ if __name__ == '__main__':
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
     additional_params.update(ADDITIONAL_TLS_PARAMS)
-    additional_params['cycle_split'] = (args.short_phase, args.long_phase)
+    additional_params['cycle_split'] = (30, 60)
     additional_params['target_velocity'] = 20
 
     env_params = EnvParams(evaluate=True,
