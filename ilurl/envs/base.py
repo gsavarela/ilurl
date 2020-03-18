@@ -5,9 +5,6 @@
 '''
 __author__ = "Guilherme Varela"
 __date__ = "2019-12-10"
-from collections import defaultdict
-import re
-
 import numpy as np
 
 from flow.core import rewards
@@ -28,12 +25,11 @@ QL_PARAMS = {
     'gamma': 0.999,
 }
 
-ADDITIONAL_TLS_PARAMS = {
-    'cycle_split': (45, 45),
-    'switch_time': 6
+TLS_PARAMS = {
+    'programs': {'247123161': {0: [24, 30, 84, 90], 1: [54, 60, 84, 90]}},
+    'cycle_time': 90,
 }
 
-PROGRAMS = {'247123161': {0: [24, 30, 84, 90], 1: [54, 60, 84, 90]}}
 
 class TrafficLightQLEnv(AccelEnv, Serializer):
     """
@@ -141,9 +137,12 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 val = getattr(ql_params, p)
                 setattr(self, p, val)
 
-        # those parameters are extensions from the standard
-        # traffic light green wave additional parameters
-        for p in ADDITIONAL_TLS_PARAMS:
+        # Traffic light system parameters.
+        #
+        #   - programs
+        #   - cycle time
+        # TODO: check programs. diffferent cycle times for each intersection.
+        for p in TLS_PARAMS:
             if p not in env_params.additional_params:
                 raise KeyError(
                     'Traffic Light parameter "{}" not supplied'.format(p))
@@ -156,17 +155,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                                                 sim_params,
                                                 network,
                                                 simulator=simulator)
-        # Check constrains on minimum duration
-        short_cycle_time, long_cycle_time = self.cycle_split
-        if self.switch_time > short_cycle_time:
-            raise ValueError('''Fast phase time must be
-                greater than minimum switch time''')
-
-        if short_cycle_time > long_cycle_time:
-            raise ValueError('''Fast phase time must be
-                lesser than or equal to slow phase time''')
-
-        self.cycle_time = long_cycle_time + short_cycle_time
 
         # keeps the internal value of sim step
         self.sim_step = sim_params.sim_step
@@ -180,12 +168,6 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
 
         self.actions_log = {}
         self.states_log = {}
-
-        # Builds alternative programs -- static programs are made of
-        # states and durations. alternative programs are based from
-        # static programs: they keep the states but change durations
-        #self._init_alternative_programs(ql_params.actions.depth)
-        self.alt_progs = PROGRAMS
 
         # TODO: Allow for mixed networks with actuated, controlled and static
         # traffic light configurations
@@ -453,7 +435,7 @@ class TrafficLightQLEnv(AccelEnv, Serializer):
                 # adjust for duration
                 c = int(max(0, self.step_counter - 1) / (self.cycle_time * self.sim_step))
                 return (x == 0 and self.step_counter > 1) or \
-                    x in self.alt_progs[t][self.actions_log[c][0]]
+                    x in self.programs[t][self.actions_log[c][0]]
             ret = [gn(int(self.duration), tid) for tid in self.tls_ids]
 
         return tuple(ret)

@@ -11,8 +11,7 @@ import time
 from flow.core.params import SumoParams, EnvParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 
-from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS
-from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
+from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS, TLS_PARAMS
 
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
@@ -141,9 +140,9 @@ if __name__ == '__main__':
 
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
-    additional_params.update(ADDITIONAL_TLS_PARAMS)
-    additional_params['cycle_split'] = (30, 60)
+    additional_params.update(TLS_PARAMS)
     additional_params['target_velocity'] = 20
+    #print(additional_params)
 
     env_params = EnvParams(evaluate=True,
                            additional_params=additional_params)
