@@ -5,6 +5,8 @@
 '''
 __author__ = "Guilherme Varela"
 __date__ = "2019-12-10"
+import os
+import json
 import numpy as np
 
 from flow.core import rewards
@@ -13,9 +15,12 @@ from flow.envs.ring.accel import AccelEnv
 from ilurl.core.ql.reward import RewardCalculator
 from ilurl.utils.serialize import Serializer
 
+ILURL_HOME = os.environ['ILURL_HOME']
+
+NETWORKS_PATH = \
+    f'{ILURL_HOME}/data/networks/'
 
 TLS_PARAMS = {
-    'programs': {'247123161': {0: [24, 30, 84, 90], 1: [54, 60, 84, 90]}},
     'cycle_time': 90,
 }
 
@@ -75,26 +80,45 @@ class TrafficLightEnv(AccelEnv, Serializer):
                  sim_params,
                  agent,
                  network,
+                 static=False,
                  simulator='traci'):
 
+        # Whether traffic light system timings
+        # are static or controlled by agent.
+        self.static = static
+
         # Traffic light system parameters.
-        # TODO: check programs.
         # TODO: different cycle times for each intersection.
         for p in TLS_PARAMS:
             if p not in env_params.additional_params:
                 raise KeyError(
                     'Traffic Light parameter "{}" not supplied'.format(p))
             else:
-                # dynamicaly set attributes for Q-learning attributes
                 val = env_params.additional_params[p]
                 setattr(self, p, val)
+
+        # Setup programs (timings).
+        splits_file = '{0}/{1}/splits.json'.format(NETWORKS_PATH, network.network_id)
+        if os.path.isfile(splits_file):
+
+            with open(splits_file, 'r') as f:
+                timings = json.load(f)
+
+            programs = {int(action): timings[action] for action in timings.keys()}
+
+            self.programs = {net_id: programs for net_id in network.tls_ids}
+
+        else:
+            print("WARNING: splits.json file not provided for network {0}.\n"
+            "\t Switching to static timings.".format(network.network_id))
+            self.static = True
 
         super(TrafficLightEnv, self).__init__(env_params,
                                                 sim_params,
                                                 network,
                                                 simulator=simulator)
 
-        # keeps the internal value of sim step
+        # Keeps the internal value of sim step.
         self.sim_step = sim_params.sim_step
 
         # assumption every traffic light will be controlled
@@ -390,7 +414,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
             self.memo_observation_space = {}
 
         # Update traffic lights' control signals.
-        self._apply_cl_actions(self.cl_actions(static=False))
+        self._apply_cl_actions(self.cl_actions(static=self.static))
 
         # Update timer.
         self.duration = \
