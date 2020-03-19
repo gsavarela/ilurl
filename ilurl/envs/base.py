@@ -83,8 +83,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
                  static=False,
                  simulator='traci'):
 
-        # Whether traffic light system timings
-        # are static or controlled by agent.
+        # Whether TLS timings are static or controlled by agent.
         self.static = static
 
         # Traffic light system parameters.
@@ -104,9 +103,21 @@ class TrafficLightEnv(AccelEnv, Serializer):
             with open(splits_file, 'r') as f:
                 timings = json.load(f)
 
-            programs = {int(action): timings[action] for action in timings.keys()}
+            self.programs = {}
+            for tls_id in network.tls_ids:
 
-            self.programs = {net_id: programs for net_id in network.tls_ids}
+                # Get number of phases for given TLS.
+                num_phases = str(len(network.phases[tls_id]))
+
+                if num_phases not in timings.keys():
+                    raise KeyError(
+                        f'Missing timings for {num_phases} phases in splits.json')
+
+                # TODO: check timings correction.
+
+                # Setup actions (programs) for given TLS.
+                self.programs[tls_id] = {int(action): timings[num_phases][action]
+                                        for action in timings[num_phases].keys()}
 
         else:
             print("WARNING: splits.json file not provided for network {0}.\n"
@@ -121,9 +132,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
         # Keeps the internal value of sim step.
         self.sim_step = sim_params.sim_step
 
-        # assumption every traffic light will be controlled
-        # self.num_traffic_lights = len(network.tls_ids)
-
+        # Time-steps simulation horizon.
         self.steps = env_params.horizon
 
         self.actions_log = {}
