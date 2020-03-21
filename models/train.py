@@ -5,7 +5,6 @@ __date__ = '2020-01-08'
 import os
 import json
 import argparse
-import time
 
 from flow.core.params import SumoParams, EnvParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
@@ -174,13 +173,9 @@ if __name__ == '__main__':
 
     print('Running experiment...')
 
-    start = time.time()
-
     info_dict = exp.run(
         int(args.time / args.step)
     )
-
-    print(f'Elapsed time {time.time() - start}')
 
     # Save train log.
     filename = \
