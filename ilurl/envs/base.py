@@ -395,7 +395,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
             # Get the number of the current cycle.
             cycle_number = int(self.step_counter / (self.cycle_time / self.sim_step))
-            print(f'Cycle number: {cycle_number}')
 
             # Get current state.
             state = self.get_state()
