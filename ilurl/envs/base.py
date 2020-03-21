@@ -135,9 +135,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
         # Time-steps simulation horizon.
         self.steps = env_params.horizon
 
-        self.actions_log = {}
-        self.states_log = {}
-
         # TODO: Allow for mixed networks with actuated, controlled and static
         # traffic light configurations
         self.tl_type = env_params.additional_params.get('tl_type')
@@ -149,7 +146,9 @@ class TrafficLightEnv(AccelEnv, Serializer):
         # RL agent.
         self.agent = agent
         self.reward_calculator = RewardCalculator(env_params, self.agent.ql_params)
-        self.rl_action = None
+
+        self.actions_log = {}
+        self.states_log = {}
 
     @property
     def stop(self):
@@ -295,8 +294,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
                         else:
                             raise ValueError(f'`{label}` not implemented')
 
-
-
                         values.append(round(value, 2))
                     data.append(values)
                 observations.append(data)
@@ -342,12 +339,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
         """
         if self.duration == 0:
             action = self.agent.rl_actions(tuple(state))
-
-            self.rl_action = action
-
-            cycles = int(self.step_counter / (self.cycle_time * self.sim_step))
-            self.actions_log[cycles] = action
-            self.states_log[cycles] = state
         else:
             action = None
 
@@ -380,7 +371,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
         else:
             def gn(x, t):
                 # adjust for duration
-                c = int(max(0, self.step_counter - 1) / (self.cycle_time * self.sim_step))
+                c = int(max(0, self.step_counter - 1) / (self.cycle_time / self.sim_step))
                 return (x == 0 and self.step_counter > 1) or \
                     x in self.programs[t][self.actions_log[c][0]]
             ret = [gn(int(self.duration), tid) for tid in self.tls_ids]
@@ -399,24 +390,30 @@ class TrafficLightEnv(AccelEnv, Serializer):
         # Update observation space.
         self.update_observation_space()
 
-        if self.duration == 0.0:
+        if self.duration == 0:
             # New cycle.
 
-            # Select new action (action is stored in self.rl_action attribute).
+            # Get the number of the current cycle.
+            cycle_number = int(self.step_counter / (self.cycle_time / self.sim_step))
+            print(f'Cycle number: {cycle_number}')
+
+            # Get current state.
+            state = self.get_state()
+
+            # Select new action.
             if rl_actions is None:
-                rl_action = self.rl_actions(self.get_state())
+                rl_action = self.rl_actions(state)
             else:
                 rl_action = rl_actions
 
+            self.actions_log[cycle_number] = rl_action
+            self.states_log[cycle_number] = state
+
             if self.step_counter > 1 and not self.stop:
                 # RL-agent update.
-                reward = self.compute_reward(rl_action)
-                state = self.get_state()
-                
-                cycles = \
-                    int(self.step_counter / (self.cycle_time * self.sim_step)) 
-                prev_state = self.states_log[cycles - 1]
-                prev_action = self.actions_log[cycles - 1]
+                reward = self.compute_reward(None)
+                prev_state = self.states_log[cycle_number - 1]
+                prev_action = self.actions_log[cycle_number - 1]
                 self.agent.update(prev_state, prev_action, reward, state)
                 
             self.memo_rewards = {}
@@ -428,7 +425,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
         # Update timer.
         self.duration = \
             round(self.duration + self.sim_step, 2) % self.cycle_time
-
 
     def _apply_cl_actions(self, cl_actions):
         """For each tls shift phase or keep phase
@@ -456,7 +452,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
         Parameters
         ----------
         rl_actions : array_like
-            actions performed by rl vehicles
+            actions performed by rl vehicles or None
 
         kwargs : dict
             other parameters of interest. Contains a "fail" element, which
@@ -467,7 +463,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
         reward : float or list of float
         """
         if self.duration not in self.memo_rewards:
-            # rew = rewards.average_velocity(self, fail=False)
             reward = self.reward_calculator.calculate(
                 self.get_observation_space()
             )
@@ -484,7 +479,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
         # configuration has been going on
         self.duration = 0.0
 
-        i = 0
         self.incoming = {}
 
         self.memo_speeds = {}
