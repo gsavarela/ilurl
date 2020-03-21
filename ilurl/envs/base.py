@@ -114,6 +114,8 @@ class TrafficLightEnv(AccelEnv, Serializer):
                         f'Missing timings for {num_phases} phases in splits.json')
 
                 # TODO: check timings correction.
+                if agent.ql_params.num_actions != len(timings[num_phases]):
+                    raise ValueError(f'Mismatch between number of actions')
 
                 # Setup actions (programs) for given TLS.
                 self.programs[tls_id] = {int(action): timings[num_phases][action]

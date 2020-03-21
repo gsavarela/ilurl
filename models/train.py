@@ -152,6 +152,7 @@ if __name__ == '__main__':
                          rewards={'type': 'target_velocity',
                                   'costs': None},
                          phases_per_traffic_light=phases_per_tls,
+                         num_actions=2,
                          choice_type='eps-greedy')
 
     QL_agent = DPQ(ql_params)

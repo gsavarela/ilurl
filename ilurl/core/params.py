@@ -14,8 +14,8 @@ from ilurl.dumpers.inflows import inflows_dump
 from ilurl.loaders.nets import get_edges, get_routes, get_path
 from ilurl.loaders.vtypes import get_vehicle_types
 
-# number of phases is fixed
-STATE_FEATURES = ('speed', 'count', 'flow', 'queue')
+STATE_FEATURES = ('speed', 'count') #, 'flow', 'queue'
+
 ''' Bounds : namedtuple
         provide the settings to describe discrete variables ( e.g actions ). Or
         create discrete categorizations from continous variables ( e.g states)
@@ -28,6 +28,7 @@ STATE_FEATURES = ('speed', 'count', 'flow', 'queue')
 
 '''
 Bounds = namedtuple('Bounds', 'rank depth')
+
 ''' Rewards : namedtuple
         Settings needed to perform reward computation
 
@@ -61,14 +62,13 @@ class QLParams:
             gamma=0.9,
             c=2,
             initial_value=0,
-            max_speed=35,
             rewards={
                 'type': 'weighted_average',
                 'costs': None
             },
             phases_per_traffic_light=[2],
             states=('speed', 'count'),
-            actions=('fast_slow_green', ),
+            num_actions=2,
             choice_type='eps-greedy'
     ):
         """Instantiate base traffic light.
@@ -98,14 +98,8 @@ class QLParams:
 
             * depth: int
                 Number of categories
-        * actions: namedtuple
-            SEE Bounds above
-            * rank: int
-                Number of variable dimensions
 
-            * depth: int
-                Number of categories
-                    see above
+        * num_actions: integer
 
         REFERENCES:
         ----------
@@ -113,6 +107,7 @@ class QLParams:
 
         """
         kwargs = locals()
+
         if alpha <= 0 or alpha >= 1:
             raise ValueError('''The ineq 0 < alpha < 1 must hold.
                     got alpha = {}'''.format(alpha))
@@ -121,7 +116,7 @@ class QLParams:
             raise ValueError('''The ineq 0 < gamma <= 1 must hold.
                     got gamma = {}'''.format(gamma))
 
-        if epsilon <= 0 or epsilon >= 1:
+        if epsilon < 0 or epsilon > 1:
             raise ValueError('''The ineq 0 < epsilon < 1 must hold.
                     got epsilon = {}'''.format(epsilon))
 
@@ -130,11 +125,11 @@ class QLParams:
                 f'''Choice type should be in {CHOICE_TYPES} got {choice_type}'''
             )
 
-
         for attr, value in kwargs.items():
-            if attr not in ('self', 'states', 'actions', 'rewards'):
+            if attr not in ('self', 'states', 'rewards'):
                 setattr(self, attr, value)
 
+        # State space.
         if 'states' in kwargs:
             states_tuple = kwargs['states']
             for name in states_tuple:
@@ -144,10 +139,11 @@ class QLParams:
                     ''')
             self.set_states(states_tuple)
 
-        if 'actions' in kwargs:
-            actions_tuple = kwargs['actions']
-            self.set_actions(actions_tuple)
+        # Action space.
+        if 'num_actions' in kwargs:
+            self.set_actions(kwargs['num_actions'])
 
+        # Rewards.
         rewards = kwargs['rewards']
         if 'type' not in rewards:
             raise ValueError('''``type` must be provided in reward types''')
@@ -179,13 +175,12 @@ class QLParams:
     def set_states(self, states_tuple):
         self.states_labels = states_tuple
         rank = sum(self.phases_per_traffic_light) * len(states_tuple)
-        depth = 3
+        depth = len(self.category_counts) + 1
         self.states = Bounds(rank, depth)
 
-    def set_actions(self, actions_tuple):
-        self.actions_labels = actions_tuple
-        rank = len(self.phases_per_traffic_light) * len(actions_tuple)
-        depth = 2
+    def set_actions(self, num_actions):
+        rank = len(self.phases_per_traffic_light)
+        depth = num_actions
         self.actions = Bounds(rank, depth)
 
     def set_rewards(self, type, costs):
@@ -253,9 +248,6 @@ class QLParams:
         > [[13.3, 15.7], [2.7, 1.9]]
 
         """
-
-        num_intersections = len(observation_space)
-        num_phases = 2
         num_labels = len(self.states_labels)
 
         splits = []
