@@ -20,11 +20,6 @@ ILURL_HOME = os.environ['ILURL_HOME']
 NETWORKS_PATH = \
     f'{ILURL_HOME}/data/networks/'
 
-TLS_PARAMS = {
-    'cycle_time': 90,
-}
-
-
 class TrafficLightEnv(AccelEnv, Serializer):
     """
     Environment used to train traffic light systems.
@@ -84,47 +79,45 @@ class TrafficLightEnv(AccelEnv, Serializer):
                  simulator='traci'):
 
         # Whether TLS timings are static or controlled by agent.
-        self.static = static
+        self.static = {tid: False for tid in network.tls_ids}
 
-        # Traffic light system parameters.
-        # TODO: different cycle times for each intersection.
-        for p in TLS_PARAMS:
-            if p not in env_params.additional_params:
+        # Setup traffic light system parameters:
+        #   - cycle time
+        #   - programs (timings)
+        tls_config_file = '{0}/{1}/tls_config.json'.format(
+                        NETWORKS_PATH, network.network_id)
+        if os.path.isfile(tls_config_file):
+
+            with open(tls_config_file, 'r') as f:
+                tls_config = json.load(f)
+
+            if 'cycle_time' not in tls_config:
                 raise KeyError(
-                    'Traffic Light parameter "{}" not supplied'.format(p))
-            else:
-                val = env_params.additional_params[p]
-                setattr(self, p, val)
+                    f'Missing `cycle_time` key in tls_config.json')
 
-        # Setup programs (timings).
-        splits_file = '{0}/{1}/splits.json'.format(NETWORKS_PATH, network.network_id)
-        if os.path.isfile(splits_file):
-
-            with open(splits_file, 'r') as f:
-                timings = json.load(f)
-
+            # Setup cycle time.
+            self.cycle_time = tls_config['cycle_time']
+                
+            # Setup programs.
             self.programs = {}
             for tls_id in network.tls_ids:
 
-                # Get number of phases for given TLS.
-                num_phases = str(len(network.phases[tls_id]))
-
-                if num_phases not in timings.keys():
-                    raise KeyError(
-                        f'Missing timings for {num_phases} phases in splits.json')
+                if tls_id not in tls_config.keys():
+                    self.static[tls_id] = True
+                    print(f'Missing timings for id {tls_id} in splits.json. '
+                        'Switching to static timings for tls {tls_id}.')
 
                 # TODO: check timings correction.
-                if agent.ql_params.num_actions != len(timings[num_phases]):
-                    raise ValueError(f'Mismatch between number of actions')
 
                 # Setup actions (programs) for given TLS.
-                self.programs[tls_id] = {int(action): timings[num_phases][action]
-                                        for action in timings[num_phases].keys()}
+                self.programs[tls_id] = {int(action): tls_config[tls_id][action]
+                                        for action in tls_config[tls_id].keys()}
 
         else:
-            print("WARNING: splits.json file not provided for network {0}.\n"
-            "\t Switching to static timings.".format(network.network_id))
-            self.static = True
+            print("WARNING: tls_config.json file not provided for network {0}.\n"
+            "\t Switching to static timings for all intersections.".format(
+                network.network_id))
+            self.static = {tid: True for tid in network.tls_ids} 
 
         super(TrafficLightEnv, self).__init__(env_params,
                                                 sim_params,
@@ -147,7 +140,8 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
         # RL agent.
         self.agent = agent
-        self.reward_calculator = RewardCalculator(env_params, self.agent.ql_params)
+        self.reward_calculator = RewardCalculator(env_params,
+                                                self.agent.ql_params)
 
         self.actions_log = {}
         self.states_log = {}

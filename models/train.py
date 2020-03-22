@@ -9,7 +9,7 @@ import argparse
 from flow.core.params import SumoParams, EnvParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 
-from ilurl.envs.base import TrafficLightEnv, TLS_PARAMS
+from ilurl.envs.base import TrafficLightEnv
 
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
@@ -137,7 +137,6 @@ if __name__ == '__main__':
 
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
-    additional_params.update(TLS_PARAMS)
     additional_params['target_velocity'] = 20
 
     env_params = EnvParams(evaluate=True,
