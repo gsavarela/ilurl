@@ -256,9 +256,9 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
         if (prev not in self.memo_observation_space) or self.step_counter <= 2:
             # Make the average between cycles
-            t = max(self.duration, self.sim_step) \
-                 if self.step_counter * self.sim_step < self.cycle_time \
-                 else self.cycle_time
+            # t = max(self.duration, self.sim_step) \
+            #      if self.step_counter * self.sim_step < self.cycle_time \
+            #      else self.cycle_time
 
             observations = []
             for nid in self.tls_ids:

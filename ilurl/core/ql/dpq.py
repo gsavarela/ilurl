@@ -56,6 +56,13 @@ class DPQ(object):
         # were randomly picked (exploration) or not.
         self.explored = []
 
+        # Boolean list that stores the newly visited states.
+        self.visited_states = []
+
+        # Float list that stores the distance between
+        # Q-tables between updates.
+        self.Q_distances = []
+
         # Epsilon-greedy (exploration rate).
         if self.choice_type in ('eps-greedy',):
             self.epsilon = ql_params.epsilon
@@ -82,7 +89,13 @@ class DPQ(object):
             
             if self.choice_type in ('eps-greedy',):
                 actions, values = zip(*self.Q[s].items())
-                choosen, exp = choice_eps_greedy(actions, values, self.epsilon)
+
+                num_state_visits = 0
+                for action in self.state_action_counter[s].keys():
+                    num_state_visits += self.state_action_counter[s][action]
+                eps = 1 / np.power(1 + num_state_visits, 2/3)
+
+                choosen, exp = choice_eps_greedy(actions, values, eps)
                 self.explored.append(exp)
 
             elif self.choice_type in ('optimistic',):
@@ -104,14 +117,26 @@ class DPQ(object):
 
         if not self.stop:
 
+            # Track the visited states.
+            if self.state_action_counter[s][a] == 0:
+                self.visited_states.append(s)
+            else:
+                self.visited_states.append(None)
+
             # Update (state, action) counter.
             self.state_action_counter[s][a] += 1
 
             # Calculate learning rate.
             lr = 1 / np.power(1 + self.state_action_counter[s][a], 2/3)
 
+            Q_old = self.Q[s][a]
+
             # Q-learning update.
             dpq_update(self.gamma, lr, self.Q, s, a, r, s1)
+
+            # Calculate Q-tables distance.
+            dist = np.abs(Q_old - self.Q[s][a])
+            self.Q_distances.append(dist)
 
     @property
     def stop(self):
