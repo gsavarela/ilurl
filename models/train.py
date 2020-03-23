@@ -36,10 +36,6 @@ def get_arguments():
                         default=360, nargs='?',
                         help='Simulation\'s real world time in seconds')
 
-    parser.add_argument('--experiment-pickle', '-p', dest='pickle', type=str2bool,
-                        default=True, nargs='?',
-                        help='Whether to pickle the environment (allowing to reproduce)')
-
     parser.add_argument('--experiment-log', '-l', dest='log_info', type=str2bool,
                         default=False, nargs='?',
                         help='Whether to save experiment-related data in a JSON file \
@@ -56,7 +52,6 @@ def get_arguments():
                         default=False, nargs='?',
                         help='Whether to save RL-agent parameters throughout training')
 
-
     parser.add_argument('--sumo-render', '-r', dest='render', type=str2bool,
                         default=False, nargs='?',
                         help='Renders the simulation')
@@ -68,7 +63,6 @@ def get_arguments():
     parser.add_argument('--sumo-emission', '-e',
                         dest='emission', type=str2bool, default=False, nargs='?',
                         help='Saves emission data from simulation on /data/emissions')
-
 
     parser.add_argument('--tls-inflows-switch', '-W', dest='switch',
                         type=str2bool, default=False, nargs='?',
@@ -92,7 +86,6 @@ def print_arguments(args):
 
     print('Arguments:')
     print('\tExperiment time: {0}'.format(args.time))
-    print('\tExperiment pickle: {0}'.format(args.pickle))
     print('\tExperiment log info: {0}'.format(args.log_info))
     print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
     print('\tExperiment save RL agent: {0}'.format(args.save_RL_agent))
@@ -107,20 +100,20 @@ def print_arguments(args):
 if __name__ == '__main__':
 
     args = get_arguments()
-
     print_arguments(args)
 
     inflows_type = 'switch' if args.switch else 'lane'
-    network = Network(
-        network_id=args.network,
-        horizon=args.time,
-        demand_type=inflows_type
-    )
+    network_args = {
+        'network_id': args.network,
+        'horizon': args.time,
+        'demand_type': inflows_type
+    }
+    network = Network(**network_args)
 
+    # Create directory to store data.
     path = f'{EMISSION_PATH}{network.name}/'
     if not os.path.isdir(path):
         os.mkdir(path)
-
     print('Experiment: {0}\n'.format(path))
 
     sumo_args = {
@@ -129,30 +122,36 @@ if __name__ == '__main__':
         'sim_step': args.step,
         'restart_instance': True
     }
-
     if args.emission:
         sumo_args['emission_path'] = path
-
     sim_params = SumoParams(**sumo_args)
 
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
     additional_params['target_velocity'] = 20
-
-    env_params = EnvParams(evaluate=True,
-                           additional_params=additional_params)
+    env_args = {
+        'evaluate': True,
+        'additional_params': additional_params
+    }
+    env_params = EnvParams(**env_args)
 
     # Agent.
     from ilurl.core.ql.dpq import DPQ
 
     phases_per_tls = [len(network.phases[t]) for t in network.tls_ids]
-    ql_params = QLParams(epsilon=0.10, alpha=0.50,
-                         states=('speed', 'count'),
-                         rewards={'type': 'target_velocity',
-                                  'costs': None},
-                         phases_per_traffic_light=phases_per_tls,
-                         num_actions=2,
-                         choice_type='eps-greedy')
+    ql_args = {
+                'epsilon': 0.10,
+                'alpha': 0.50,
+                'states': ('speed', 'count'),
+                'rewards': {'type': 'target_velocity',
+                         'costs': None},
+                'phases_per_traffic_light': phases_per_tls,
+                'num_actions': 2,
+                'choice_type': 'eps-greedy',
+                'category_counts': [8.56, 13.00],
+                'category_speeds': [2.28, 5.50]
+    }
+    ql_params = QLParams(**ql_args)
 
     QL_agent = DPQ(ql_params)
 
@@ -171,6 +170,21 @@ if __name__ == '__main__':
                     save_agent=args.save_RL_agent,
                     )
 
+    # Store parameters.
+    parameters = {}
+    parameters['network_args'] = network_args
+    parameters['sumo_args'] = sumo_args
+    parameters['env_args'] = env_args
+    parameters['ql_args'] = ql_args
+
+    filename = \
+            f"{env.network.name}.params.json"
+
+    params_path = os.path.join(path, filename)
+    with open(params_path, 'w') as f:
+        json.dump(parameters, f)
+
+    # Run experiment.
     print('Running experiment...')
 
     info_dict = exp.run(
@@ -182,11 +196,5 @@ if __name__ == '__main__':
             f"{env.network.name}.train.json"
 
     info_path = os.path.join(path, filename)
-    with open(info_path, 'w') as fj:
-        json.dump(info_dict, fj)
-
-    # Save parameters pickle.
-    if args.pickle:
-        if hasattr(env, 'dump'):
-            env.dump(path)
-
+    with open(info_path, 'w') as f:
+        json.dump(info_dict, f)

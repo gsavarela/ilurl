@@ -69,7 +69,10 @@ class QLParams:
             phases_per_traffic_light=[2],
             states=('speed', 'count'),
             num_actions=2,
-            choice_type='eps-greedy'
+            choice_type='eps-greedy',
+            category_counts=[8.56, 13.00],
+            category_speeds=[2.28, 5.50]
+
     ):
         """Instantiate base traffic light.
 
@@ -163,14 +166,6 @@ class QLParams:
                       must have a cost got {} {} '''.format(
                     self.state.depth, len(rewards['costs'])))
         self.set_rewards(rewards['type'], rewards['costs'])
-
-    @property
-    def category_speeds(self):
-        return [2.28, 5.50]
-
-    @property
-    def category_counts(self):
-        return [8.56, 13.00]
 
     def set_states(self, states_tuple):
         self.states_labels = states_tuple
