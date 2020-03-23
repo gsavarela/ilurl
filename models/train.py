@@ -110,7 +110,6 @@ if __name__ == '__main__':
 
     print_arguments(args)
 
-    print('This is time', args.time) 
     inflows_type = 'switch' if args.switch else 'lane'
     network = Network(
         network_id=args.network,

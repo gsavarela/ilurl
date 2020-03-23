@@ -76,7 +76,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
                  simulator='traci'):
 
         # Whether TLS timings are static or controlled by agent.
-        self.static = {tid: False for tid in network.tls_ids}
+        self.static = static
 
         # Setup traffic light system parameters:
         #   - cycle time
@@ -94,15 +94,14 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
             # Setup cycle time.
             self.cycle_time = tls_config['cycle_time']
-                
+
             # Setup programs.
             self.programs = {}
             for tls_id in network.tls_ids:
 
                 if tls_id not in tls_config.keys():
-                    self.static[tls_id] = True
-                    print(f'Missing timings for id {tls_id} in splits.json. '
-                        'Switching to static timings for tls {tls_id}.')
+                    raise KeyError(
+                    f'Missing timings for id {tls_id} in tls_config.json.')
 
                 # TODO: check timings correction.
 
@@ -112,9 +111,9 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
         else:
             print("WARNING: tls_config.json file not provided for network {0}.\n"
-            "\t Switching to static timings for all intersections.".format(
+            "\t Switching to static timings.".format(
                 network.network_id))
-            self.static = {tid: True for tid in network.tls_ids} 
+            self.static = True
 
         super(TrafficLightEnv, self).__init__(env_params,
                                               sim_params,
