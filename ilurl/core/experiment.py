@@ -203,6 +203,8 @@ class Experiment:
                     info_dict["rl_actions"] = list(self.env.actions_log.values())
                     info_dict["states"] = list(self.env.states_log.values())
                     info_dict["explored"] = getattr(self.env.agent, 'explored', None)
+                    info_dict["visited_states"] = getattr(self.env.agent, 'visited_states', None)
+                    info_dict["Q_distances"] = getattr(self.env.agent, 'Q_distances', None)
 
                     with open(filename, 'w') as fj:
                         json.dump(info_dict, fj)
@@ -223,10 +225,11 @@ class Experiment:
         info_dict["velocities"] = vels
         info_dict["vehicles"] = vehs
         info_dict["observation_spaces"] = observation_spaces
-
         info_dict["rl_actions"] = list(self.env.actions_log.values())
         info_dict["states"] = list(self.env.states_log.values())
         info_dict["explored"] = getattr(self.env.agent, 'explored', None)
+        info_dict["visited_states"] = getattr(self.env.agent, 'visited_states', None)
+        info_dict["Q_distances"] = getattr(self.env.agent, 'Q_distances', None)
 
         self.env.terminate()
 
