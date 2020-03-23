@@ -169,6 +169,7 @@ class Experiment:
 
             state, reward, done, _ = self.env.step(rl_actions(state))
 
+        
             veh_i.append(len(self.env.k.vehicle.get_ids()))
             vel_i.append(
                 np.nanmean(self.env.k.vehicle.get_speed(

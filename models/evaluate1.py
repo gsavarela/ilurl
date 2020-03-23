@@ -22,7 +22,7 @@ import argparse
 import dill
 
 from ilurl.core.experiment import Experiment
-from ilurl.envs.base import TrafficLightQLEnv
+from ilurl.envs.base import TrafficLightEnv
 from ilurl.networks.base import Network
 from ilurl.utils import parse
 
@@ -80,7 +80,7 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
-def evaluate(env_params, sim_params, ql_params, network, horizon, qtb):
+def evaluate(env_params, sim_params, agent, network, horizon, qtb):
     """Evaluate
 
     Params:
@@ -91,9 +91,6 @@ def evaluate(env_params, sim_params, ql_params, network, horizon, qtb):
         * sim_params:  ilurl.core.params.SumoParams
             objects parameters
 
-        * ql_params:  ilurl.core.params.QLParams
-            objects parameters
-
         * network: ilurl.networks.Network 
 
     Returns:
@@ -102,10 +99,10 @@ def evaluate(env_params, sim_params, ql_params, network, horizon, qtb):
         evaluation metrics for experiment
 
     """
-    env1 = TrafficLightQLEnv(
+    env1 = TrafficLightEnv(
         env_params,
         sim_params,
-        ql_params,
+        agent,
         network
     )
     if qtb is not None:
@@ -294,7 +291,7 @@ def load_all(data):
     for exid, path_or_dict in data.items():
         if isinstance(path_or_dict, str):
             # traffic light object
-            result[exid] = TrafficLightQLEnv.load(path_or_dict)
+            result[exid] = TrafficLightEnv.load(path_or_dict)
         elif isinstance(path_or_dict, dict):
             
             # q-table
@@ -309,7 +306,6 @@ def load_all(data):
 
 if __name__ == '__main__':
     args = get_arguments()
-
     pickle_path = args.pickle_path
     pickle_dir = '/'.join(pickle_path.split('/')[:-1])
     x = 'w' if args.switch else 'l'
@@ -326,7 +322,7 @@ if __name__ == '__main__':
     # process data: converts paths into dictionary
     env2path, _ = parse_all([pickle_path])
     # build Q-tables pattern
-    prefix = '.'.join(pickle_path.split('.')[:2])
+    prefix = '.'.join(pickle_path.split('.')[:3])
     pattern = f'{prefix}.Q.*'
     _, qtb2path = parse_all(glob(pattern))
     # remove paths
@@ -343,17 +339,16 @@ if __name__ == '__main__':
 
         env = env2obj[exid]
         cycle_time = getattr(env, 'cycle_time', 1)
+        agent = env.agent
         env_params = env.env_params
         sim_params = env.sim_params
 
         horizon = int((cycle_time * cycles) / sim_params.sim_step)
-        ql_params = env.ql_params
         network = env.network
 
         def fn(id_qtb):
             qid, qtb = id_qtb
-            ret = evaluate(env_params, sim_params, ql_params,
-                           network, horizon, qtb)
+            ret = evaluate(env_params, sim_params, agent, network, horizon, qtb)
             return (qid, ret)
 
 

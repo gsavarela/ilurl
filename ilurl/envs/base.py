@@ -54,11 +54,8 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
             S = (v1, n1, v2, n2  ..vK, nK)
 
-    PARAMETERS
-    ----------
-
-    TrafficLightGridEnv
-    -------------------
+    PARAMETERS:
+    -----------
 
     * switch_time: minimum time a light must be constant before it
                     switches (in seconds). Earlier RL commands are
@@ -120,9 +117,9 @@ class TrafficLightEnv(AccelEnv, Serializer):
             self.static = {tid: True for tid in network.tls_ids} 
 
         super(TrafficLightEnv, self).__init__(env_params,
-                                                sim_params,
-                                                network,
-                                                simulator=simulator)
+                                              sim_params,
+                                              network,
+                                              simulator=simulator)
 
         # Keeps the internal value of sim step.
         self.sim_step = sim_params.sim_step
@@ -201,12 +198,15 @@ class TrafficLightEnv(AccelEnv, Serializer):
             values: list
                     vehicle speeds at frame or edge
         """
-        def extract(edge_ids):
+        def observe(components):
             veh_ids = []
-            for edge_id in edge_ids:
+            for component in components:
+                edge_id, lanes = component
                 veh_ids += \
                     [veh_id
-                     for veh_id in self.k.vehicle.get_ids_by_edge(edge_id)]
+                     for veh_id in self.k.vehicle.get_ids_by_edge(edge_id) 
+                     if self.k.vehicle.get_lane(veh_id) in lanes]
+
             speeds = [
                self.k.vehicle.get_speed(veh_id)
                 for veh_id in veh_ids
@@ -214,9 +214,9 @@ class TrafficLightEnv(AccelEnv, Serializer):
             return veh_ids, speeds
 
         for node_id in self.tls_ids:
-            for phase, edges in self.tls_phases[node_id].items():
+            for phase, data in self.tls_phases[node_id].items():
                 self.incoming[node_id][phase][self.duration] = \
-                                    extract(edges)
+                                    observe(data['components'])
 
     def get_observation_space(self):
         """
@@ -232,8 +232,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
         *   phases: list
             the second layer represents the phases components
-            for each intersection as of now there are only 
-            two phases
+            for each intersection as of now there are only two phases
 
         *   variables: list
             the third and final layer represents the variables

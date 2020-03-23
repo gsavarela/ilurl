@@ -110,6 +110,7 @@ if __name__ == '__main__':
 
     print_arguments(args)
 
+    print('This is time', args.time) 
     inflows_type = 'switch' if args.switch else 'lane'
     network = Network(
         network_id=args.network,
@@ -187,7 +188,6 @@ if __name__ == '__main__':
 
     # Save parameters pickle.
     if args.pickle:
-
         if hasattr(env, 'dump'):
             env.dump(path)
 

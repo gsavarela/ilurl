@@ -3,6 +3,9 @@ __author__ = 'Guilherme Varela'
 __date__ = '2020-01-10'
 
 import os
+import operator as op
+from itertools import groupby
+import pdb
 
 # Network related parameters
 from flow.core.params import InitialConfig, TrafficLightParams
@@ -138,6 +141,8 @@ class Network(FlowNetwork):
                                    template=get_path(network_id, 'net'))
 
         if traffic_lights is None:
+            # Converts a static program into a reinforcement learning
+            # program.
             programs = get_logic(network_id)
             if programs:
                 traffic_lights = TrafficLightParams(baseline=False)
@@ -162,14 +167,53 @@ class Network(FlowNetwork):
         self.connections = self.specify_connections(net_params)
         self.types = self.specify_types(net_params)
 
+
     def specify_nodes(self, net_params):
         return get_nodes(self.network_id)
+
 
     def specify_edges(self, net_params):
         return get_edges(self.network_id)
 
+
     def specify_connections(self, net_params):
+        """Connections bind edges' lanes to one another at junctions
+         
+            DEF:
+            ----
+            definitions follow the standard
+            *Name   :Type
+                Description
+
+            *from   :edge id (string)
+                The ID of the incoming edge at which the connection
+                begins
+            *to     :edge id (string)
+                The ID of the outgoing edge at which the connection ends
+            *fromLane   :index (unsigned int)
+                The lane of the incoming edge at which the connection
+                begins
+            *toLane     :index (unsigned int)
+                The lane of the outgoing edge at which the connection ends
+            *via    :lane id (string)
+                The id of the lane to use to pass this connection across the junction
+            *tl     :traffic light id (string
+                The id of the traffic light that controls this connection; the attribute is missing if the connection is not controlled by a traffic light
+            *linkIndex  :index (unsigned int
+                The index of the signal responsible for the connection within the traffic light; the attribute is missing if the connection is not controlled by a traffic light
+            *dir:enum
+                ("s" = straight, "t" = turn, "l" = left, "r" = right, "L" = partially left, R = partially right, "invalid" = no direction
+            The direction of the connection
+            *state:enum
+                ("-" = dead end, "=" = equal, "m" = minor link, "M" = major link, traffic light only: "O" = controller off, "o" = yellow flashing, "y" = yellow minor link, "Y" = yellow major link, "r" = red, "g" = green minor, "G" green major
+            The state of the connection
+
+            REF:
+            ----
+            http://sumo.sourceforge.net/userdoc/Networks/SUMO_Road_Networks.html
+        """
         return get_connections(self.network_id)
+
 
     def specify_routes(self, net_params):
         return get_routes(self.network_id)
@@ -221,23 +265,48 @@ class Network(FlowNetwork):
             expressed as lists of approaches. We consider only incoming
             approaches to be controlled by phases.
             
-
         Returns:
         ------
-        * phases: dict<string,dict<int, list<string>>>
-            keys: nodeid, phase_index
-            list<string>: list of approaches
-        
+        * phases: dict<string,dict<int, dict<string, obj>>>
+            keys: nodeid, phase_id, 'states', 'components'
+            
+
         Usage:
         -----
+        > network.states
+        > {'gneJ2':
+            ['GGGgrrrrGGGgrrrr', 'yyygrrrryyygrrrr', 'rrrGrrrrrrrGrrrr',
+            'rrryrrrrrrryrrrr', 'rrrrGGGgrrrrGGGg', 'rrrryyygrrrryyyg',
+            'rrrrrrrGrrrrrrrG', 'rrrrrrryrrrrrrry']}
+
         > network.phases
-        > {'247123161': {0: ['-238059324', '383432312'], \
-                         1: ['-238059328', '309265401']}}
+        > {'gneJ2':
+            {0: {'components':
+                    [('-gneE8', [0, 1, 2]), ('gneE12', [0, 1, 2])],
+                    'states': ['GGGgrrrrGGGgrrrr']
+                },
+             1: {'components':
+                     [('-gneE8', [2]), ('gneE12', [2])],
+                  'states': ['yyygrrrryyygrrrr', 'rrrGrrrrrrrGrrrr',
+                             'rrryrrrrrrryrrrr']
+                },
+             2: {'components':
+                     [('gneE7', [0, 1, 2]), ('-gneE10', [0, 1, 2])],
+                 'states': ['rrrrGGGgrrrrGGGg']
+                 },
+             3: {'components':
+                     [('gneE7', [2]), ('-gneE10', [2])], 
+                 'states': ['rrrryyygrrrryyyg', 'rrrrrrrGrrrrrrrG',
+                            'rrrrrrryrrrrrrry']
+                }
+             }
+           }
         DEF:
         ---
-        A phase is a combination of movement signals which are non-conflicting.
-        The relation from states to phases is such that phases "disregards" 
-        yellow configurations. usually num_phases = num_states / 2
+        A phase is a combination of movement signals which are
+        non-conflicting. The relation from states to phases is
+        such that phases "disregards" yellow configurations 
+        usually num_phases = num_states / 2
 
         REF:
         ---
@@ -245,34 +314,62 @@ class Network(FlowNetwork):
         http://arxiv.org/abs/1904.08117
         """
 
+        # TODO: include duration
         if not hasattr(self, '_cached_phases'):
             self._cached_phases = {}
+
             def fn(x, n):
-                return x.get('tl') == nid and 'linkIndex' in x
+                return x.get('tl') == n and 'linkIndex' in x
 
             for nid in self.tls_ids:
                 # green and yellow are considered to be one phase
                 self._cached_phases[nid] = {}
                 connections = [c for c in self.connections if fn(c, nid)]
                 states = self.states[nid]
-                links = {int(conn['linkIndex']): conn['from']
-                         for conn in connections if 'linkIndex' in conn}
+                links = {
+                    int(cn['linkIndex']):
+                        (cn['from'], int(cn['fromLane']))
+                    for cn in connections if 'linkIndex' in cn
+                }
                 i = 0
                 components = {}
                 for state in states:
-                    components = {eid for lnk, eid in links.items()
-                                  if state[lnk] in ('G','g')}
+                    # components: linkIndex, 0-1, edge_id, lane
+                    components = {
+                        (lnk,) + edge_lane
+                        for lnk, edge_lane in links.items()
+                        if state[lnk] in ('G','g')
+                    }
+                    # adds components if they don't exist
                     if components:
                         found = False
+                        # sort by link, edge_id
+                        components = \
+                            sorted(components, key=op.itemgetter(0, 1))
+
+                        # groups lanes by edge_ids and states
+                        components = \
+                            [(k, list({l[-1] for l in g}))
+                             for k, g in groupby(components,
+                                                 key=op.itemgetter(1))]                         
                         for j in range(0, i + 1):
                             if j in self._cached_phases[nid]:
+                                # same edge_id and lanes
+                                _component =  \
+                                    self._cached_phases[nid][j]['components']
                                 found = \
-                                    sorted(components) == self._cached_phases[nid][j]
+                                    components == _component
+
                                 if found:
-                                    break
+                                    self._cached_phases[nid][j]['states'].append(state)
                         if not found:
-                            self._cached_phases[nid][i] = sorted(components)
+                            self._cached_phases[nid][i] = \
+                                {'components': components,
+                                 'states': [state]}
                             i += 1
+                    else:
+                        # states only `r` and `y`
+                        self._cached_phases[nid][i-1]['states'].append(state)
         return self._cached_phases
 
     @property
@@ -299,7 +396,8 @@ class Network(FlowNetwork):
                 return x['type'] == 'static' and x['programID'] == 1
 
             self._cached_states = {
-                 nid: [p['state'] for p in configs[nid]['phases']
+                 nid: [p['state']
+                       for p in configs[nid]['phases']
                        if fn(configs[nid])]
                  for nid in self.tls_ids}
         return self._cached_states
