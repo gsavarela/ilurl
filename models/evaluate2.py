@@ -52,6 +52,8 @@ def str2bool(v):
 def print_arguments(args):
 
     print('Arguments:')
+    print('\tExperiment: {0}'.format(args.experiment))
+    print('\tQ table: {0}'.format(args.q_table))
     print('\tExperiment number of cycles: {0}'.format(args.num_cycles))
     print('\tSUMO render: {0}\n'.format(args.render))
 
@@ -101,6 +103,8 @@ if __name__ == '__main__':
     network_args['horizon'] = horizon_t
     network = Network(**network_args)
 
+    network.name = args.experiment + '.eval'
+
     # Agent.
     from ilurl.core.ql.dpq import DPQ
 
@@ -131,7 +135,7 @@ if __name__ == '__main__':
     info_dict = exp.run(horizon_t)
 
     # Save evaluation log.
-    file_path = '{0}/{1}.eval.json'.format(args.experiment,
+    file_path = '{0}/{1}.json'.format(args.experiment,
                                            env.network.name)
     info_path = os.path.join(EMISSION_PATH, file_path)
 
