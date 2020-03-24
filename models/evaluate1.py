@@ -21,10 +21,19 @@ import argparse
 
 import dill
 
+from flow.core.params import SumoParams, EnvParams
+from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
+from ilurl.core.ql.dpq import DPQ
 from ilurl.envs.base import TrafficLightEnv
 from ilurl.networks.base import Network
 from ilurl.utils import parse
+
+
+ILURL_HOME = os.environ['ILURL_HOME']
+
+NETWORKS_PATH = \
+    f'{ILURL_HOME}/data/networks/'
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -35,7 +44,7 @@ def get_arguments():
     )
 
     # TODO: validate against existing networks
-    parser.add_argument('pickle_path', type=str, nargs='?',
+    parser.add_argument('experiment_dir', type=str, nargs='?',
                          help='Path to an environment saved as pickle')
 
 
@@ -80,7 +89,7 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
-def evaluate(env_params, sim_params, agent, network, horizon, qtb):
+def evaluate(env_params, sim_params, programs, agent, network, horizon, qtb):
     """Evaluate
 
     Params:
@@ -91,7 +100,21 @@ def evaluate(env_params, sim_params, agent, network, horizon, qtb):
         * sim_params:  ilurl.core.params.SumoParams
             objects parameters
 
-        * network: ilurl.networks.Network 
+        * programs: dict<string, dict<int, list<int>>
+            keys: junction_id, action_id
+            values: list of durations
+
+        * agent: ilurl.dpq.DPQ
+            tabular Q-learning agent
+
+        * network: ilurl.networks.Network
+            object representing the network
+
+        * horizon: int
+            number of steps
+
+        * qtb:  dict<string, dict>
+            keys: q-table id, values: number of steps
 
     Returns:
     --------
@@ -103,17 +126,19 @@ def evaluate(env_params, sim_params, agent, network, horizon, qtb):
         env_params,
         sim_params,
         agent,
-        network
+        network,
+        TLS_programs=programs
     )
     if qtb is not None:
         env1.Q = qtb
+
     env1.stop = True
-    eval = Experiment(
+    exp = Experiment(
         env1,
         dir_path=None,
         train=False,
     )
-    result = eval.run(horizon)
+    result = exp.run(horizon)
     return result
 
 
@@ -170,25 +195,18 @@ def parse_all(paths):
 
     Returns:
     -------
-        * env2path: dict
-            dict with paths pointing to pickled env instances
-
         * qtb2path: dict of dicts
             dict with paths pointing to pickled cycles to Q-tables
             mappings
 
     """
-    env2path = {}
     qtb2path = defaultdict(dict)
     for path in paths:
         nuple = parse(path)
         # store argument condition
         if nuple is not None:
             # this nuple encodes an env path
-            if len(nuple) == 4:
-                key = nuple[1:]
-                env2path[key] = path
-            elif len(nuple) == 6:
+            if len(nuple) == 6:
                 # this nuple encodes a q-table
                 key = tuple(list(nuple[1:3]) + [nuple[-1]])
                 key1 = nuple[3:5]  # nested key
@@ -197,7 +215,8 @@ def parse_all(paths):
             else:
                 raise ValueError(f'{nuple} not recognized')
 
-    return env2path, qtb2path
+    return qtb2path
+
 
 def sort_all(qtb2path):
     """Performs sort accross multiple experiments, within
@@ -304,10 +323,66 @@ def load_all(data):
     return result
 
 
+def tls_configs(network_name):
+    """
+
+    Loads TLS settings (cycle time and programs)
+    from tls_config.json file.
+
+    Parameters
+    ----------
+    network_name : string
+        network id
+
+    Return
+    ----------
+    cycle_time: int
+        the cycle time for the TLS system
+
+    programs: dict
+        the programs (timings) for the TLS system
+        defines the actions that the agent can pick
+    
+    """
+    tls_config_file = '{0}/{1}/tls_config.json'.format(
+                    NETWORKS_PATH, network_name)
+
+    if os.path.isfile(tls_config_file):
+
+        with open(tls_config_file, 'r') as f:
+            tls_config = json.load(f)
+
+        if 'cycle_time' not in tls_config:
+            raise KeyError(
+                f'Missing `cycle_time` key in tls_config.json')
+
+        # Setup cycle time.
+        cycle_time = tls_config['cycle_time']
+
+        # Setup programs.
+        programs = {}
+        for tls_id in network.tls_ids:
+
+            if tls_id not in tls_config.keys():
+                raise KeyError(
+                f'Missing timings for id {tls_id} in tls_config.json.')
+
+            # TODO: check timings correction.
+
+            # Setup actions (programs) for given TLS.
+            programs[tls_id] = {int(action): tls_config[tls_id][action]
+                                    for action in tls_config[tls_id].keys()}
+
+    else:
+        raise FileNotFoundError("tls_config.json file not provided "
+            "for network {0}.".format(network.network_id))
+
+    return cycle_time, programs
+
+
 if __name__ == '__main__':
     args = get_arguments()
-    pickle_path = args.pickle_path
-    pickle_dir = '/'.join(pickle_path.split('/')[:-1])
+    exp_dir = args.experiment_dir
     x = 'w' if args.switch else 'l'
     cycles = args.cycles
     num_processors = args.num_processors
@@ -315,51 +390,74 @@ if __name__ == '__main__':
     skip = args.skip
     limit = args.limit
 
+    
     if num_processors >= mp.cpu_count():
         num_processors = mp.cpu_count() - 1
         print(f'Number of processors downgraded to {num_processors}')
 
     # process data: converts paths into dictionary
-    env2path, _ = parse_all([pickle_path])
+    # env2path, _ = parse_all([experiment_dir])
+    # get train parameters
+    pattern = f'{exp_dir}*.params.json'
+    path = glob(pattern)[0]
+    with open(path, 'r') as f:
+        params = json.load(f)
+
+
+    # get train data
+    pattern = f'{exp_dir}*.train.json'
+    path = glob(pattern)[0]
+    with open(path, 'r') as f:
+        data = json.load(f)
+
     # build Q-tables pattern
-    prefix = '.'.join(pickle_path.split('.')[:3])
-    pattern = f'{prefix}.Q.*'
-    _, qtb2path = parse_all(glob(pattern))
+    # exp_dir = '.'.join(experiment_dir.split('.')[:3])
+    pattern = f'{exp_dir}*.Q.*'
+    qtb2path = parse_all(glob(pattern))
+
     # remove paths
     qtb2path = filter_tables(qtb2path, skip, limit)
     # sort experiments by instances and cycles
     qtb2path = sort_all(qtb2path)
     # converts paths into objects
-    env2obj = load_all(env2path)
+    # env2obj = load_all(env2path)
     qtb2obj = load_all(qtb2path)
-    num_experiments = len(env2obj)
+    # num_experiments = len(env2obj)
     i = 1
     results = []
+    expid = exp_dir.split('/')[-1]
+
     for exid, qtbs in qtb2obj.items():
 
-        env = env2obj[exid]
-        cycle_time = getattr(env, 'cycle_time', 1)
-        agent = env.agent
-        env_params = env.env_params
-        sim_params = env.sim_params
+        # env = env2obj[exid]
+        # cycle_time = getattr(env, 'cycle_time', 1)
+        # Load cycle time and TLS programs.
+        network = Network(**params['network_args'])
+        cycle_time, programs = tls_configs(network.network_id)
+        ql_params = QLParams(**params['ql_args'])
+
+        agent = DPQ(ql_params)
+        env_params = EnvParams(**params['env_args'])
+        sim_params = SumoParams(**params['sumo_args'])
 
         horizon = int((cycle_time * cycles) / sim_params.sim_step)
-        network = env.network
 
         def fn(id_qtb):
             qid, qtb = id_qtb
-            ret = evaluate(env_params, sim_params, agent, network, horizon, qtb)
+            ret = evaluate(env_params, sim_params, programs,
+                           agent, network, horizon, qtb)
             return (qid, ret)
 
 
         # rollouts x qtbs
         # it doest have the blank table
-        if (1, 0) not in qtbs:
-            _qtbs = [((1, 0), None)] * num_rollouts
-        _qtbs += list(qtbs.items()) * num_rollouts
+        # if (1, 0) not in qtbs:
+        #     _qtbs = [((1, 0), None)] * num_rollouts
+        # _qtbs += list(qtbs.items()) * num_rollouts
+        _qtbs = list(qtbs.items()) * num_rollouts
 
         print(f"""
-                experiment:\t{i}/{num_experiments}
+                experiment:\t{i}/{expid}
                 network_id:\t{exid[0]}
                 timestamp:\t{exid[1]}
                 rollouts:\t{len(_qtbs)}
@@ -375,8 +473,8 @@ if __name__ == '__main__':
         # add some metadata into it
         # TODO: generate tables Q0
         keys = list(qtbs.keys())
-        if (1, 0) not in keys:
-            keys = [(1, 0)] + keys
+        # if (1, 0) not in keys:
+        #     keys = [(1, 0)] + keys
         info['horizon'] = horizon 
         info['rollouts'] = [k[1] for k in keys]
         info['num_rollouts'] = num_rollouts
@@ -384,8 +482,8 @@ if __name__ == '__main__':
         info['skip'] = skip
         info['processed_at'] = \
             datetime.now().strftime('%Y-%m-%d%H%M%S.%f')
-        filename = '_'.join(exid[:2])
-        file_path = f'{pickle_dir}/{filename}.{x}.eval.info.json'
+        # filename = '_'.join(exid[:2])
+        file_path = f'{exp_dir}.{x}.eval.info.json'
         with open(file_path, 'w') as f:
             json.dump(info, f)
         print(file_path)

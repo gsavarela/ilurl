@@ -170,6 +170,8 @@ def get_tls(network_id):
                  if n['type'] == 'traffic_light']
     return tls_nodes
 
+
 def get_logic(network_id):
         return get_generic_element(network_id, 'tlLogic', child_key='phase')
+
 

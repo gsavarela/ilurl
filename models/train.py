@@ -20,6 +20,7 @@ ILURL_HOME = os.environ['ILURL_HOME']
 
 EMISSION_PATH = \
     f'{ILURL_HOME}/data/emissions/'
+
 NETWORKS_PATH = \
     f'{ILURL_HOME}/data/networks/'
 

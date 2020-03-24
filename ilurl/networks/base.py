@@ -5,7 +5,6 @@ __date__ = '2020-01-10'
 import os
 import operator as op
 from itertools import groupby
-import pdb
 
 # Network related parameters
 from flow.core.params import InitialConfig, TrafficLightParams
