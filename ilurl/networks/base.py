@@ -108,6 +108,7 @@ class Network(FlowNetwork):
                  net_params=None,
                  vehicles=None,
                  demand_type='lane',
+                 insertion_probability=0.1,
                  initial_config=None,
                  traffic_lights=None):
 
@@ -134,7 +135,10 @@ class Network(FlowNetwork):
                     ),
                 )
 
-            inflows = InFlows(network_id, horizon, demand_type,
+            inflows = InFlows(network_id,
+                              horizon,
+                              demand_type,
+                              insertion_probability=insertion_probability,
                               initial_config=initial_config)
 
             net_params = NetParams(inflows,

@@ -344,7 +344,11 @@ class InFlows(flow_params.InFlows):
         )
         return path
 
-    def __init__(self, network_id, horizon, demand_type,
+    def __init__(self,
+                 network_id,
+                 horizon,
+                 demand_type,
+                 insertion_probability=0.1,
                  initial_config=None,
                  additional_params=ADDITIONAL_PARAMS):
 
@@ -365,11 +369,10 @@ class InFlows(flow_params.InFlows):
 
                 num_lanes = edge['numLanes'] if 'numLanes' in edge else 1
 
-                probability = 0.2
                 args = (eid, 'human')
                 if demand_type == 'lane':
                     kwargs = {
-                        'probability': round(probability * num_lanes, 2),
+                        'probability': round(insertion_probability * num_lanes, 2),
                         'depart_lane': 'best',
                         'depart_speed': 'random',
                         'name': f'lane_{eid}',
@@ -385,17 +388,17 @@ class InFlows(flow_params.InFlows):
                         step = min(horizon - hr * switch, switch)
                         # switches in accordance to the number of lanes
                         if (hr + num_lanes) % 2 == 1:
-                            probability = probability + 0.2 * num_lanes
+                            insertion_probability = insertion_probability \
+                                                    + 0.2 * num_lanes
 
                         kwargs = {
-                            'probability': round(probability, 2),
+                            'probability': round(insertion_probability, 2),
                             'depart_lane': 'best',
                             'depart_speed': 'random',
                             'name': f'switch_{eid}',
                             'begin': 1 + hr * switch,
                             'end': step + hr * switch
                         }
-                        probability = 0.2
 
                         params.append((args, kwargs))
                 else:

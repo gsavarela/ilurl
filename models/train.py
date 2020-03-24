@@ -113,7 +113,8 @@ if __name__ == '__main__':
     network_args = {
         'network_id': args.network,
         'horizon': args.time,
-        'demand_type': inflows_type
+        'demand_type': inflows_type,
+        'insertion_probability': 0.05,
     }
     network = Network(**network_args)
 
