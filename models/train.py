@@ -65,7 +65,7 @@ def get_arguments():
                         help='Renders the simulation')
 
     parser.add_argument('--sumo-step', '-s',
-                        dest='step', type=float, default=0.1, nargs='?',
+                        dest='step', type=float, default=1, nargs='?',
                         help='Simulation\'s step size which is a fraction from horizon')
 
     parser.add_argument('--sumo-emission', '-e',
