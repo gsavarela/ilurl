@@ -210,6 +210,10 @@ if __name__ == '__main__':
     from ilurl.core.ql.dpq import DPQ
 
     phases_per_tls = [len(network.phases[t]) for t in network.tls_ids]
+
+    # Assumes all agents have the same number of actions.
+    num_actions = len(programs[network.tls_ids[0]])
+
     ql_args = {
                 'epsilon': 0.10,
                 'alpha': 0.50,
@@ -217,7 +221,7 @@ if __name__ == '__main__':
                 'rewards': {'type': 'target_velocity',
                          'costs': None},
                 'phases_per_traffic_light': phases_per_tls,
-                'num_actions': 2,
+                'num_actions': num_actions,
                 'choice_type': 'eps-greedy',
                 'category_counts': [8.56, 13.00],
                 'category_speeds': [2.28, 5.50]
