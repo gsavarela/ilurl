@@ -72,53 +72,23 @@ class TrafficLightEnv(AccelEnv, Serializer):
                  sim_params,
                  agent,
                  network,
+                 TLS_programs,
                  static=False,
                  simulator='traci'):
-
-        # Whether TLS timings are static or controlled by agent.
-        self.static = static
-
-        # Setup traffic light system parameters:
-        #   - cycle time
-        #   - programs (timings)
-        tls_config_file = '{0}/{1}/tls_config.json'.format(
-                        NETWORKS_PATH, network.network_id)
-        if os.path.isfile(tls_config_file):
-
-            with open(tls_config_file, 'r') as f:
-                tls_config = json.load(f)
-
-            if 'cycle_time' not in tls_config:
-                raise KeyError(
-                    f'Missing `cycle_time` key in tls_config.json')
-
-            # Setup cycle time.
-            self.cycle_time = tls_config['cycle_time']
-
-            # Setup programs.
-            self.programs = {}
-            for tls_id in network.tls_ids:
-
-                if tls_id not in tls_config.keys():
-                    raise KeyError(
-                    f'Missing timings for id {tls_id} in tls_config.json.')
-
-                # TODO: check timings correction.
-
-                # Setup actions (programs) for given TLS.
-                self.programs[tls_id] = {int(action): tls_config[tls_id][action]
-                                        for action in tls_config[tls_id].keys()}
-
-        else:
-            print("WARNING: tls_config.json file not provided for network {0}.\n"
-            "\t Switching to static timings.".format(
-                network.network_id))
-            self.static = True
 
         super(TrafficLightEnv, self).__init__(env_params,
                                               sim_params,
                                               network,
                                               simulator=simulator)
+
+        # Whether TLS timings are static or controlled by agent.
+        self.static = static
+
+        # Cycle time.
+        self.cycle_time = env_params.additional_params['cycle_time']
+
+        # Programs (timings).
+        self.programs = TLS_programs
 
         # Keeps the internal value of sim step.
         self.sim_step = sim_params.sim_step

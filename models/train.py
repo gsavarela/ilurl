@@ -20,6 +20,8 @@ ILURL_HOME = os.environ['ILURL_HOME']
 
 EMISSION_PATH = \
     f'{ILURL_HOME}/data/emissions/'
+NETWORKS_PATH = \
+    f'{ILURL_HOME}/data/networks/'
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -104,6 +106,63 @@ def print_arguments(args):
     print('\tTLS inflows switch: {0}\n'.format(args.switch))
 
 
+def tls_configs(network_name):
+    """
+
+    Loads TLS settings (cycle time and programs)
+    from tls_config.json file.
+
+    Parameters
+    ----------
+    network_name : string
+        network id
+
+    Return
+    ----------
+    cycle_time: int
+        the cycle time for the TLS system
+
+    programs: dict
+        the programs (timings) for the TLS system
+        defines the actions that the agent can pick
+    
+    """
+    tls_config_file = '{0}/{1}/tls_config.json'.format(
+                    NETWORKS_PATH, network_name)
+
+    if os.path.isfile(tls_config_file):
+
+        with open(tls_config_file, 'r') as f:
+            tls_config = json.load(f)
+
+        if 'cycle_time' not in tls_config:
+            raise KeyError(
+                f'Missing `cycle_time` key in tls_config.json')
+
+        # Setup cycle time.
+        cycle_time = tls_config['cycle_time']
+
+        # Setup programs.
+        programs = {}
+        for tls_id in network.tls_ids:
+
+            if tls_id not in tls_config.keys():
+                raise KeyError(
+                f'Missing timings for id {tls_id} in tls_config.json.')
+
+            # TODO: check timings correction.
+
+            # Setup actions (programs) for given TLS.
+            programs[tls_id] = {int(action): tls_config[tls_id][action]
+                                    for action in tls_config[tls_id].keys()}
+
+    else:
+        raise FileNotFoundError("tls_config.json file not provided "
+            "for network {0}.".format(network.network_id))
+
+    return cycle_time, programs
+
+
 if __name__ == '__main__':
 
     args = get_arguments()
@@ -134,9 +193,13 @@ if __name__ == '__main__':
         sumo_args['emission_path'] = path
     sim_params = SumoParams(**sumo_args)
 
+    # Load cycle time and TLS programs.
+    cycle_time, programs = tls_configs(args.network)
+
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
     additional_params['target_velocity'] = 20
+    additional_params['cycle_time'] = cycle_time
     env_args = {
         'evaluate': True,
         'additional_params': additional_params
@@ -167,16 +230,17 @@ if __name__ == '__main__':
         env_params=env_params,
         sim_params=sim_params,
         agent=QL_agent,
-        network=network
+        network=network,
+        TLS_programs=programs
     )
 
     exp = Experiment(env=env,
-                    dir_path=path,
-                    train=True,
-                    log_info=args.log_info,
-                    log_info_interval=args.log_info_interval,
-                    save_agent=args.save_agent,
-                    save_agent_interval=args.save_agent_interval
+                     dir_path=path,
+                     train=True,
+                     log_info=args.log_info,
+                     log_info_interval=args.log_info_interval,
+                     save_agent=args.save_agent,
+                     save_agent_interval=args.save_agent_interval
                     )
 
     # Store parameters.
@@ -185,6 +249,7 @@ if __name__ == '__main__':
     parameters['sumo_args'] = sumo_args
     parameters['env_args'] = env_args
     parameters['ql_args'] = ql_args
+    parameters['programs'] = programs
 
     filename = \
             f"{env.network.name}.params.json"
