@@ -17,16 +17,17 @@ ILURL_HOME = os.environ['ILURL_HOME']
 EMISSION_PATH = \
     f'{ILURL_HOME}/data/emissions'
 
-# TODO: Put these as command line arguments.
-EXPERIMENT = 'intersection_20200324-1318121585055892.4707007'
-Q_TABLE_NUMBER = '2300'
-
 def get_arguments():
     parser = argparse.ArgumentParser(
         description="""
             This script evaluates a traffic light system.
         """
     )
+    parser.add_argument('experiment', type=str, nargs='?',
+                        help='Experiment run name to use for evaluation.')
+
+    parser.add_argument('--Q_table', '-q', dest='q_table', type=int,
+                        nargs='?', required=True, help='Q table number.')
 
     parser.add_argument('--number-cycles', '-c', dest='num_cycles', type=int,
                         default=300, nargs='?',
@@ -67,21 +68,23 @@ if __name__ == '__main__':
     args = get_arguments()
     print_arguments(args)
 
+    print('Loading from experiment: {0}\n'.format(args.experiment))
+
     # Load parameters.
-    params_file = '{0}/{1}.params.json'.format(EXPERIMENT,
-                                               EXPERIMENT)
+    params_file = '{0}/{1}.params.json'.format(args.experiment,
+                                               args.experiment)
     params_path = os.path.join(EMISSION_PATH, params_file)
     with open(params_path) as json_file:
         params = json.load(json_file)
     
     # Load Q-table.
-    q_table_file = '{0}/{1}.Q.1-{2}.pickle'.format(EXPERIMENT,
-                                                   EXPERIMENT,
-                                                   Q_TABLE_NUMBER)
+    q_table_file = '{0}/{1}.Q.1-{2}.pickle'.format(args.experiment,
+                                                   args.experiment,
+                                                   args.q_table)
     q_table_path = os.path.join(EMISSION_PATH, q_table_file)
     Q_table = pickle.load(open(q_table_path, "rb" ))
 
-    path = '{0}/{1}'.format(EMISSION_PATH, EXPERIMENT)
+    path = '{0}/{1}'.format(EMISSION_PATH, args.experiment)
 
     sumo_args = params['sumo_args']
     sumo_args['emission_path'] = path
@@ -128,9 +131,11 @@ if __name__ == '__main__':
     info_dict = exp.run(horizon_t)
 
     # Save evaluation log.
-    file_path = '{0}/{1}.eval.json'.format(EXPERIMENT,
+    file_path = '{0}/{1}.eval.json'.format(args.experiment,
                                            env.network.name)
     info_path = os.path.join(EMISSION_PATH, file_path)
-    print(info_path)
+
+    print('Evaluation results: {0}'.format(env.network.name))
+
     with open(info_path, 'w') as fj:
         json.dump(info_dict, fj)
