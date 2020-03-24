@@ -80,7 +80,8 @@ class Experiment:
                 train=True,
                 log_info=False,
                 log_info_interval=20,
-                save_agent=False):
+                save_agent=False,
+                save_agent_interval=100):
         """
 
         Parameters
@@ -97,6 +98,8 @@ class Experiment:
             json file log interval (in number of agent-update steps)
         save_agent : bool
             whether to save RL agent parameters throughout training
+        save_agent_interval : int
+            save RL agent interval (in number of agent-update steps)
 
         """
         sim_step = env.sim_params.sim_step
@@ -114,6 +117,7 @@ class Experiment:
         self.log_info = log_info
         self.log_info_interval = log_info_interval
         self.save_agent = save_agent
+        self.save_agent_interval = save_agent_interval
 
         logging.info(" Starting experiment {} at {}".format(
             env.network.name, str(datetime.datetime.utcnow())))
@@ -155,7 +159,6 @@ class Experiment:
         vels = []
         vehs = []
         observation_spaces = []
-        actions = []
         rewards = []
 
         veh_i = []
@@ -212,10 +215,9 @@ class Experiment:
             if done:
                 break
 
-            if self.save_agent and self._is_save_q_table_step():
-                n = int(j / self.save_step) + 1
+            if self.save_agent and self._is_save_q_table_step(agent_updates_counter):
                 filename = \
-                    f'{self.env.network.name}.Q.1-{n}.pickle' # TODO: this is a fix to not break models/evaluate.py
+                    f'{self.env.network.name}.Q.1-{agent_updates_counter}.pickle'
 
                 self.env.dump(self.dir_path,
                                 filename,
@@ -240,7 +242,7 @@ class Experiment:
             return self.env.duration == 0.0
         return self.step_counter % self.save_step == 0
 
-    def _is_save_q_table_step(self):
-        if self.env.step_counter % (100 * self.save_step) == 0:
+    def _is_save_q_table_step(self, counter):
+        if counter % self.save_agent_interval == 0:
             return self.train and hasattr(self.env, 'dump') and self.dir_path
         return False

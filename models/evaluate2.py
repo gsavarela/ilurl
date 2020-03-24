@@ -17,9 +17,9 @@ ILURL_HOME = os.environ['ILURL_HOME']
 
 # TODO: Put these as command line arguments.
 EMISSION_PATH = \
-    f'{ILURL_HOME}/data/emissions/intersection_20200323-1700241584982824.4755545'
-#Q_FILE_NAME = 'intersection_20200316-1930221584387022.6974635.Q.1-48000.pickle'
-PARAMS_FILE_NAME = 'intersection_20200323-1700241584982824.4755545.params.json'
+    f'{ILURL_HOME}/data/emissions/intersection_20200324-0141281585014088.4119484'
+Q_FILE_NAME = 'intersection_20200324-0141281585014088.4119484.Q.1-300.pickle'
+PARAMS_FILE_NAME = 'intersection_20200324-0141281585014088.4119484.params.json'
 RENDER = False
 NUM_CYCLES = 20
 
@@ -33,8 +33,8 @@ if __name__ == '__main__':
     params_path = os.path.join(EMISSION_PATH, PARAMS_FILE_NAME)
     with open(params_path) as json_file:
         params = json.load(json_file)
-
-    # Q_table = pickle.load(open("{0}/{1}".format(EMISSION_PATH, Q_FILE_NAME), "rb" ))
+    
+    Q_table = pickle.load(open("{0}/{1}".format(EMISSION_PATH, Q_FILE_NAME), "rb" ))
 
     sumo_args = params['sumo_args']
     sumo_args['emission_path'] = EMISSION_PATH
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     )
 
     # Setup Q-table.
-    #env.Q = Q_table
+    env.Q = Q_table
 
     # Stop training.
     env.stop = True

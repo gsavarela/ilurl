@@ -48,9 +48,15 @@ def get_arguments():
                         Log into json file interval (in agent update steps)')
 
     parser.add_argument('--experiment-save-agent', '-a',
-                        dest='save_RL_agent', type=str2bool,
+                        dest='save_agent', type=str2bool,
                         default=False, nargs='?',
                         help='Whether to save RL-agent parameters throughout training')
+
+    parser.add_argument('--experiment-save-agent-interval',
+                        dest='save_agent_interval', type=int, default=100,
+                        nargs='?',
+                        help='[ONLY APPLIES IF --experiment-save-agent is TRUE] \
+                        Save agent interval (in agent update steps)')
 
     parser.add_argument('--sumo-render', '-r', dest='render', type=str2bool,
                         default=False, nargs='?',
@@ -88,7 +94,8 @@ def print_arguments(args):
     print('\tExperiment time: {0}'.format(args.time))
     print('\tExperiment log info: {0}'.format(args.log_info))
     print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
-    print('\tExperiment save RL agent: {0}'.format(args.save_RL_agent))
+    print('\tExperiment save RL agent: {0}'.format(args.save_agent))
+    print('\tExperiment save RL agent interval: {0}'.format(args.save_agent_interval))
 
     print('\tSUMO render: {0}'.format(args.render))
     print('\tSUMO emission: {0}'.format(args.emission))
@@ -167,7 +174,8 @@ if __name__ == '__main__':
                     train=True,
                     log_info=args.log_info,
                     log_info_interval=args.log_info_interval,
-                    save_agent=args.save_RL_agent,
+                    save_agent=args.save_agent,
+                    save_agent_interval=args.save_agent_interval
                     )
 
     # Store parameters.
