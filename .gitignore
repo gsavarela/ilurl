@@ -13,6 +13,8 @@ data/sensors/
 # prevent data growth
 data/emissions/
 
+data/outputs
+
 # prevent experiments batches to 
 # be tracked and avoid .git file
 # growth
