@@ -213,7 +213,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
             change for when there aren't any cars
             the state is equivalent to maximum speed
         """
-        data = []
 
         def delay(t):
             return round(
@@ -224,13 +223,9 @@ class TrafficLightEnv(AccelEnv, Serializer):
         prev = delay(self.duration)
 
         if (prev not in self.memo_observation_space) or self.step_counter <= 2:
-            # Make the average between cycles
-            # t = max(self.duration, self.sim_step) \
-            #      if self.step_counter * self.sim_step < self.cycle_time \
-            #      else self.cycle_time
-
             observations = []
             for nid in self.tls_ids:
+                data = []
                 for phase in self.tls_phases[nid]:
                     incoming = self.incoming[nid][phase]
                     values = []
@@ -261,6 +256,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
                         values.append(round(value, 2))
                     data.append(values)
                 observations.append(data)
+
             self.memo_observation_space[prev] = observations
         return self.memo_observation_space[prev]
 
@@ -274,6 +270,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
             information on the state of the vehicles, which is provided to the
             agent
         """
+        
         # Categorize.
         categorized = \
             self.agent.ql_params.categorize_space(self.get_observation_space())
