@@ -184,7 +184,7 @@ class Experiment:
 
                 observation_spaces.append(
                     list(self.env.get_observation_space()))
-                rewards.append(round(reward, 4))
+                rewards.append(round(sum(reward), 4))
 
                 vehs.append(np.nanmean(veh_i).round(4))
                 vels.append(np.nanmean(vel_i).round(4))
@@ -213,6 +213,8 @@ class Experiment:
                         json.dump(info_dict, fj)
 
             if done:
+                import pdb
+                pdb.set_trace()
                 break
 
             if self.save_agent and self._is_save_q_table_step(agent_updates_counter):

@@ -24,7 +24,7 @@ import dill
 from flow.core.params import SumoParams, EnvParams
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
-from ilurl.core.ql.dpq import DPQ
+from ilurl.core.ql.dpq import EnsembleICQ
 from ilurl.envs.base import TrafficLightEnv
 from ilurl.networks.base import Network
 from ilurl.utils import parse
@@ -104,7 +104,7 @@ def evaluate(env_params, sim_params, programs, agent, network, horizon, qtb):
             keys: junction_id, action_id
             values: list of durations
 
-        * agent: ilurl.dpq.DPQ
+        * agent: ilurl.dpq.EnsembleICQ
             tabular Q-learning agent
 
         * network: ilurl.networks.Network
@@ -401,6 +401,8 @@ if __name__ == '__main__':
     path = glob(pattern)[0]
     with open(path, 'r') as f:
         params = json.load(f)
+    # Force render False
+    params['sumo_args']['render'] = False
 
 
     # get train data
@@ -429,7 +431,7 @@ if __name__ == '__main__':
         cycle_time, programs = tls_configs(network.network_id)
         ql_params = QLParams(**params['ql_args'])
 
-        agent = DPQ(ql_params)
+        agent = EnsembleICQ(ql_params)
         env_params = EnvParams(**params['env_args'])
         sim_params = SumoParams(**params['sumo_args'])
 

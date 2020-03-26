@@ -3,7 +3,7 @@ from copy import deepcopy
 import numpy as np
 
 from ilurl.utils.meta import MetaAgentQ
-from ilurl.core.params import QLParams
+from ilurl.core.params import QLParams, Bounds
 from ilurl.core.ql.choice import choice_eps_greedy, choice_ucb
 from ilurl.core.ql.define import dpq_tls
 from ilurl.core.ql.update import dpq_update
@@ -134,6 +134,10 @@ class DPQ(object, metaclass=MetaAgentQ):
             Q_old = self.Q[s][a]
 
             # Q-learning update.
+            try:
+                r = sum(r)
+            except TypeError:
+                pass
             dpq_update(self.gamma, lr, self.Q, s, a, r, s1)
 
             # Calculate Q-tables distance.
@@ -157,37 +161,101 @@ class DPQ(object, metaclass=MetaAgentQ):
     def stop(self, stop):
         self._stop = stop
 
-# class EnsembleQ(object, metaclass=MetaAgentQ):
-#      """EnsembleQ is a combination of Q agents"""
-#     
-#     def __init__(self, ql_params):
-# 
-#         _QL_agents = []
-#         for num_phases in ql_params.phases_per_traffic_light:
-#             _ql_params = deepcopy(ql_params)
-#             _ql_params.phases_per_traffic_light = [num_phases]
-#             _QL_agents = DPQ(_ql_params)
-# 
-#         self._QL_agents = QL_agents 
-# 
-# 
-#     @property
-#     def Q(self):
-#         return self._Q
-# 
-#     @Q.setter
-#     def Q(self, Q):
-#         self._Q = Q
-# 
-#     @property
-#     def stop(self):
-#         """all or nothing stops"""
-#         stops = [_QL_agent.stop for _QL_agent in self._QL_agents]
-#         return all(stops)
-#             
-# 
-#     @stop.setter
-#     def stop(self, stop):
-#         for _QL_agent in self._QL_agents:
-#             _QL_agent.stop = stop
-#         return stop
+
+class EnsembleICQ(object, metaclass=MetaAgentQ):
+    """EnsembleICQ is the individual combination of Q agents"""
+    
+    def __init__(self, ql_params):
+
+        QL_agents = []
+        state_slices = []
+        action_slices = []
+        num_variables = len(ql_params.states_labels)
+        depth = ql_params.states.depth
+        
+        state_rank = 0
+        action_rank = 0
+        for num_phases in ql_params.phases_per_traffic_light:
+
+            ql_params_ = deepcopy(ql_params)
+            ql_params_.phases_per_traffic_light = [num_phases]
+            ql_params_.states = Bounds(num_phases * num_variables, depth)
+            QL_agents.append(DPQ(ql_params_))
+
+            state_slice = slice(state_rank, state_rank + num_phases * num_variables)
+            state_slices.append(state_slice)
+
+            action_slice = slice(action_rank, action_rank + ql_params_.actions.rank)
+            action_slices.append(action_slice)
+
+            state_rank += num_phases * num_variables
+            action_rank += ql_params_.actions.rank
+
+        self._QL_agents = QL_agents
+        self._action = action_slices
+        self._state = state_slices
+        self.ql_params = ql_params
+
+    def act(self, state):
+        def si(x):
+            return self._individual_state(state, x)
+
+        choices = [
+            _QL_agent.act(si(i)) for i, _QL_agent in enumerate(self._QL_agents)
+        ]
+        choosen = tuple([ichoice for choice in choices for ichoice in choice])
+        return choosen
+
+    def _individual_state(self, state, i):
+        return state[self._state[i]]
+
+    def _individual_action(self, action, i):
+        return action[self._action[i]]
+
+    # decorator <mapping> might aliviate?
+    # generator <iteration> might aliviate?
+    # def _individual_act(self, state):
+    #     def si(x):
+    #         return self._individual_state(state, x)
+
+    #     return tuple([
+    #         self._QL_agents[i].act(si(i))
+    #         for i in range(self._QL_agents[i])])
+
+    def update(self, s, a, r, s1):
+
+            def si(x):
+                return self._individual_state(s, x)
+
+            def si1(x):
+                return self._individual_state(s1, x)
+
+            def ai(x):
+                return self._individual_action(a, x)
+
+            for i, QL_agent in enumerate(self._QL_agents):
+                QL_agent.update(si(i), ai(i), r[i], si1(i))
+
+    @property
+    def Q(self):
+        self._Q = {i: _QL_agent.Q
+                   for i, _QL_agent in enumerate(self._QL_agents)}
+
+        return self._Q
+
+    @Q.setter
+    def Q(self, Q):
+        for i, Qi in Q.items():
+              self._QL_agents[i].Q = Qi
+
+    @property
+    def stop(self):
+        """all or nothing stops"""
+        stops = [_QL_agent.stop for _QL_agent in self._QL_agents]
+        return all(stops)
+
+    @stop.setter
+    def stop(self, stop):
+        for _QL_agent in self._QL_agents:
+            _QL_agent.stop = stop
+        return stop
