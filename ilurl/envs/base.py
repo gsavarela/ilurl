@@ -299,7 +299,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
         """
         if self.duration == 0:
-            action = self.agent.rl_actions(tuple(state))
+            action = self.agent.act(tuple(state))
         else:
             action = None
 

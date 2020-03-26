@@ -396,7 +396,6 @@ if __name__ == '__main__':
         print(f'Number of processors downgraded to {num_processors}')
 
     # process data: converts paths into dictionary
-    # env2path, _ = parse_all([experiment_dir])
     # get train parameters
     pattern = f'{exp_dir}*.params.json'
     path = glob(pattern)[0]
@@ -411,7 +410,6 @@ if __name__ == '__main__':
         data = json.load(f)
 
     # build Q-tables pattern
-    # exp_dir = '.'.join(experiment_dir.split('.')[:3])
     pattern = f'{exp_dir}*.Q.*'
     qtb2path = parse_all(glob(pattern))
 
@@ -420,17 +418,12 @@ if __name__ == '__main__':
     # sort experiments by instances and cycles
     qtb2path = sort_all(qtb2path)
     # converts paths into objects
-    # env2obj = load_all(env2path)
     qtb2obj = load_all(qtb2path)
-    # num_experiments = len(env2obj)
     i = 1
     results = []
-    expid = exp_dir.split('/')[-1]
-
     for exid, qtbs in qtb2obj.items():
 
-        # env = env2obj[exid]
-        # cycle_time = getattr(env, 'cycle_time', 1)
+        filename = '_'.join(exid[:-1])
         # Load cycle time and TLS programs.
         network = Network(**params['network_args'])
         cycle_time, programs = tls_configs(network.network_id)
@@ -448,16 +441,10 @@ if __name__ == '__main__':
                            agent, network, horizon, qtb)
             return (qid, ret)
 
-
-        # rollouts x qtbs
-        # it doest have the blank table
-        # if (1, 0) not in qtbs:
-        #     _qtbs = [((1, 0), None)] * num_rollouts
-        # _qtbs += list(qtbs.items()) * num_rollouts
         _qtbs = list(qtbs.items()) * num_rollouts
 
         print(f"""
-                experiment:\t{i}/{expid}
+                experiment:\t{i}/{len(qtb2path)}
                 network_id:\t{exid[0]}
                 timestamp:\t{exid[1]}
                 rollouts:\t{len(_qtbs)}
@@ -470,11 +457,7 @@ if __name__ == '__main__':
             results = [fn(qtb) for qtb in _qtbs]
         info = concat(results)
 
-        # add some metadata into it
-        # TODO: generate tables Q0
         keys = list(qtbs.keys())
-        # if (1, 0) not in keys:
-        #     keys = [(1, 0)] + keys
         info['horizon'] = horizon 
         info['rollouts'] = [k[1] for k in keys]
         info['num_rollouts'] = num_rollouts
@@ -482,8 +465,7 @@ if __name__ == '__main__':
         info['skip'] = skip
         info['processed_at'] = \
             datetime.now().strftime('%Y-%m-%d%H%M%S.%f')
-        # filename = '_'.join(exid[:2])
-        file_path = f'{exp_dir}.{x}.eval.info.json'
+        file_path = f'{exp_dir}{filename}.{x}.eval.info.json'
         with open(file_path, 'w') as f:
             json.dump(info, f)
         print(file_path)

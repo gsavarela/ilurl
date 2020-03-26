@@ -1,13 +1,15 @@
 """Implementation of dynamic programming TD methods with function approximation"""
+from copy import deepcopy
 import numpy as np
 
+from ilurl.utils.meta import MetaAgentQ
 from ilurl.core.params import QLParams
 from ilurl.core.ql.choice import choice_eps_greedy, choice_ucb
 from ilurl.core.ql.define import dpq_tls
 from ilurl.core.ql.update import dpq_update
 
 
-class DPQ(object):
+class DPQ(object, metaclass=MetaAgentQ):
 
     def __init__(self, ql_params):
         """
@@ -79,7 +81,7 @@ class DPQ(object):
                 for state, actions in self.Q.items()
             }
 
-    def rl_actions(self, s):
+    def act(self, s):
         if self.stop:
             # Argmax greedy choice.
             actions, values = zip(*self.Q[s].items())
@@ -139,6 +141,14 @@ class DPQ(object):
             self.Q_distances.append(dist)
 
     @property
+    def Q(self):
+        return self._Q
+
+    @Q.setter
+    def Q(self, Q):
+        self._Q = Q
+
+    @property
     def stop(self):
         """Stops exploring"""
         return self._stop
@@ -146,3 +156,38 @@ class DPQ(object):
     @stop.setter
     def stop(self, stop):
         self._stop = stop
+
+# class EnsembleQ(object, metaclass=MetaAgentQ):
+#      """EnsembleQ is a combination of Q agents"""
+#     
+#     def __init__(self, ql_params):
+# 
+#         _QL_agents = []
+#         for num_phases in ql_params.phases_per_traffic_light:
+#             _ql_params = deepcopy(ql_params)
+#             _ql_params.phases_per_traffic_light = [num_phases]
+#             _QL_agents = DPQ(_ql_params)
+# 
+#         self._QL_agents = QL_agents 
+# 
+# 
+#     @property
+#     def Q(self):
+#         return self._Q
+# 
+#     @Q.setter
+#     def Q(self, Q):
+#         self._Q = Q
+# 
+#     @property
+#     def stop(self):
+#         """all or nothing stops"""
+#         stops = [_QL_agent.stop for _QL_agent in self._QL_agents]
+#         return all(stops)
+#             
+# 
+#     @stop.setter
+#     def stop(self, stop):
+#         for _QL_agent in self._QL_agents:
+#             _QL_agent.stop = stop
+#         return stop
