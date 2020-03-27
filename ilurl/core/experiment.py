@@ -128,7 +128,8 @@ class Experiment:
     def run(
             self,
             num_steps,
-            rl_actions=None
+            rl_actions=None,
+            stop_on_teleports=False
     ):
         """
         Run the given scenario for a set number of runs and steps per run.
@@ -140,11 +141,26 @@ class Experiment:
         rl_actions : method, optional
             maps states to actions to be performed by the RL agents (if
             there are any)
+        stop_on_teleport : boolean
+            if true will break execution on teleport which occur on:
+            * OSM scenarios with faulty connections
+            * collisions
+            * timeouts a vehicle is unable to move for 
+            -time-to-teleport seconds (default 300) which is caused by
+            wrong lane, yield or jam
 
         Returns
         -------
         info_dict : dict
             contains returns, average speed per step (last run)
+
+        References
+        ---------
+
+
+        https://sourceforge.net/p/sumo/mailman/message/33244698/
+        http://sumo.sourceforge.net/userdoc/Simulation/Output.html
+        http://sumo.sourceforge.net/userdoc/Simulation/Why_Vehicles_are_teleporting.html
         """
         if rl_actions is None:
 
@@ -212,9 +228,7 @@ class Experiment:
                     with open(filename, 'w') as fj:
                         json.dump(info_dict, fj)
 
-            if done:
-                import pdb
-                pdb.set_trace()
+            if done and stop_on_teleports:
                 break
 
             if self.save_agent and self._is_save_q_table_step(agent_updates_counter):
