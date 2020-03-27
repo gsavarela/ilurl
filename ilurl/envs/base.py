@@ -322,20 +322,19 @@ class TrafficLightEnv(AccelEnv, Serializer):
                 True;  duration == duration<state_k+1>
         """
         ret = []
-        if static:
-            def fn(x, t):
-                return (x == 0 and self.step_counter > 1) or \
-                        x in self.tls_durations[t]
+        dur = int(self.duration)
 
-            ret = [fn(int(self.duration), tid) for tid in self.tls_ids]
+        def fn(tn, tid):
+            if (dur == 0 and self.step_counter > 1):
+                return True
 
-        else:
-            def gn(x, t):
-                # adjust for duration
-                c = int(max(0, self.step_counter - 1) / (self.cycle_time / self.sim_step))
-                return (x == 0 and self.step_counter > 1) or \
-                    x in self.programs[t][self.actions_log[c][0]]
-            ret = [gn(int(self.duration), tid) for tid in self.tls_ids]
+            if static:
+                return dur in self.tls_durations[tid]
+            else:
+                progid = self._current_rl_action()[tn]
+                return dur in self.programs[tid][progid]
+
+        ret = [fn(*args) for args in enumerate(self.tls_ids)]
 
         return tuple(ret)
 
@@ -355,7 +354,8 @@ class TrafficLightEnv(AccelEnv, Serializer):
             # New cycle.
 
             # Get the number of the current cycle.
-            cycle_number = int(self.step_counter / (self.cycle_time / self.sim_step))
+            cycle_number = \
+                int(self.step_counter / (self.cycle_time / self.sim_step))
 
             # Get current state.
             state = self.get_state()
@@ -404,6 +404,14 @@ class TrafficLightEnv(AccelEnv, Serializer):
                 self.k.traffic_light.set_state(
                     node_id=tid, state=next_state)
             
+    def _current_rl_action(self):
+        """Returns current rl action"""
+        # adjust for duration
+        N = (self.cycle_time / self.sim_step)
+        actid = \
+            int(max(0, self.step_counter - 1) / N)
+        return self.actions_log[actid]
+
     def compute_reward(self, rl_actions, **kwargs):
         """
         Reward function for the RL agent(s).

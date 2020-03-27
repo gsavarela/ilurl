@@ -162,8 +162,8 @@ class DPQ(object, metaclass=MetaAgentQ):
         self._stop = stop
 
 
-class EnsembleICQ(object, metaclass=MetaAgentQ):
-    """EnsembleICQ is the individual combination of Q agents"""
+class MAIQ(object, metaclass=MetaAgentQ):
+    """MAIQ is the individual combination of Q agents"""
     
     def __init__(self, ql_params):
 
@@ -171,7 +171,8 @@ class EnsembleICQ(object, metaclass=MetaAgentQ):
         state_slices = []
         action_slices = []
         num_variables = len(ql_params.states_labels)
-        depth = ql_params.states.depth
+        states_depth = ql_params.states.depth
+        actions_depth = ql_params.actions.depth
         
         state_rank = 0
         action_rank = 0
@@ -179,7 +180,8 @@ class EnsembleICQ(object, metaclass=MetaAgentQ):
 
             ql_params_ = deepcopy(ql_params)
             ql_params_.phases_per_traffic_light = [num_phases]
-            ql_params_.states = Bounds(num_phases * num_variables, depth)
+            ql_params_.states = Bounds(num_phases * num_variables, states_depth)
+            ql_params_.actions = Bounds(1, actions_depth)
             QL_agents.append(DPQ(ql_params_))
 
             state_slice = slice(state_rank, state_rank + num_phases * num_variables)

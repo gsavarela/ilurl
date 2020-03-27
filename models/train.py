@@ -11,7 +11,7 @@ from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 
 from ilurl.envs.base import TrafficLightEnv
 
-from ilurl.core.ql.dpq import DPQ, EnsembleICQ
+from ilurl.core.ql.dpq import DPQ, MAIQ
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
 
@@ -231,7 +231,7 @@ if __name__ == '__main__':
 
 
     #  QL_agent = DPQ(ql_params)
-    QL_agent =  EnsembleICQ(ql_params)
+    QL_agent =  MAIQ(ql_params)
 
     env = TrafficLightEnv(
         env_params=env_params,
