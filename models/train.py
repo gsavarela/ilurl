@@ -210,7 +210,7 @@ if __name__ == '__main__':
 
     # Agent.
 
-    phases_per_tls = [len(network.phases[t]) for t in network.tls_ids]
+    phases_per_tls = [len(network.tls_phases[t]) for t in network.tls_ids]
 
     # Assumes all agents have the same number of actions.
     num_actions = len(programs[network.tls_ids[0]])

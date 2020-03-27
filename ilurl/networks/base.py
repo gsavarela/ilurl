@@ -13,6 +13,7 @@ from flow.controllers.routing_controllers import GridRouter
 
 from flow.networks.base import Network as FlowNetwork
 
+from ilurl.utils.properties import lazy_property
 from ilurl.core.params import InFlows, NetParams
 from ilurl.loaders.nets import (get_routes, get_edges, get_path,
                                 get_logic, get_connections, get_nodes,
@@ -224,8 +225,8 @@ class Network(FlowNetwork):
     def specify_types(self, net_params):
         return get_types(self.network_id)
 
-    @property
-    def approaches(self):
+    @lazy_property
+    def tls_approaches(self):
         """Returns the incoming approaches for a traffic light junction
 
         Params:
@@ -240,8 +241,9 @@ class Network(FlowNetwork):
         
         Usage:
         -----
-         > network.approaches
+         > network.tls_approaches
          > {'247123161': ['-238059324', '-238059328', '309265401', '383432312']}
+
         DEF:
         ---
         A roadway meeting at an intersection is referred to as an approach. At any general intersection, there are two kinds of approaches: incoming approaches and outgoing approaches. An incoming approach is one on which cars can enter the intersection.
@@ -251,18 +253,11 @@ class Network(FlowNetwork):
             * Wei et al., 2019
             http://arxiv.org/abs/1904.08117
         """
-        
-        if not hasattr(self, '_cached_approaches'):
-            # define approaches
-            self._cached_approaches = {
-                nid: [e['id']
-                          for e in self.edges if e['to'] == nid]
-                for nid in self.tls_ids
-            }
-        return self._cached_approaches
+        return {nid: [e['id'] for e in self.edges if e['to'] == nid]
+                for nid in self.tls_ids}
 
-    @property
-    def phases(self):
+    @lazy_property
+    def tls_phases(self):
         """Returns a nodeid x sets of non conflicting movement patterns.
             The sets are index by integers and the moviment patterns are
             expressed as lists of approaches. We consider only incoming
@@ -276,13 +271,13 @@ class Network(FlowNetwork):
 
         Usage:
         -----
-        > network.states
+        > network.tls_states
         > {'gneJ2':
             ['GGGgrrrrGGGgrrrr', 'yyygrrrryyygrrrr', 'rrrGrrrrrrrGrrrr',
             'rrryrrrrrrryrrrr', 'rrrrGGGgrrrrGGGg', 'rrrryyygrrrryyyg',
             'rrrrrrrGrrrrrrrG', 'rrrrrrryrrrrrrry']}
 
-        > network.phases
+        > network.tls_phases
         > {'gneJ2':
             {0: {'components':
                     [('-gneE8', [0, 1, 2]), ('gneE12', [0, 1, 2])],
@@ -317,66 +312,64 @@ class Network(FlowNetwork):
         http://arxiv.org/abs/1904.08117
         """
 
-        # TODO: include duration
-        if not hasattr(self, '_cached_phases'):
-            self._cached_phases = {}
+        _phases = {}
+        def fn(x, n):
+            return x.get('tl') == n and 'linkIndex' in x
 
-            def fn(x, n):
-                return x.get('tl') == n and 'linkIndex' in x
-
-            for nid in self.tls_ids:
-                # green and yellow are considered to be one phase
-                self._cached_phases[nid] = {}
-                connections = [c for c in self.connections if fn(c, nid)]
-                states = self.states[nid]
-                links = {
-                    int(cn['linkIndex']):
-                        (cn['from'], int(cn['fromLane']))
-                    for cn in connections if 'linkIndex' in cn
+        for nid in self.tls_ids:
+            # green and yellow are considered to be one phase
+            _phases[nid] = {}
+            connections = [c for c in self.connections if fn(c, nid)]
+            states = self.tls_states[nid]
+            links = {
+                int(cn['linkIndex']):
+                    (cn['from'], int(cn['fromLane']))
+                for cn in connections if 'linkIndex' in cn
+            }
+            i = 0
+            components = {}
+            for state in states:
+                # components: linkIndex, 0-1, edge_id, lane
+                components = {
+                    (lnk,) + edge_lane
+                    for lnk, edge_lane in links.items()
+                    if state[lnk] in ('G','g')
                 }
-                i = 0
-                components = {}
-                for state in states:
-                    # components: linkIndex, 0-1, edge_id, lane
-                    components = {
-                        (lnk,) + edge_lane
-                        for lnk, edge_lane in links.items()
-                        if state[lnk] in ('G','g')
-                    }
-                    # adds components if they don't exist
-                    if components:
-                        found = False
-                        # sort by link, edge_id
-                        components = \
-                            sorted(components, key=op.itemgetter(0, 1))
+                # adds components if they don't exist
+                if components:
+                    found = False
+                    # sort by link, edge_id
+                    components = \
+                        sorted(components, key=op.itemgetter(0, 1))
 
-                        # groups lanes by edge_ids and states
-                        components = \
-                            [(k, list({l[-1] for l in g}))
-                             for k, g in groupby(components,
-                                                 key=op.itemgetter(1))]                         
-                        for j in range(0, i + 1):
-                            if j in self._cached_phases[nid]:
-                                # same edge_id and lanes
-                                _component =  \
-                                    self._cached_phases[nid][j]['components']
-                                found = \
-                                    components == _component
+                    # groups lanes by edge_ids and states
+                    components = \
+                        [(k, list({l[-1] for l in g}))
+                         for k, g in groupby(components,
+                                             key=op.itemgetter(1))]                         
+                    for j in range(0, i + 1):
+                        if j in _phases[nid]:
+                            # same edge_id and lanes
+                            _component =  \
+                                _phases[nid][j]['components']
+                            found = \
+                                components == _component
 
-                                if found:
-                                    self._cached_phases[nid][j]['states'].append(state)
-                        if not found:
-                            self._cached_phases[nid][i] = \
-                                {'components': components,
-                                 'states': [state]}
-                            i += 1
-                    else:
-                        # states only `r` and `y`
-                        self._cached_phases[nid][i-1]['states'].append(state)
-        return self._cached_phases
+                            if found:
+                                _phases[nid][j]['states'].append(state)
+                    if not found:
+                        _phases[nid][i] = {
+                            'components': components,
+                            'states': [state]
+                        }
+                        i += 1
+                else:
+                    # states only `r` and `y`
+                    _phases[nid][i-1]['states'].append(state)
+        return _phases
 
-    @property
-    def states(self):
+    @lazy_property
+    def tls_states(self):
         """states wrt to programID = 1 for traffic light nodes
 
         Returns:
@@ -385,28 +378,26 @@ class Network(FlowNetwork):
 
         Usage:
         ------
-        > network.states
+        > network.tls_states
         > {'247123161': ['GGrrrGGrrr', 'yyrrryyrrr', 'rrGGGrrGGG', 'rryyyrryyy']}O
 
         REF:
         ----
             http://sumo.sourceforge.net/userdoc/Simulation/Traffic_Lights.html
         """
-        if not hasattr(self, '_cached_states'):
-            configs = self.traffic_lights.get_properties()
+        configs = self.traffic_lights.get_properties()
 
-            def fn(x):
-                return x['type'] == 'static' and x['programID'] == 1
+        def fn(x):
+            return x['type'] == 'static' and x['programID'] == 1
 
-            self._cached_states = {
-                 nid: [p['state']
-                       for p in configs[nid]['phases']
-                       if fn(configs[nid])]
-                 for nid in self.tls_ids}
-        return self._cached_states
+        return {
+            nid: [p['state']
+                  for p in configs[nid]['phases'] if fn(configs[nid])]
+            for nid in self.tls_ids
+        }
 
-    @property
-    def durations(self):
+    @lazy_property
+    def tls_durations(self):
         """Gives the times or durations in seconds for each of the states
         on the default programID = 1
 
@@ -418,26 +409,25 @@ class Network(FlowNetwork):
 
         Usage:
         ------
-        > network.durations
+        > network.tls_durations
         > {'247123161': [39, 6, 39, 6]}
 
         REF:
         ----
             http://sumo.sourceforge.net/userdoc/Simulation/Traffic_Lights.html
         """
-        if not hasattr(self, '_cached_durations'):
-            configs = self.traffic_lights.get_properties()
+        configs = self.traffic_lights.get_properties()
 
-            def fn(x):
-                return x['type'] == 'static' and x['programID'] == 1
+        def fn(x):
+            return x['type'] == 'static' and x['programID'] == 1
 
-            self._cached_durations = {
-                 nid: [int(p['duration']) for p in configs[nid]['phases']
-                       if fn(configs[nid])]
-                 for nid in self.tls_ids}
-        return self._cached_durations
+        return {
+            nid: [int(p['duration'])
+                  for p in configs[nid]['phases'] if fn(configs[nid])]
+            for nid in self.tls_ids
+        }
 
-    @property
+    @lazy_property
     def tls_ids(self):
         """List of nodes which are also traffic light signals
 
@@ -451,8 +441,6 @@ class Network(FlowNetwork):
         ['247123161']
 
         """
-        if not hasattr(self, '_cached_tls_ids'):
-            self.cached_tls_ids = \
-                [n['id'] for n in self.nodes if n['type'] == 'traffic_light']
-        return self.cached_tls_ids
+        return \
+            [n['id'] for n in self.nodes if n['type'] == 'traffic_light']
     

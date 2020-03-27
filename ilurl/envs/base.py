@@ -14,6 +14,7 @@ from flow.envs.ring.accel import AccelEnv
 
 from ilurl.core.ql.reward import RewardCalculator
 from ilurl.utils.serialize import Serializer
+from ilurl.utils.properties import delegate_property, lazy_property
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
@@ -114,40 +115,40 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
     @property
     def stop(self):
-        return self.agent.stop
+        pass        
 
     @stop.setter
     def stop(self, stop):
         self.agent.stop = stop
 
-    @property
+    @delegate_property
     def Q(self):
-        return self.agent.Q
+        pass
 
+    # to do make a delegate setter property
     @Q.setter
     def Q(self, Q):
         self.agent.Q = Q
 
     # TODO: generalize delegation
-    @property
+    @delegate_property
     def tls_ids(self):
-        return self.network.tls_ids
+        pass
 
-    @property
+    @delegate_property
     def tls_phases(self):
-        return self.network.phases
+        pass
 
-    @property
+    @delegate_property
     def tls_states(self):
-        return self.network.states
+        pass
 
-    @property
+    @lazy_property
     def tls_durations(self):
-        if not hasattr(self, '_cached_tls_durations'):
-            self._cached_tls_durations = {
-                tid: np.cumsum(durations).tolist()
-                for tid, durations in self.network.durations.items()}
-        return self._cached_tls_durations
+        return {
+            tid: np.cumsum(durations).tolist()
+            for tid, durations in self.network.tls_durations.items()
+        }
 
     def update_observation_space(self):
         """
