@@ -83,16 +83,14 @@ class DPQ(object):
         if self.stop:
             # Argmax greedy choice.
             actions, values = zip(*self.Q[s].items())
-            choosen, _ = choice_eps_greedy(actions, values, 0)
-            self.explored.append(False)
+            choosen, exp = choice_eps_greedy(actions, values, 0)
+            self.explored.append(exp)
         else:
             
             if self.choice_type in ('eps-greedy',):
                 actions, values = zip(*self.Q[s].items())
 
-                num_state_visits = 0
-                for action in self.state_action_counter[s].keys():
-                    num_state_visits += self.state_action_counter[s][action]
+                num_state_visits = sum(self.state_action_counter[s].values())
                 eps = 1 / np.power(1 + num_state_visits, 2/3)
 
                 choosen, exp = choice_eps_greedy(actions, values, eps)
@@ -115,13 +113,13 @@ class DPQ(object):
 
     def update(self, s, a, r, s1):
 
-        if not self.stop:
+        # Track the visited states.
+        if sum(self.state_action_counter[s].values()) == 0:
+            self.visited_states.append(s)
+        else:
+            self.visited_states.append(None)
 
-            # Track the visited states.
-            if self.state_action_counter[s][a] == 0:
-                self.visited_states.append(s)
-            else:
-                self.visited_states.append(None)
+        if not self.stop:
 
             # Update (state, action) counter.
             self.state_action_counter[s][a] += 1

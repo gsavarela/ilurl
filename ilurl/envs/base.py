@@ -372,7 +372,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
             self.actions_log[cycle_number] = rl_action
             self.states_log[cycle_number] = state
 
-            if self.step_counter > 1 and not self.stop:
+            if self.step_counter > 1: # and not self.stop:
                 # RL-agent update.
                 reward = self.compute_reward(None)
                 prev_state = self.states_log[cycle_number - 1]
