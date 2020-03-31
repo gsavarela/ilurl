@@ -14,6 +14,7 @@ from flow.envs.ring.accel import AccelEnv
 
 from ilurl.core.ql.reward import RewardCalculator
 from ilurl.utils.serialize import Serializer
+from ilurl.utils.properties import delegate_property, lazy_property
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
@@ -114,40 +115,40 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
     @property
     def stop(self):
-        return self.agent.stop
+        pass        
 
     @stop.setter
     def stop(self, stop):
         self.agent.stop = stop
 
-    @property
+    @delegate_property
     def Q(self):
-        return self.agent.Q
+        pass
 
+    # to do make a delegate setter property
     @Q.setter
     def Q(self, Q):
         self.agent.Q = Q
 
     # TODO: generalize delegation
-    @property
+    @delegate_property
     def tls_ids(self):
-        return self.network.tls_ids
+        pass
 
-    @property
+    @delegate_property
     def tls_phases(self):
-        return self.network.phases
+        pass
 
-    @property
+    @delegate_property
     def tls_states(self):
-        return self.network.states
+        pass
 
-    @property
+    @lazy_property
     def tls_durations(self):
-        if not hasattr(self, '_cached_tls_durations'):
-            self._cached_tls_durations = {
-                tid: np.cumsum(durations).tolist()
-                for tid, durations in self.network.durations.items()}
-        return self._cached_tls_durations
+        return {
+            tid: np.cumsum(durations).tolist()
+            for tid, durations in self.network.tls_durations.items()
+        }
 
     def update_observation_space(self):
         """
@@ -213,7 +214,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
             change for when there aren't any cars
             the state is equivalent to maximum speed
         """
-        data = []
 
         def delay(t):
             return round(
@@ -224,13 +224,9 @@ class TrafficLightEnv(AccelEnv, Serializer):
         prev = delay(self.duration)
 
         if (prev not in self.memo_observation_space) or self.step_counter <= 2:
-            # Make the average between cycles
-            # t = max(self.duration, self.sim_step) \
-            #      if self.step_counter * self.sim_step < self.cycle_time \
-            #      else self.cycle_time
-
             observations = []
             for nid in self.tls_ids:
+                data = []
                 for phase in self.tls_phases[nid]:
                     incoming = self.incoming[nid][phase]
                     values = []
@@ -261,6 +257,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
                         values.append(round(value, 2))
                     data.append(values)
                 observations.append(data)
+
             self.memo_observation_space[prev] = observations
         return self.memo_observation_space[prev]
 
@@ -274,6 +271,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
             information on the state of the vehicles, which is provided to the
             agent
         """
+        
         # Categorize.
         categorized = \
             self.agent.ql_params.categorize_space(self.get_observation_space())
@@ -302,7 +300,7 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
         """
         if self.duration == 0:
-            action = self.agent.rl_actions(tuple(state))
+            action = self.agent.act(tuple(state))
         else:
             action = None
 
@@ -325,20 +323,19 @@ class TrafficLightEnv(AccelEnv, Serializer):
                 True;  duration == duration<state_k+1>
         """
         ret = []
-        if static:
-            def fn(x, t):
-                return (x == 0 and self.step_counter > 1) or \
-                        x in self.tls_durations[t]
+        dur = int(self.duration)
 
-            ret = [fn(int(self.duration), tid) for tid in self.tls_ids]
+        def fn(tn, tid):
+            if (dur == 0 and self.step_counter > 1):
+                return True
 
-        else:
-            def gn(x, t):
-                # adjust for duration
-                c = int(max(0, self.step_counter - 1) / (self.cycle_time / self.sim_step))
-                return (x == 0 and self.step_counter > 1) or \
-                    x in self.programs[t][self.actions_log[c][0]]
-            ret = [gn(int(self.duration), tid) for tid in self.tls_ids]
+            if static:
+                return dur in self.tls_durations[tid]
+            else:
+                progid = self._current_rl_action()[tn]
+                return dur in self.programs[tid][progid]
+
+        ret = [fn(*args) for args in enumerate(self.tls_ids)]
 
         return tuple(ret)
 
@@ -358,7 +355,8 @@ class TrafficLightEnv(AccelEnv, Serializer):
             # New cycle.
 
             # Get the number of the current cycle.
-            cycle_number = int(self.step_counter / (self.cycle_time / self.sim_step))
+            cycle_number = \
+                int(self.step_counter / (self.cycle_time / self.sim_step))
 
             # Get current state.
             state = self.get_state()
@@ -407,6 +405,14 @@ class TrafficLightEnv(AccelEnv, Serializer):
                 self.k.traffic_light.set_state(
                     node_id=tid, state=next_state)
             
+    def _current_rl_action(self):
+        """Returns current rl action"""
+        # adjust for duration
+        N = (self.cycle_time / self.sim_step)
+        actid = \
+            int(max(0, self.step_counter - 1) / N)
+        return self.actions_log[actid]
+
     def compute_reward(self, rl_actions, **kwargs):
         """
         Reward function for the RL agent(s).
