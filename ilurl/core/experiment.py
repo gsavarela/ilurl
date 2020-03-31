@@ -184,7 +184,7 @@ class Experiment:
 
         state = self.env.reset()
 
-        for j in tqdm(range(num_steps)):                
+        for _ in tqdm(range(num_steps)):                
 
             state, reward, done, _ = self.env.step(rl_actions(state))
 
@@ -200,7 +200,8 @@ class Experiment:
 
                 observation_spaces.append(
                     list(self.env.get_observation_space()))
-                rewards.append(round(sum(reward), 4))
+
+                rewards.append([round(r, 4) for r in reward])
 
                 vehs.append(np.nanmean(veh_i).round(4))
                 vels.append(np.nanmean(vel_i).round(4))
