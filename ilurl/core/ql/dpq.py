@@ -249,6 +249,24 @@ class MAIQ(object, metaclass=MetaAgentQ):
               self._QL_agents[i].Q = Qi
 
     @property
+    def explored(self):
+        self._explored = {i: _QL_agent.explored
+                   for i, _QL_agent in enumerate(self._QL_agents)}
+        return self._explored
+
+    @property
+    def visited_states(self):
+        self._visited_states = {i: _QL_agent.visited_states
+                   for i, _QL_agent in enumerate(self._QL_agents)}
+        return self._visited_states
+
+    @property
+    def Q_distances(self):
+        self._Q_distances = {i: _QL_agent.Q_distances
+                   for i, _QL_agent in enumerate(self._QL_agents)}
+        return self._Q_distances
+
+    @property
     def stop(self):
         """all or nothing stops"""
         stops = [_QL_agent.stop for _QL_agent in self._QL_agents]
