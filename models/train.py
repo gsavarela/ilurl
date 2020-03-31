@@ -224,8 +224,8 @@ if __name__ == '__main__':
                 'phases_per_traffic_light': phases_per_tls,
                 'num_actions': num_actions,
                 'choice_type': 'eps-greedy',
-                'category_counts': [8.56, 13.00],
-                'category_speeds': [2.28, 5.50]
+                'category_counts': [5,10,15,20,25,30],
+                'category_speeds': [2,3,4,5,6,7]
     }
     ql_params = QLParams(**ql_args)
 
