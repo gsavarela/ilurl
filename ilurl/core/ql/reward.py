@@ -45,13 +45,13 @@ class RewardCalculator(object):
             # generalize for n agents
             rewards = []
             i = 0
-            for phases_per in self.phases_per_traffic_light:
-                ind = slice(i, i + phases_per * len(self.labels))
+            for num_phases in self.phases_per_traffic_light:
+                ind = slice(i, i + num_phases)
 
                 reward = \
                     sum([s * c for s, c in zip(speeds[ind], counts[ind])]) / K
                 rewards.append(reward)
-                i += phases_per * len(self.labels)
+                i += num_phases * len(self.labels)
                 return rewards
 
         elif self.type in ('target_velocity',):
@@ -63,15 +63,15 @@ class RewardCalculator(object):
             # generalize for n agents
             rewards = []
             i = 0
-            for phases_per in self.phases_per_traffic_light:
-                ind = slice(i, i + phases_per * len(self.labels))
+            for num_phases in self.phases_per_traffic_light:
+                ind = slice(i, i + num_phases)
                 max_cost = \
-                    np.array([self.target_velocity] * len(speeds[ind]))
+                    np.array([self.target_velocity] * num_phases)
 
                 reward = \
                     -np.maximum(max_cost - speeds[ind], 0).dot(counts[ind])
                 rewards.append(reward)
-                i += phases_per * len(self.labels)
+                i += num_phases
 
             return rewards
 
