@@ -136,6 +136,10 @@ class TrafficLightEnv(AccelEnv, Serializer):
         pass
 
     @delegate_property
+    def tls_max_capacity(self):
+        pass
+
+    @delegate_property
     def tls_phases(self):
         pass
 
@@ -225,8 +229,10 @@ class TrafficLightEnv(AccelEnv, Serializer):
 
         if (prev not in self.memo_observation_space) or self.step_counter <= 2:
             observations = []
+            normalize = self.agent.ql_params.normalize
             for nid in self.tls_ids:
                 data = []
+                max_speed, max_count = self.tls_max_capacity[nid]
                 for phase in self.tls_phases[nid]:
                     incoming = self.incoming[nid][phase]
                     values = []
@@ -238,6 +244,8 @@ class TrafficLightEnv(AccelEnv, Serializer):
                             count += len(incoming[prev][1]) if prev in incoming else 0.0
                             counts[prev] = count
                             value = np.mean(list(counts.values()))
+                            if normalize:
+                                value = value / max_count
 
                         elif label in ('speed',):
                             counts = self.memo_counts[nid][phase].copy()
@@ -251,6 +259,9 @@ class TrafficLightEnv(AccelEnv, Serializer):
                             mem[prev] = \
                                 0.0 if not any(speeds) else round(np.mean(speeds), 2)
                             value = np.mean(list(mem.values()))
+
+                            if normalize:
+                                value = value / max_speed
                         else:
                             raise ValueError(f'`{label}` not implemented')
 

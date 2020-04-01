@@ -200,7 +200,7 @@ if __name__ == '__main__':
 
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
-    additional_params['target_velocity'] = 20
+    additional_params['target_velocity'] = 0.6
     additional_params['cycle_time'] = cycle_time
     env_args = {
         'evaluate': True,
@@ -224,8 +224,8 @@ if __name__ == '__main__':
                 'phases_per_traffic_light': phases_per_tls,
                 'num_actions': num_actions,
                 'choice_type': 'eps-greedy',
-                'category_counts': [5,10,15,20,25,30],
-                'category_speeds': [2,3,4,5,6,7]
+                'category_counts': [0.1, 0.5],
+                'category_speeds': [0.2, 0.66]
     }
     ql_params = QLParams(**ql_args)
 
