@@ -5,6 +5,7 @@
 '''
 __author__ = "Guilherme Varela"
 __date__ = "2019-12-10"
+import pdb
 import os
 import json
 import numpy as np
@@ -20,6 +21,7 @@ ILURL_HOME = os.environ['ILURL_HOME']
 
 NETWORKS_PATH = \
     f'{ILURL_HOME}/data/networks/'
+
 
 class TrafficLightEnv(AccelEnv, Serializer):
     """
@@ -232,8 +234,8 @@ class TrafficLightEnv(AccelEnv, Serializer):
             normalize = self.agent.ql_params.normalize
             for nid in self.tls_ids:
                 data = []
-                max_speed, max_count = self.tls_max_capacity[nid]
                 for phase in self.tls_phases[nid]:
+                    max_speed, max_count = self.tls_max_capacity[nid][phase]
                     incoming = self.incoming[nid][phase]
                     values = []
                     for label in self.agent.ql_params.states_labels:

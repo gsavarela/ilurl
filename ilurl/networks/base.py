@@ -386,22 +386,21 @@ class Network(flownet.Network):
 
         Usage:
         > network.tls_max_capacity
-        > {'247123161': (22.25, 7.3)}
+        > {'247123161': {0:{(22.25, 40), 1: (7.96, 12)}
 
         """
-
         max_capacity = {}
         for tls_id in self.tls_ids:
-            # each edge id must be counted only once
-            edge_ids = []
-            max_count, max_speed = 0, 0
-            approaches = self.tls_approaches[tls_id]
-            for edge_id in approaches:
-                edge = [e for e in self.edges if e['id'] == edge_id][0]
-                max_count += edge['capacity']
-                max_speed = max(edge['speed'], max_speed)
-            
-            max_capacity[tls_id] = (max_speed, max_count)
+            _max_capacity = {}
+            for phase, data in self.tls_phases[tls_id].items():
+                max_count, max_speed = 0, 0
+                for edge_id, lanes in data['components']:
+                    edge = [e for e in self.edges if e['id'] == edge_id][0]
+                    k = len(lanes) / edge['numLanes']
+                    max_count += edge['max_capacity'] * k
+                    max_speed = max(edge['max_speed'], max_speed)
+                _max_capacity[phase] = (max_speed, max_count)
+            max_capacity[tls_id] = _max_capacity
         return max_capacity
 
     @lazy_property
@@ -508,12 +507,12 @@ class Network(flownet.Network):
             # compute the average vehicle lenght
             x = veh_type.get('minGap', 2.5) + veh_type.get('length', 5.0)
             v = veh_type.get('maxSpeed', 55.55)
-            xs = (x + i * xs) / (i + 1)
-            vs = (v + i * vs) / (i + 1)
+            xs = (x + i * xs) / (i + 1)     # mean of lengths
+            vs = (v + i * vs) / (i + 1)     # mean of max_speeds
 
         # Apply over edges
         for edge in edges:
-            edge['capacity'] = (edge['length'] / xs) * edge['numLanes']
-            edge['speed'] = edge.get('speed', vs)
+            edge['max_capacity'] = (edge['length'] / xs) * edge['numLanes']
+            edge['max_speed'] = edge.get('speed', vs)
             
         return edges
