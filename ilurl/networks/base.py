@@ -11,7 +11,8 @@ from flow.core.params import InitialConfig, TrafficLightParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers.routing_controllers import GridRouter
 
-from flow.networks.base import Network as FlowNetwork
+import flow.networks.base as flownet
+# from flow.networks.base import Network as FlowNetwork
 
 from ilurl.utils.properties import lazy_property
 from ilurl.core.params import InFlows, NetParams
@@ -19,7 +20,8 @@ from ilurl.loaders.nets import (get_routes, get_edges, get_path,
                                 get_logic, get_connections, get_nodes,
                                 get_types)
 
-class Network(FlowNetwork):
+
+class Network(flownet.Network):
     """This class leverages on specs created by SUMO"""
 
     @classmethod
@@ -71,7 +73,7 @@ class Network(FlowNetwork):
     def load(cls, network_id, route_path):
         """Attempts to load a new network from rou.xml and 
         vtypes.add.xml -- if it fails will call `make`
-        the resulting vehicle trips will be stochastic use 
+        the resulting vehicle trips will be stochastic use
         it for training
 
         Params:
@@ -177,7 +179,9 @@ class Network(FlowNetwork):
 
 
     def specify_edges(self, net_params):
-        return get_edges(self.network_id)
+        return self._add_edges_capacity(
+            get_edges(self.network_id)
+        )
 
 
     def specify_connections(self, net_params):
@@ -246,7 +250,10 @@ class Network(FlowNetwork):
 
         DEF:
         ---
-        A roadway meeting at an intersection is referred to as an approach. At any general intersection, there are two kinds of approaches: incoming approaches and outgoing approaches. An incoming approach is one on which cars can enter the intersection.
+        A roadway meeting at an intersection is referred to as an approach.
+        At any general intersection, there are two kinds of approaches:
+        incoming approaches and outgoing approaches.
+        An incoming approach is one on which cars can enter the intersection.
 
         REF:
         ---
@@ -345,8 +352,7 @@ class Network(FlowNetwork):
                     # groups lanes by edge_ids and states
                     components = \
                         [(k, list({l[-1] for l in g}))
-                         for k, g in groupby(components,
-                                             key=op.itemgetter(1))]                         
+                         for k, g in groupby(components, key=op.itemgetter(1))]
                     for j in range(0, i + 1):
                         if j in _phases[nid]:
                             # same edge_id and lanes
@@ -369,6 +375,35 @@ class Network(FlowNetwork):
         return _phases
 
     @lazy_property
+    def tls_max_capacity(self):
+        """Max speeds and counts that an intersection can handle
+
+        Returns:
+        -------
+            * max_capacity: dict<string, tuple<float, float>>
+                keys: tls_id
+                float: max. speeds (m/s) or counts (vehs)
+
+        Usage:
+        > network.tls_max_capacity
+        > {'247123161': {0:{(22.25, 40), 1: (7.96, 12)}
+
+        """
+        max_capacity = {}
+        for tls_id in self.tls_ids:
+            _max_capacity = {}
+            for phase, data in self.tls_phases[tls_id].items():
+                max_count, max_speed = 0, 0
+                for edge_id, lanes in data['components']:
+                    edge = [e for e in self.edges if e['id'] == edge_id][0]
+                    k = len(lanes) / edge['numLanes']
+                    max_count += edge['max_capacity'] * k
+                    max_speed = max(edge['max_speed'], max_speed)
+                _max_capacity[phase] = (max_speed, max_count)
+            max_capacity[tls_id] = _max_capacity
+        return max_capacity
+
+    @lazy_property
     def tls_states(self):
         """states wrt to programID = 1 for traffic light nodes
 
@@ -385,15 +420,14 @@ class Network(FlowNetwork):
         ----
             http://sumo.sourceforge.net/userdoc/Simulation/Traffic_Lights.html
         """
-        configs = self.traffic_lights.get_properties()
+        cfg = self.traffic_lights.get_properties()
 
         def fn(x):
             return x['type'] == 'static' and x['programID'] == 1
 
         return {
-            nid: [p['state']
-                  for p in configs[nid]['phases'] if fn(configs[nid])]
-            for nid in self.tls_ids
+            tid: [p['state'] for p in cfg[tid]['phases'] if fn(cfg[tid])]
+            for tid in self.tls_ids
         }
 
     @lazy_property
@@ -416,15 +450,14 @@ class Network(FlowNetwork):
         ----
             http://sumo.sourceforge.net/userdoc/Simulation/Traffic_Lights.html
         """
-        configs = self.traffic_lights.get_properties()
+        cfg = self.traffic_lights.get_properties()
 
         def fn(x):
             return x['type'] == 'static' and x['programID'] == 1
 
         return {
-            nid: [int(p['duration'])
-                  for p in configs[nid]['phases'] if fn(configs[nid])]
-            for nid in self.tls_ids
+            t: [int(p['duration']) for p in cfg[t]['phases'] if fn(cfg[t])]
+            for t in self.tls_ids
         }
 
     @lazy_property
@@ -441,6 +474,46 @@ class Network(FlowNetwork):
         ['247123161']
 
         """
-        return \
-            [n['id'] for n in self.nodes if n['type'] == 'traffic_light']
-    
+        return [n['id'] for n in self.nodes if n['type'] == 'traffic_light']
+
+    def _add_edges_capacity(self, edges):
+        """Updates edges by providing capacity as the max density number of cars
+            per edge
+        
+        Limitations:
+        -----------
+        * It considers an average number vehicles over all vehicle_types
+        * If vehicle lenght is not provided converts it to lenght 5 default
+
+        Sumo:
+        -----
+        length 	float 	5.0 	The vehicle's netto-length (length) (in m)
+        minGap 	float 	2.5 	Empty space after leader [m]
+        maxSpeed 	float 	55.55 (200 km/h) for vehicles   The vehicle's maximum velocity (in m/s)
+
+        Use case:
+        --------
+         Determine the theoritical flow:
+         q (flow) [cars/h]  = D (density) [cars/km] x V (speed) [km/h]
+
+        References:
+        -----------
+        https://en.wikipedia.org/wiki/Fundamental_diagram_of_traffic_flow#Basic_statements
+         http://sumo.sourceforge.net/userdoc/Definition_of_Vehicles,_Vehicle_Types,_and_Routes.html#available_vtype_attributes
+        """
+        # Summarize over vehicle types
+        xs, vs = 0, 0
+        for i, veh_type in enumerate(self.vehicles.types):
+            # compute the average vehicle lenght
+            x = veh_type.get('minGap', 2.5) + veh_type.get('length', 5.0)
+            v = veh_type.get('maxSpeed', 55.55)
+            xs = (x + i * xs) / (i + 1)     # mean of lengths
+            vs = (v + i * vs) / (i + 1)     # mean of max_speeds
+
+        # Apply over edges
+        for edge in edges:
+            edge['max_capacity'] = (edge['length'] / xs) * edge['numLanes']
+            # max of mean speeds (max_speed is too conservative)
+            edge['max_speed'] = 0.5 * edge.get('speed', vs)
+            
+        return edges

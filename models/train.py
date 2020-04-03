@@ -2,19 +2,16 @@
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-08'
 
-import os
-import json
 import argparse
+import json
+import os
 
-from flow.core.params import SumoParams, EnvParams
+from flow.core.params import EnvParams, SumoParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
-
-from ilurl.envs.base import TrafficLightEnv
-
-from ilurl.core.ql.dpq import DPQ, MAIQ
-from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
-
+from ilurl.core.params import QLParams
+from ilurl.core.ql.dpq import DPQ, MAIQ
+from ilurl.envs.base import TrafficLightEnv
 from ilurl.networks.base import Network
 
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -40,8 +37,8 @@ def get_arguments():
                         default=360, nargs='?',
                         help='Simulation\'s real world time in seconds')
 
-    parser.add_argument('--experiment-log', '-l', dest='log_info', type=str2bool,
-                        default=False, nargs='?',
+    parser.add_argument('--experiment-log', '-l', dest='log_info',
+						type=str2bool, default=False, nargs='?',
                         help='Whether to save experiment-related data in a JSON file \
                          thoughout training (allowing to live track training)')
 
@@ -54,7 +51,8 @@ def get_arguments():
     parser.add_argument('--experiment-save-agent', '-a',
                         dest='save_agent', type=str2bool,
                         default=False, nargs='?',
-                        help='Whether to save RL-agent parameters throughout training')
+                        help='Whether to save RL-agent parameters throughout training',
+)
 
     parser.add_argument('--experiment-save-agent-interval',
                         dest='save_agent_interval', type=int, default=100,
@@ -68,16 +66,25 @@ def get_arguments():
 
     parser.add_argument('--sumo-step', '-s',
                         dest='step', type=float, default=1, nargs='?',
-                        help='Simulation\'s step size which is a fraction from horizon')
+                        help='Simulation\'s step size which is a fraction from horizon',
+)
 
     parser.add_argument('--sumo-emission', '-e',
-                        dest='emission', type=str2bool, default=False, nargs='?',
-                        help='Saves emission data from simulation on /data/emissions')
+                        dest='emission',
+ type=str2bool,
+ default=False,
+ nargs='?',
+                        help='Saves emission data from simulation on /data/emissions',
+)
 
-    parser.add_argument('--tls-inflows-switch', '-W', dest='switch',
+    parser.add_argument('--inflows-switch', '-W', dest='switch',
                         type=str2bool, default=False, nargs='?',
                         help='Assign higher probability of spawning a vehicle \
                         every other hour on opposite sides')
+
+    parser.add_argument('--env-normalize', '-n', dest='normalize',
+                        type=str2bool, default=False, nargs='?',
+                        help='If true will normalize grid and target')
 
     return parser.parse_args()
 
@@ -99,13 +106,18 @@ def print_arguments(args):
     print('\tExperiment log info: {0}'.format(args.log_info))
     print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
     print('\tExperiment save RL agent: {0}'.format(args.save_agent))
-    print('\tExperiment save RL agent interval: {0}'.format(args.save_agent_interval))
+    print(
+'\tExperiment save RL agent interval: {0}'.format(
+args.save_agent_interval,
+))
 
     print('\tSUMO render: {0}'.format(args.render))
     print('\tSUMO emission: {0}'.format(args.emission))
     print('\tSUMO step: {0}'.format(args.step))
 
-    print('\tTLS inflows switch: {0}\n'.format(args.switch))
+    print('\tInflows switch: {0}\n'.format(args.switch))
+
+    print('\tNormalize state-space: {0}\n'.format(args.normalize))
 
 
 def tls_configs(network_name):
@@ -178,6 +190,8 @@ if __name__ == '__main__':
         'insertion_probability': 0.2,
     }
     network = Network(**network_args)
+    normalize = args.normalize
+
 
     # Create directory to store data.
     path = f'{EMISSION_PATH}{network.name}/'
@@ -200,7 +214,7 @@ if __name__ == '__main__':
 
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
-    additional_params['target_velocity'] = 20
+    additional_params['target_velocity'] = 0.4 if normalize else 20
     additional_params['cycle_time'] = cycle_time
     env_args = {
         'evaluate': True,
@@ -215,6 +229,13 @@ if __name__ == '__main__':
     # Assumes all agents have the same number of actions.
     num_actions = len(programs[network.tls_ids[0]])
 
+    if normalize:
+        category_speeds = [0.3, 0.6]
+        category_counts = [0.2, 0.5]
+    else:
+        category_counts = [5,10,15,20,25,30]
+        category_speeds = [2,3,4,5,6,7]
+
     ql_args = {
                 'epsilon': 0.10,
                 'alpha': 0.50,
@@ -224,14 +245,15 @@ if __name__ == '__main__':
                 'phases_per_traffic_light': phases_per_tls,
                 'num_actions': num_actions,
                 'choice_type': 'eps-greedy',
-                'category_counts': [5,10,15,20,25,30],
-                'category_speeds': [2,3,4,5,6,7]
+                'category_counts': category_counts,
+                'category_speeds': category_speeds,
+                'normalize': normalize
     }
     ql_params = QLParams(**ql_args)
 
 
     #  QL_agent = DPQ(ql_params)
-    QL_agent =  MAIQ(ql_params)
+    QL_agent =    MAIQ(ql_params)
 
     env = TrafficLightEnv(
         env_params=env_params,
