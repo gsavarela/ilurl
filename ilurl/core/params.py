@@ -179,8 +179,9 @@ class QLParams:
                     self.state.depth, len(rewards['costs'])))
         self.set_rewards(rewards['type'], rewards['costs'])
 
-        self.normalize = \
-            max(category_speeds) < 1 and max(category_counts) < 1
+        if self.normalize:
+            if max(category_speeds) > 1 or max(category_counts) > 1:
+                raise ValueError('If `normalize` flag is set categories\' must be between 0 and 1')
 
     def set_states(self, states_tuple):
         self.states_labels = states_tuple
