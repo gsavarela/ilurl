@@ -513,6 +513,7 @@ class Network(flownet.Network):
         # Apply over edges
         for edge in edges:
             edge['max_capacity'] = (edge['length'] / xs) * edge['numLanes']
-            edge['max_speed'] = edge.get('speed', vs)
+            # max of mean speeds (max_speed is too conservative)
+            edge['max_speed'] = 0.5 * edge.get('speed', vs)
             
         return edges
