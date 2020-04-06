@@ -6,6 +6,9 @@ import argparse
 import json
 import os
 
+import numpy as np
+import random
+
 from flow.core.params import EnvParams, SumoParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 from ilurl.core.experiment import Experiment
@@ -32,6 +35,10 @@ def get_arguments():
 
     parser.add_argument('network', type=str, nargs='?', default='intersection',
                         help='Network to be simulated')
+
+    parser.add_argument('--seed', dest='seed', type=int,
+                        default=10, nargs='?',
+                        help='Simulation\'s seed')
 
     parser.add_argument('--experiment-time', '-t', dest='time', type=int,
                         default=90000, nargs='?',
@@ -97,6 +104,7 @@ def print_arguments(args):
 
     print('Arguments:')
     print('\tExperiment time: {0}'.format(args.time))
+    print('\tExperiment seed: {0}'.format(args.seed))
     print('\tExperiment log info: {0}'.format(args.log_info))
     print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
     print('\tExperiment save RL agent: {0}'.format(args.save_agent))
@@ -189,11 +197,16 @@ if __name__ == '__main__':
         os.mkdir(path)
     print('Experiment: {0}\n'.format(path))
 
+    # Setup seeds.
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+
     sumo_args = {
         'render': args.render,
         'print_warnings': False,
         'sim_step': args.step,
-        'restart_instance': True
+        'restart_instance': True,
+        'seed': args.seed, # TODO: this seems to not make difference.. apparently one needs to set this directly in flow
     }
     if args.emission:
         sumo_args['emission_path'] = path
