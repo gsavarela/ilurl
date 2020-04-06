@@ -18,6 +18,7 @@ import os
 import tempfile
 import time
 from collections import defaultdict
+from threading import Thread
 
 from tqdm import tqdm
 
@@ -227,7 +228,8 @@ class Experiment:
                     info_dict["Q_distances"] = getattr(self.env.agent, 'Q_distances', None)
 
                     with open(filename, 'w') as fj:
-                        json.dump(info_dict, fj)
+                        t = Thread(target=json.dump(info_dict, fj))
+                        t.start()
 
             if done and stop_on_teleports:
                 break
@@ -235,10 +237,11 @@ class Experiment:
             if self.save_agent and self._is_save_q_table_step(agent_updates_counter):
                 filename = \
                     f'{self.env.network.name}.Q.1-{agent_updates_counter}.pickle'
-
-                self.env.dump(self.dir_path,
-                                filename,
-                                attr_name='Q')
+                
+                t = Thread(target=self.env.dump(self.dir_path,
+                                    filename,
+                                    attr_name='Q'))
+                t.start()
 
         info_dict["rewards"] = rewards
         info_dict["velocities"] = vels
