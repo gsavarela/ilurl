@@ -246,8 +246,6 @@ class TrafficLightEnv(AccelEnv, Serializer):
                             count += len(incoming[prev][1]) if prev in incoming else 0.0
                             counts[prev] = count
                             value = np.mean(list(counts.values()))
-                            if normalize:
-                                value = value / max_count
 
                         elif label in ('speed',):
                             counts = self.memo_counts[nid][phase].copy()

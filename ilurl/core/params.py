@@ -73,7 +73,10 @@ class QLParams:
             category_counts=[8.56, 13.00],
             category_speeds=[2.28, 5.50],
             normalize=False,
-
+            replay_buffer=False,
+            replay_buffer_size=500,
+            replay_buffer_batch_size=64,
+            replay_buffer_warm_up=200,
     ):
         """Instantiate base traffic light.
 
@@ -180,8 +183,9 @@ class QLParams:
         self.set_rewards(rewards['type'], rewards['costs'])
 
         if self.normalize:
-            if max(category_speeds) > 1 or max(category_counts) > 1:
-                raise ValueError('If `normalize` flag is set categories\' must be between 0 and 1')
+            if max(category_speeds) > 1:
+                raise ValueError('If `normalize` flag is set categories'
+                                    'must be between 0 and 1')
 
     def set_states(self, states_tuple):
         self.states_labels = states_tuple
