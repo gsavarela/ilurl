@@ -10,7 +10,9 @@ from flow.core.params import EnvParams, SumoParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 from ilurl.core.experiment import Experiment
 from ilurl.core.params import QLParams
-from ilurl.core.ql.dpq import DPQ, MAIQ
+# from ilurl.core.ql.dpq import DPQ, MAIQ
+
+import ilurl.core.ql.dpq as ql
 from ilurl.envs.base import TrafficLightEnv
 from ilurl.networks.base import Network
 
@@ -214,6 +216,7 @@ if __name__ == '__main__':
 
     # Agent.
     phases_per_tls = [len(network.tls_phases[t]) for t in network.tls_ids]
+    agent_id = 'DPQ' if len(network.tls_ids) == 1 else 'MAIQ'
 
     # Assumes all agents have the same number of actions.
     num_actions = len(programs[network.tls_ids[0]])
@@ -225,6 +228,7 @@ if __name__ == '__main__':
         category_speeds = [2,3,4,5,6,7]
 
     ql_args = {
+                'agent_id': agent_id,
                 'epsilon': 0.10,
                 'alpha': 0.50,
                 'states': ('speed', 'count'),
@@ -243,9 +247,8 @@ if __name__ == '__main__':
     }
     ql_params = QLParams(**ql_args)
 
-
-    QL_agent = DPQ(ql_params)
-    # QL_agent =    MAIQ(ql_params)
+    cls_agent = getattr(ql, ql_params.agent_id)
+    QL_agent = cls_agent(ql_params)
 
     env = TrafficLightEnv(
         env_params=env_params,
