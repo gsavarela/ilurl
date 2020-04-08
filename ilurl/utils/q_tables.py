@@ -2,11 +2,13 @@
 __author__ = 'Guilherme Varela'
 __date__ = '2020-04-07'
 
-import pdb
+
+from collections import defaultdict, OrderedDict
 import re
 
-TIMESTAMP_PROG = re.compile(r'[0-9]{8}\-[0-9]{8,}\.[0-9]+')
+import dill
 
+TIMESTAMP_PROG = re.compile(r'[0-9]{8}\-[0-9]{8,}\.[0-9]+')
 
 def parse(x):
     """Splits experiment string, parsing contents
@@ -152,7 +154,6 @@ def sort_tables(qtbs):
     qtbs = sorted(qtbs, key=lambda x: x[0][1])
     qtbs = sorted(qtbs, key=lambda x: x[0][0])
     return OrderedDict(qtbs)
-
 
 
 def filter_tables(qtbs2path, skip, limit):
