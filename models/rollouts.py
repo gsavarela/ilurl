@@ -139,6 +139,7 @@ def evaluate(env_params, sim_params, programs,
     )
     result = exp.run(horizon)
     result['id'] = ex_id
+    result['discount'] = agent.ql_params.gamma
     return result
 
 
@@ -290,7 +291,7 @@ if __name__ == '__main__':
     filename = f'{network.network_id}_{timestamp}'
     info['horizon'] = horizon
     info['rollouts'] = [k[1] for k in keys]
-    info['num_rollouts'] = num_rollouts
+    info['num_rollouts'] = roll_total
     info['limit'] = limit
     info['skip'] = skip
     info['processed_at'] = timestamp

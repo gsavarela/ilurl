@@ -176,6 +176,7 @@ if __name__ == '__main__':
                 'agent_id': agent_id,
                 'epsilon': 0.10,
                 'alpha': 0.50,
+                'gamma': 0.90,
                 'states': ('speed', 'count'),
                 'rewards': {'type': 'target_velocity',
                          'costs': None},
