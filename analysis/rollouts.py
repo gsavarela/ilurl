@@ -62,12 +62,9 @@ if __name__ == '__main__':
         num_rollouts = db['num_rollouts']
         if max_rollouts == -1:
             max_rollouts = num_rollouts
-        print(num_rollouts)
-        print(max_rollouts)
 
         roll_returns = defaultdict(list)
         # consolidate experiments' rewards
-        import pdb
         for idx, ex_id in enumerate(ex_ids):
             roll_idxs = choice(num_rollouts, size=max_rollouts, replace=False)
 
@@ -77,7 +74,6 @@ if __name__ == '__main__':
                 # _rewards (cycles, num_rollouts)
                 # select paths
                 rewards = np.concatenate(rewards, axis=1)
-                pdb.set_trace()
                 rewards = rewards[:, roll_idxs]
                 gain = lfilter([1], discount, x=rewards, axis=0)
                 roll_returns[int(roll_id)] += [gain[:, 0]]

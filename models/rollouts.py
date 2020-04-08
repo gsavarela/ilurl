@@ -291,7 +291,7 @@ if __name__ == '__main__':
     filename = f'{network.network_id}_{timestamp}'
     info['horizon'] = horizon
     info['rollouts'] = [k[1] for k in keys]
-    info['num_rollouts'] = roll_total
+    info['num_rollouts'] = num_rollouts
     info['limit'] = limit
     info['skip'] = skip
     info['processed_at'] = timestamp
@@ -300,3 +300,4 @@ if __name__ == '__main__':
     with open(file_path, 'w') as f:
         json.dump(info, f)
     print(file_path)
+
