@@ -168,7 +168,6 @@ def concat(evaluations):
             result['id'].append(exid)
 
         ex_idx = result['id'].index(exid)
-        print(exid, ex_idx, qid)
         for k, v in qtb.items():
             append = isinstance(v, list) or isinstance(v, dict)
             # check if integer fields match
