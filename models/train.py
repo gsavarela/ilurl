@@ -9,7 +9,7 @@
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-08'
 
-import argparse
+import configargparse
 import json
 import os
 
@@ -36,68 +36,74 @@ EMISSION_PATH = \
 NETWORKS_PATH = \
     f'{ILURL_HOME}/data/networks/'
 
-def get_arguments():
-    parser = argparse.ArgumentParser(
+def get_arguments(config_file):
+
+    if config_file is None:
+        config_file = []
+
+    parser = configargparse.ArgParser(
+        default_config_files=config_file,
         description="""
             This script runs a traffic light simulation based on
             custom environment with presets saved on data/networks
         """
     )
 
-    parser.add_argument('network', type=str, nargs='?', default='intersection',
+    parser.add('--network', '-n', type=str, nargs='?', dest='network',
+                        default='intersection',
                         help='Network to be simulated')
 
 
-    parser.add_argument('--experiment-time', '-t', dest='time', type=int,
+    parser.add('--experiment-time', '-t', dest='time', type=int,
                         default=90000, nargs='?',
                         help='Simulation\'s real world time in seconds')
 
-    parser.add_argument('--experiment-log', '-l', dest='log_info',
+    parser.add('--experiment-log', '-l', dest='log_info',
 						type=str2bool, default=False, nargs='?',
                         help='Whether to save experiment-related data in a JSON file \
-                         thoughout training (allowing to live track training)')
+                        thoughout training (allowing to live track training)')
 
-    parser.add_argument('--experiment-log-interval',
+    parser.add('--experiment-log-interval',
                         dest='log_info_interval', type=int, default=200,
                         nargs='?',
                         help='[ONLY APPLIES IF --experiment-log is TRUE] \
                         Log into json file interval (in agent update steps)')
 
-    parser.add_argument('--experiment-save-agent', '-a',
+    parser.add('--experiment-save-agent', '-a',
                         dest='save_agent', type=str2bool,
                         default=False, nargs='?',
                         help='Whether to save RL-agent parameters throughout training')
 
-    parser.add_argument('--experiment-save-agent-interval',
+    parser.add('--experiment-save-agent-interval',
                         dest='save_agent_interval', type=int, default=500,
                         nargs='?',
                         help='[ONLY APPLIES IF --experiment-save-agent is TRUE] \
                         Save agent interval (in agent update steps)')
 
-    parser.add_argument('--experiment-seed', '-d', dest='seed', type=int,
+    parser.add('--experiment-seed', '-d', dest='seed', type=int,
                         default=None, nargs='?',
                         help='''Sets seed value for both rl agent and Sumo.
                                `None` for rl agent defaults to RandomState() 
                                `None` for Sumo defaults to a fixed but arbitrary seed''')
 
-    parser.add_argument('--sumo-render', '-r', dest='render', type=str2bool,
+    parser.add('--sumo-render', '-r', dest='render', type=str2bool,
                         default=False, nargs='?',
                         help='Renders the simulation')
 
-    parser.add_argument('--sumo-step', '-s',
+    parser.add('--sumo-step', '-s',
                         dest='step', type=float, default=1, nargs='?',
                         help='Simulation\'s step size which is a fraction from horizon')
 
-    parser.add_argument('--sumo-emission', '-e',
+    parser.add('--sumo-emission', '-e',
                         dest='emission', type=str2bool, default=False, nargs='?',
                         help='Saves emission data from simulation on /data/emissions')
 
-    parser.add_argument('--inflows-switch', '-W', dest='switch',
+    parser.add('--inflows-switch', '-W', dest='switch',
                         type=str2bool, default=False, nargs='?',
                         help='Assign higher probability of spawning a vehicle \
                         every other hour on opposite sides')
 
-    parser.add_argument('--env-normalize', '-n', dest='normalize',
+    parser.add('--env-normalize', dest='normalize',
                         type=str2bool, default=True, nargs='?',
                         help='If true will normalize grid and target')
 
@@ -112,11 +118,12 @@ def str2bool(v):
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
+        raise configargparse.ArgumentTypeError('Boolean value expected.')
 
 def print_arguments(args):
 
-    print('Arguments:')
+    print('Arguments (train.py):')
+    print('\tExperiment network: {0}'.format(args.network))
     print('\tExperiment time: {0}'.format(args.time))
     print('\tExperiment seed: {0}'.format(args.seed))
     print('\tExperiment log info: {0}'.format(args.log_info))
@@ -133,9 +140,9 @@ def print_arguments(args):
     print('\tNormalize state-space (speeds): {0}\n'.format(args.normalize))
 
 
-if __name__ == '__main__':
+def main(train_config=None):
 
-    args = get_arguments()
+    args = get_arguments(train_config)
     print_arguments(args)
 
     inflows_type = 'switch' if args.switch else 'lane'
@@ -268,3 +275,8 @@ if __name__ == '__main__':
     info_path = os.path.join(path, filename)
     with open(info_path, 'w') as f:
         json.dump(info_dict, f)
+
+    return path
+
+if __name__ == '__main__':
+    main()
