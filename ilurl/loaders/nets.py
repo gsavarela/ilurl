@@ -3,9 +3,9 @@
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-30'
 import os
-import pdb
 from operator import itemgetter
 from collections import OrderedDict
+import json
 import xml.etree.ElementTree as ET
 
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -185,4 +185,51 @@ def get_logic(network_id):
     res = sorted(res, key=itemgetter('id'))
     return res
 
+
+def get_tls_custom(network_id, baseline=False):
+    """ Loads TLS settings (cycle time and programs) from tls_config.json file.
+
+        Parameters
+        ----------
+        network_name : string
+        network id
+
+        Return
+        ----------
+        cycle_time: int
+        the cycle time for the TLS system
+
+        programs: dict
+        the programs (timings) for the TLS system
+        defines the actions that the agent can pick
+
+    """
+    tls_config_file = f'{DIR}/{network_id}/tls_config.json'
+
+    if not os.path.isfile(tls_config_file):
+        raise FileNotFoundError("tls_config.json file not provided "
+                "for network {0}.".format(network.network_id))
+
+    with open(tls_config_file, 'r') as f:
+        cfgs = json.load(f)
+
+    # cfgs = cfgs['actuated'] if baseline else cfgs['rl']
+    if 'cycle_time' not in cfgs:
+        raise KeyError(f'Missing `cycle_time` key in tls_config.json')
+    else:
+        # Setup cycle time.
+        cycle_time = cfgs.pop('cycle_time')
+
+    # Setup programs.
+    if baseline:
+        programs = cfgs
+    else:
+        programs = {}
+        for tls_id, data in cfgs.items():
+
+            # Setup actions (programs) for given TLS.
+            programs[tls_id] = \
+                {int(action): data[action] for action in data.keys()}
+
+    return cycle_time, programs
 

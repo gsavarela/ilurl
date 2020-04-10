@@ -24,7 +24,8 @@ import dill
 from flow.core.params import SumoParams, EnvParams
 from ilurl.core.params import QLParams
 from ilurl.core.experiment import Experiment
-from ilurl.core.ql.dpq import MAIQ
+import ilurl.core.ql.dpq as ql
+
 from ilurl.envs.base import TrafficLightEnv
 from ilurl.networks.base import Network
 from ilurl.utils import parse
@@ -431,7 +432,8 @@ if __name__ == '__main__':
         cycle_time, programs = tls_configs(network.network_id)
         ql_params = QLParams(**params['ql_args'])
 
-        agent = MAIQ(ql_params)
+        cls_agent = getattr(ql, ql_params.agent_id)
+        agent = cls_agent(ql_params)
         env_params = EnvParams(**params['env_args'])
         sim_params = SumoParams(**params['sumo_args'])
 

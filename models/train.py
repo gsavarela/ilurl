@@ -13,9 +13,13 @@ from flow.core.params import EnvParams, SumoParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 from ilurl.core.experiment import Experiment
 from ilurl.core.params import QLParams
-from ilurl.core.ql.dpq import DPQ, MAIQ
+# from ilurl.core.ql.dpq import DPQ, MAIQ
+
+import ilurl.core.ql.dpq as ql
 from ilurl.envs.base import TrafficLightEnv
 from ilurl.networks.base import Network
+# TODO: move this inside networks
+from ilurl.loaders.nets import get_tls_custom
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
@@ -119,63 +123,6 @@ def print_arguments(args):
     print('\tNormalize state-space (speeds): {0}\n'.format(args.normalize))
 
 
-def tls_configs(network_name):
-    """
-
-    Loads TLS settings (cycle time and programs)
-    from tls_config.json file.
-
-    Parameters
-    ----------
-    network_name : string
-        network id
-
-    Return
-    ----------
-    cycle_time: int
-        the cycle time for the TLS system
-
-    programs: dict
-        the programs (timings) for the TLS system
-        defines the actions that the agent can pick
-    
-    """
-    tls_config_file = '{0}/{1}/tls_config.json'.format(
-                    NETWORKS_PATH, network_name)
-
-    if os.path.isfile(tls_config_file):
-
-        with open(tls_config_file, 'r') as f:
-            tls_config = json.load(f)
-
-        if 'cycle_time' not in tls_config:
-            raise KeyError(
-                f'Missing `cycle_time` key in tls_config.json')
-
-        # Setup cycle time.
-        cycle_time = tls_config['cycle_time']
-
-        # Setup programs.
-        programs = {}
-        for tls_id in network.tls_ids:
-
-            if tls_id not in tls_config.keys():
-                raise KeyError(
-                f'Missing timings for id {tls_id} in tls_config.json.')
-
-            # TODO: check timings correction.
-
-            # Setup actions (programs) for given TLS.
-            programs[tls_id] = {int(action): tls_config[tls_id][action]
-                                    for action in tls_config[tls_id].keys()}
-
-    else:
-        raise FileNotFoundError("tls_config.json file not provided "
-            "for network {0}.".format(network.network_id))
-
-    return cycle_time, programs
-
-
 if __name__ == '__main__':
 
     args = get_arguments()
@@ -213,7 +160,7 @@ if __name__ == '__main__':
     sim_params = SumoParams(**sumo_args)
 
     # Load cycle time and TLS programs.
-    cycle_time, programs = tls_configs(args.network)
+    cycle_time, programs = get_tls_custom(args.network)
 
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
@@ -227,6 +174,7 @@ if __name__ == '__main__':
 
     # Agent.
     phases_per_tls = [len(network.tls_phases[t]) for t in network.tls_ids]
+    agent_id = 'DPQ' if len(network.tls_ids) == 1 else 'MAIQ'
 
     # Assumes all agents have the same number of actions.
     num_actions = len(programs[network.tls_ids[0]])
@@ -238,8 +186,10 @@ if __name__ == '__main__':
         category_speeds = [2,3,4,5,6,7]
 
     ql_args = {
+                'agent_id': agent_id,
                 'epsilon': 0.10,
                 'alpha': 0.50,
+                'gamma': 0.90,
                 'states': ('speed', 'count'),
                 'rewards': {'type': 'target_velocity',
                          'costs': None},
@@ -256,9 +206,8 @@ if __name__ == '__main__':
     }
     ql_params = QLParams(**ql_args)
 
-
-    QL_agent = DPQ(ql_params)
-    # QL_agent =    MAIQ(ql_params)
+    cls_agent = getattr(ql, ql_params.agent_id)
+    QL_agent = cls_agent(ql_params)
 
     env = TrafficLightEnv(
         env_params=env_params,

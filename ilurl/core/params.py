@@ -57,6 +57,7 @@ class QLParams:
 
     def __init__(
             self,
+            agent_id,
             epsilon=3e-2,
             alpha=5e-1,
             gamma=0.9,
