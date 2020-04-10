@@ -93,7 +93,7 @@ def inflows_dump(network_id, inflows,
     vehicles = [] # trips elements
     veh_id = 1
 
-    random.seed(0)
+    # random.seed(0)
     # an array of dictionaries, keys are edgeids
     # values are tuple (routeids, probabilities)
     edges2routes = defaultdict(list)

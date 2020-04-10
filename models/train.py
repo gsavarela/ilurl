@@ -1,10 +1,20 @@
-"""Provides baseline for networks"""
+"""Provides baseline for networks
+
+    References:
+    ==========
+    * seed:
+    https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.RandomState.html#numpy.random.RandomState
+    http://sumo.sourceforge.net/userdoc/Simulation/Randomness.html
+"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-08'
 
 import argparse
 import json
 import os
+
+import numpy as np
+import random
 
 from flow.core.params import EnvParams, SumoParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
@@ -37,6 +47,7 @@ def get_arguments():
     parser.add_argument('network', type=str, nargs='?', default='intersection',
                         help='Network to be simulated')
 
+
     parser.add_argument('--experiment-time', '-t', dest='time', type=int,
                         default=90000, nargs='?',
                         help='Simulation\'s real world time in seconds')
@@ -62,6 +73,12 @@ def get_arguments():
                         nargs='?',
                         help='[ONLY APPLIES IF --experiment-save-agent is TRUE] \
                         Save agent interval (in agent update steps)')
+
+    parser.add_argument('--experiment-seed', '-d', dest='seed', type=int,
+                        default=None, nargs='?',
+                        help='''Sets seed value for both rl agent and Sumo.
+                               `None` for rl agent defaults to RandomState() 
+                               `None` for Sumo defaults to a fixed but arbitrary seed''')
 
     parser.add_argument('--sumo-render', '-r', dest='render', type=str2bool,
                         default=False, nargs='?',
@@ -101,6 +118,7 @@ def print_arguments(args):
 
     print('Arguments:')
     print('\tExperiment time: {0}'.format(args.time))
+    print('\tExperiment seed: {0}'.format(args.seed))
     print('\tExperiment log info: {0}'.format(args.log_info))
     print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
     print('\tExperiment save RL agent: {0}'.format(args.save_agent))
@@ -136,12 +154,20 @@ if __name__ == '__main__':
         os.mkdir(path)
     print('Experiment: {0}\n'.format(path))
 
+
     sumo_args = {
         'render': args.render,
         'print_warnings': False,
         'sim_step': args.step,
         'restart_instance': True
     }
+
+    # Setup seeds.
+    if args.seed is not None:
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        sumo_args['seed'] = args.seed
+
     if args.emission:
         sumo_args['emission_path'] = path
     sim_params = SumoParams(**sumo_args)

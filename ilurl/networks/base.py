@@ -499,7 +499,7 @@ class Network(flownet.Network):
         References:
         -----------
         https://en.wikipedia.org/wiki/Fundamental_diagram_of_traffic_flow#Basic_statements
-         http://sumo.sourceforge.net/userdoc/Definition_of_Vehicles,_Vehicle_Types,_and_Routes.html#available_vtype_attributes
+        http://sumo.sourceforge.net/userdoc/Definition_of_Vehicles,_Vehicle_Types,_and_Routes.html#available_vtype_attributes
         """
         # Summarize over vehicle types
         xs, vs = 0, 0

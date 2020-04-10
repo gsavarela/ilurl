@@ -3,6 +3,8 @@
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-30'
 import os
+from operator import itemgetter
+from collections import OrderedDict
 import json
 import xml.etree.ElementTree as ET
 
@@ -12,8 +14,10 @@ DIR = \
     f'{ILURL_HOME}/data/networks/'
 
 def get_path(network_id, file_type):
+    rel_path = f'{network_id}/'
+    filename = f'{network_id}.{file_type}.xml'
     return \
-        os.path.join(DIR, f'{network_id}/{network_id}.{file_type}.xml')
+        os.path.join(DIR, rel_path, filename)
 
 
 def get_generic_element(network_id, target, file_type='net',
@@ -29,24 +33,31 @@ def get_generic_element(network_id, target, file_type='net',
     file_path = get_path(network_id, file_type)
     elements = []
 
+    def fn(x):
+        return x.attrib[key]
+
     if os.path.isfile(file_path):
         root = ET.parse(file_path).getroot()
-        for elem in root.findall(target):
-            if ignore not in elem.attrib:
-                if key in elem.attrib:
-                    elements.append(elem.attrib[key])
-                else:
-                    elements.append(elem.attrib)
 
-                if child_key is not None:
-                    elements[-1][f'{child_key}s'] = \
-                        [chlem.attrib for chlem in elem.findall(child_key)]
+        search_targets = root.findall(target)
+        if search_targets:
+            if key is not None:
+                search_targets = sorted(search_targets, key=fn)
+            for elem in search_targets:
+                if ignore not in elem.attrib:
+                    if key in elem.attrib:
+                        elements.append(elem.attrib[key])
+                    else:
+                        elements.append(elem.attrib)
 
+                    if child_key is not None:
+                        elements[-1][f'{child_key}s'] = \
+                            [chlem.attrib for chlem in elem.findall(child_key)]
     return elements
 
 
 def get_routes(network_id):
-    """Get routes as specified on Scenario
+    """Get routes as specified on Network
 
         routes must contain length and speed (max.)
         but those attributes belong to the lanes.
@@ -73,13 +84,13 @@ def get_routes(network_id):
 
         reference:
         ----------
-        flow.scenarios.base_scenario
+        flow.networks.base
     """
     # Parse xml to recover all generated routes
     routes = get_generic_element(network_id, 'vehicle/route',
                                  file_type='rou', key='edges')
 
-    
+   
     # unique routes as array of arrays
     routes = [rou.split(' ') for rou in set(routes)]
 
@@ -87,11 +98,15 @@ def get_routes(network_id):
     keys = {rou[0] for rou in routes}
 
     # match routes to it's starting edges
-    routes = {k: [r for r in routes if k == r[0]] for k in keys}
+    routes = {k: sorted([r for r in routes if k == r[0]])
+              for k in sorted(keys)}
 
-    # convert to equipropable array of tuples: (routes, probability)
-    routes = {k: [(r, 1 / len(rou)) for r in rou] for k, rou in routes.items()}
-
+    # convert to equipropable array of tuples:
+    # (routes, probability)
+    routes = OrderedDict({
+        k: [(r, 1 / len(rou)) for r in rou]
+        for k, rou in routes.items()
+    })
     return routes
 
 
@@ -105,7 +120,7 @@ def get_types(network_id):
     return get_generic_element(network_id, 'type')
 
 def get_edges(network_id):
-    """Get edges as specified on Scenario
+    """Get edges as specified on Network
 
         edges must contain length and speed (max.)
         but those attributes belong to the lanes.
@@ -148,14 +163,14 @@ def get_edges(network_id):
         Note that, if the scenario is meant to generate the network from an
         OpenStreetMap or template file, this variable is set to None
 
-        reference:
+        Reference:
         ----------
-        flow.scenarios.base_scenario
+        flow.networks.base
     """
     edges = get_generic_element(
         network_id, 'edge', ignore='function', child_key='lane')
 
-    for e in edges:
+    for e in sorted(edges, key=itemgetter('id')):
         e['speed'] = max([float(lane['speed']) for lane in e['lanes']])
         e['length'] = max([float(lane['length']) for lane in e['lanes']])
         e['numLanes'] = len(e['lanes'])
@@ -168,11 +183,14 @@ def get_tls(network_id):
 
     tls_nodes = [n for n in get_nodes(network_id)
                  if n['type'] == 'traffic_light']
+
     return tls_nodes
 
 
 def get_logic(network_id):
-        return get_generic_element(network_id, 'tlLogic', child_key='phase')
+    res = get_generic_element(network_id, 'tlLogic', child_key='phase')
+    res = sorted(res, key=itemgetter('id'))
+    return res
 
 
 def get_tls_custom(network_id, baseline=False):
