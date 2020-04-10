@@ -33,19 +33,26 @@ def get_generic_element(network_id, target, file_type='net',
     file_path = get_path(network_id, file_type)
     elements = []
 
+    def fn(x):
+        return x.attrib[key]
+
     if os.path.isfile(file_path):
         root = ET.parse(file_path).getroot()
-        for elem in root.findall(target):
-            if ignore not in elem.attrib:
-                if key in elem.attrib:
-                    elements.append(elem.attrib[key])
-                else:
-                    elements.append(elem.attrib)
 
-                if child_key is not None:
-                    elements[-1][f'{child_key}s'] = \
-                        [chlem.attrib for chlem in elem.findall(child_key)]
+        search_targets = root.findall(target)
+        if search_targets:
+            if key is not None:
+                search_targets = sorted(search_targets, key=fn)
+            for elem in search_targets:
+                if ignore not in elem.attrib:
+                    if key in elem.attrib:
+                        elements.append(elem.attrib[key])
+                    else:
+                        elements.append(elem.attrib)
 
+                    if child_key is not None:
+                        elements[-1][f'{child_key}s'] = \
+                            [chlem.attrib for chlem in elem.findall(child_key)]
     return elements
 
 
