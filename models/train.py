@@ -154,17 +154,20 @@ if __name__ == '__main__':
         os.mkdir(path)
     print('Experiment: {0}\n'.format(path))
 
-    # Setup seeds.
-    random.seed(args.seed)
-    np.random.seed(args.seed)
 
     sumo_args = {
         'render': args.render,
         'print_warnings': False,
         'sim_step': args.step,
-        'restart_instance': True,
-        'seed': args.seed, 
+        'restart_instance': True
     }
+
+    # Setup seeds.
+    if args.seed is not None:
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        sumo_args['seed'] = args.seed
+
     if args.emission:
         sumo_args['emission_path'] = path
     sim_params = SumoParams(**sumo_args)
@@ -224,8 +227,7 @@ if __name__ == '__main__':
         sim_params=sim_params,
         agent=QL_agent,
         network=network,
-        TLS_programs=programs,
-        static=True
+        TLS_programs=programs
     )
 
     exp = Experiment(env=env,
