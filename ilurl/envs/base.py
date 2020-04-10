@@ -310,8 +310,11 @@ class TrafficLightEnv(AccelEnv, Serializer):
                 provided to the agent
 
         """
+        # FIXME: remove this
+        # always take action 0
         if self.duration == 0:
-            action = self.agent.act(tuple(state))
+            action = (0,)
+            # action = self.agent.act(tuple(state))
         else:
             action = None
 

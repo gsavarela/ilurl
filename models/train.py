@@ -265,7 +265,8 @@ if __name__ == '__main__':
         sim_params=sim_params,
         agent=QL_agent,
         network=network,
-        TLS_programs=programs
+        TLS_programs=programs,
+        static=True
     )
 
     exp = Experiment(env=env,
