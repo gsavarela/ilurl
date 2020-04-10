@@ -1,4 +1,11 @@
-"""Provides baseline for networks"""
+"""Provides baseline for networks
+
+    References:
+    ==========
+    * seed:
+    https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.RandomState.html#numpy.random.RandomState
+    http://sumo.sourceforge.net/userdoc/Simulation/Randomness.html
+"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-08'
 
@@ -40,9 +47,6 @@ def get_arguments():
     parser.add_argument('network', type=str, nargs='?', default='intersection',
                         help='Network to be simulated')
 
-    parser.add_argument('--seed', dest='seed', type=int,
-                        default=10, nargs='?',
-                        help='Simulation\'s seed')
 
     parser.add_argument('--experiment-time', '-t', dest='time', type=int,
                         default=90000, nargs='?',
@@ -69,6 +73,12 @@ def get_arguments():
                         nargs='?',
                         help='[ONLY APPLIES IF --experiment-save-agent is TRUE] \
                         Save agent interval (in agent update steps)')
+
+    parser.add_argument('--experiment-seed', '-d', dest='seed', type=int,
+                        default=None, nargs='?',
+                        help='''Sets seed value for both rl agent and Sumo.
+                               `None` for rl agent defaults to RandomState() 
+                               `None` for Sumo defaults to a fixed but arbitrary seed''')
 
     parser.add_argument('--sumo-render', '-r', dest='render', type=str2bool,
                         default=False, nargs='?',
@@ -153,7 +163,7 @@ if __name__ == '__main__':
         'print_warnings': False,
         'sim_step': args.step,
         'restart_instance': True,
-        'seed': args.seed, # TODO: this seems to not make difference.. apparently one needs to set this directly in flow
+        'seed': args.seed, 
     }
     if args.emission:
         sumo_args['emission_path'] = path
