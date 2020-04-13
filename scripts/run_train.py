@@ -3,6 +3,7 @@ import json
 import tempfile
 import configparser
 import multiprocessing as mp
+import time
 
 from models.train import main
 
@@ -10,6 +11,16 @@ ILURL_HOME = os.environ['ILURL_HOME']
 
 SCRIPTS_PATH = \
     f'{ILURL_HOME}/scripts/'
+
+LOCK = mp.Lock()
+
+def delay_run(*args):
+    LOCK.acquire()
+    try:
+        time.sleep(1)
+    finally:
+        LOCK.release()
+    return main(*args)
 
 if __name__ == '__main__':
 
@@ -66,7 +77,7 @@ if __name__ == '__main__':
 
         # Run.
         pool = mp.Pool(num_processors)
-        runs_names = pool.map(main, [[cfg] for cfg in train_configs])
+        runs_names = pool.map(delay_run, [[cfg] for cfg in train_configs])
         pool.close()
 
         print(runs_names)
