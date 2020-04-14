@@ -1,8 +1,24 @@
+"""
+    Python script to produce the following train plots:
+        - reward per cycle (with mean, std and smoothed curve)
+        - number of vehicles per cycle (with mean, std and smoothed curve)
+        - vehicles' velocity per cycle (with mean, std and smoothed curve)
+
+    Given the path to the experiment root folder, the script searches
+    for all *.train.json files and produces the previous plots by
+    averaging over all json files.
+
+    The output plots will go into a folder named 'plots', created inside
+    the given experiment root folder.
+
+"""
 import os
 import json
 import pandas as pd
 import argparse
 import numpy as np
+
+from pathlib import Path
 
 #from scipy.signal import savgol_filter
 import statsmodels.api as sm
@@ -10,25 +26,10 @@ import statsmodels.api as sm
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
-
 import seaborn as sns
 plt.style.use('ggplot')
 
-ILURL_HOME = os.environ['ILURL_HOME']
-
-EMISSION_PATH = \
-    f'{ILURL_HOME}/data/emissions'
-
-# TODO: this is completely hardcoded but we need to find a way to join all runs in one folder.
-RUNS = ['/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.418139/',
-        '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.419535/',
-        '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.4183884/',
-        '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.4184618/',
-        '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.4187133/',
-        '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.4208024/',
-        '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.4208026/',
-        '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.4210486/',
-        '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.4213364/']
+EXPERIMENT_ROOT_FOLDER = '/home/pedro/ILU/ILU-RL/data/experiments/20200413/'
 
 FIGURE_X = 15.0
 FIGURE_Y = 7.0
@@ -37,28 +38,31 @@ STD_CURVE_COLOR = (0.88,0.70,0.678)
 MEAN_CURVE_COLOR = (0.89,0.282,0.192)
 SMOOTHING_CURVE_COLOR = (0.33,0.33,0.33)
 
-# TODO: this is completely hardcoded but we need to find a way to join all runs in one folder.
-OUTPUT_FOLDER_PATH = '/home/pedro/ILU/ILU-RL/data/outputs/intersection_20200413-1844511586799891.418139/'
-
 if __name__ == "__main__":
 
+    print('RUNNING analysis/train_plots.py')
+
+    print('Input files:')
+    # Get all *.train.json files from experiment root folder.
+    train_files = []
+    for path in Path(EXPERIMENT_ROOT_FOLDER).rglob('*.train.json'):
+        train_files.append(str(path))
+        print('\t{0}'.format(str(path)))
+
     # Prepare output folder.
-    if not os.path.exists(OUTPUT_FOLDER_PATH):
-        os.makedirs(OUTPUT_FOLDER_PATH)
+    output_folder_path = os.path.join(EXPERIMENT_ROOT_FOLDER, 'plots')
+    print('Output folder: {0}'.format(output_folder_path))
+    if not os.path.exists(output_folder_path):
+        os.makedirs(output_folder_path)
 
     rewards = []
     vehicles = []
     velocities = []
 
-    for run in RUNS:
-
-        # JSON file.
-        run_name = os.path.basename(os.path.normpath(run))
-        json_file = '{0}{1}.train.json'.format(run, run_name)
-        print(json_file)
+    for run_name in train_files:
 
         # Load JSON data.
-        with open(json_file) as f:
+        with open(run_name) as f:
             json_data = json.load(f)
 
         """
@@ -102,9 +106,8 @@ if __name__ == "__main__":
     plt.title('Rewards')
     plt.legend(loc=4)
 
-    file_name = '{0}rewards.pdf'.format(OUTPUT_FOLDER_PATH)
+    file_name = '{0}/rewards.pdf'.format(output_folder_path)
     plt.savefig(file_name)
-    print(file_name)
     
     plt.close()
 
@@ -131,9 +134,8 @@ if __name__ == "__main__":
     plt.title('Number of vehicles')
     plt.legend(loc=4)
 
-    file_name = '{0}vehicles.pdf'.format(OUTPUT_FOLDER_PATH)
+    file_name = '{0}/vehicles.pdf'.format(output_folder_path)
     plt.savefig(file_name)
-    print(file_name)
     
     plt.close()
 
@@ -160,8 +162,7 @@ if __name__ == "__main__":
     plt.title('Velocity of the vehicles')
     plt.legend(loc=4)
 
-    file_name = '{0}velocities.pdf'.format(OUTPUT_FOLDER_PATH)
+    file_name = '{0}/velocities.pdf'.format(output_folder_path)
     plt.savefig(file_name)
-    print(file_name)
     
     plt.close()
