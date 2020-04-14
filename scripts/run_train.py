@@ -76,8 +76,13 @@ if __name__ == '__main__':
             tmp_cfg_file.close()
 
         # Run.
-        pool = mp.Pool(num_processors)
-        runs_names = pool.map(delay_run, [[cfg] for cfg in train_configs])
-        pool.close()
-
-        print(runs_names)
+        # rvs: directories' names holding experiment data
+        if num_processors >= 1:
+            pool = mp.Pool(num_processors)
+            rvs  = pool.map(delay_run, [[cfg] for cfg in train_configs])
+            pool.close()
+        else:
+            rvs = []
+            for cfg in train_configs:
+                rvs.append(main(cfg))
+        print(rvs)

@@ -33,15 +33,12 @@ ILURL_HOME = os.environ['ILURL_HOME']
 EMISSION_PATH = \
     f'{ILURL_HOME}/data/emissions/'
 
-NETWORKS_PATH = \
-    f'{ILURL_HOME}/data/networks/'
-
 def get_arguments(config_file):
 
     if config_file is None:
         config_file = []
 
-    parser = configargparse.ArgParser(
+    flags = configargparse.ArgParser(
         default_config_files=config_file,
         description="""
             This script runs a traffic light simulation based on
@@ -49,65 +46,69 @@ def get_arguments(config_file):
         """
     )
 
-    parser.add('--network', '-n', type=str, nargs='?', dest='network',
+    flags.add('--network', '-n', type=str, nargs='?', dest='network',
                         default='intersection',
                         help='Network to be simulated')
 
 
-    parser.add('--experiment-time', '-t', dest='time', type=int,
+    flags.add('--experiment-buffer', '-b', dest='replay_buffer', type=str2bool,
+                        default=True, nargs='?',
+                        help='Turn on/off replay buffer')
+
+    flags.add('--experiment-time', '-t', dest='time', type=int,
                         default=90000, nargs='?',
                         help='Simulation\'s real world time in seconds')
 
-    parser.add('--experiment-log', '-l', dest='log_info',
+    flags.add('--experiment-log', '-l', dest='log_info',
 						type=str2bool, default=False, nargs='?',
                         help='Whether to save experiment-related data in a JSON file \
                         thoughout training (allowing to live track training)')
 
-    parser.add('--experiment-log-interval',
+    flags.add('--experiment-log-interval',
                         dest='log_info_interval', type=int, default=200,
                         nargs='?',
                         help='[ONLY APPLIES IF --experiment-log is TRUE] \
                         Log into json file interval (in agent update steps)')
 
-    parser.add('--experiment-save-agent', '-a',
+    flags.add('--experiment-save-agent', '-a',
                         dest='save_agent', type=str2bool,
                         default=False, nargs='?',
                         help='Whether to save RL-agent parameters throughout training')
 
-    parser.add('--experiment-save-agent-interval',
+    flags.add('--experiment-save-agent-interval',
                         dest='save_agent_interval', type=int, default=500,
                         nargs='?',
                         help='[ONLY APPLIES IF --experiment-save-agent is TRUE] \
                         Save agent interval (in agent update steps)')
 
-    parser.add('--experiment-seed', '-d', dest='seed', type=int,
+    flags.add('--experiment-seed', '-d', dest='seed', type=int,
                         default=None, nargs='?',
                         help='''Sets seed value for both rl agent and Sumo.
                                `None` for rl agent defaults to RandomState() 
                                `None` for Sumo defaults to a fixed but arbitrary seed''')
 
-    parser.add('--sumo-render', '-r', dest='render', type=str2bool,
+    flags.add('--sumo-render', '-r', dest='render', type=str2bool,
                         default=False, nargs='?',
                         help='Renders the simulation')
 
-    parser.add('--sumo-step', '-s',
+    flags.add('--sumo-step', '-s',
                         dest='step', type=float, default=1, nargs='?',
                         help='Simulation\'s step size which is a fraction from horizon')
 
-    parser.add('--sumo-emission', '-e',
+    flags.add('--sumo-emission', '-e',
                         dest='emission', type=str2bool, default=False, nargs='?',
                         help='Saves emission data from simulation on /data/emissions')
 
-    parser.add('--inflows-switch', '-W', dest='switch',
+    flags.add('--inflows-switch', '-W', dest='switch',
                         type=str2bool, default=False, nargs='?',
                         help='Assign higher probability of spawning a vehicle \
                         every other hour on opposite sides')
 
-    parser.add('--env-normalize', dest='normalize',
+    flags.add('--env-normalize', dest='normalize',
                         type=str2bool, default=True, nargs='?',
                         help='If true will normalize grid and target')
 
-    return parser.parse_args()
+    return flags.parse_args()
 
 
 def str2bool(v):
@@ -142,18 +143,18 @@ def print_arguments(args):
 
 def main(train_config=None):
 
-    args = get_arguments(train_config)
-    print_arguments(args)
+    flags = get_arguments(train_config)
+    print_arguments(flags)
 
-    inflows_type = 'switch' if args.switch else 'lane'
+    inflows_type = 'switch' if flags.switch else 'lane'
     network_args = {
-        'network_id': args.network,
-        'horizon': args.time,
+        'network_id': flags.network,
+        'horizon': flags.time,
         'demand_type': inflows_type,
         'insertion_probability': 0.1,
     }
     network = Network(**network_args)
-    normalize = args.normalize
+    normalize = flags.normalize
 
     # Create directory to store data.
     path = f'{EMISSION_PATH}{network.name}/'
@@ -163,24 +164,24 @@ def main(train_config=None):
 
 
     sumo_args = {
-        'render': args.render,
+        'render': flags.render,
         'print_warnings': False,
-        'sim_step': args.step,
+        'sim_step': flags.step,
         'restart_instance': True
     }
 
     # Setup seeds.
-    if args.seed is not None:
-        random.seed(args.seed)
-        np.random.seed(args.seed)
-        sumo_args['seed'] = args.seed
+    if flags.seed is not None:
+        random.seed(flags.seed)
+        np.random.seed(flags.seed)
+        sumo_args['seed'] = flags.seed
 
-    if args.emission:
+    if flags.emission:
         sumo_args['emission_path'] = path
     sim_params = SumoParams(**sumo_args)
 
     # Load cycle time and TLS programs.
-    cycle_time, programs = get_tls_custom(args.network)
+    cycle_time, programs = get_tls_custom(flags.network)
 
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
@@ -219,7 +220,7 @@ def main(train_config=None):
                 'category_counts': category_counts,
                 'category_speeds': category_speeds,
                 'normalize': normalize,
-                'replay_buffer': True,
+                'replay_buffer': flags.replay_buffer,
                 'replay_buffer_size': 500,
                 'replay_buffer_batch_size': 64,
                 'replay_buffer_warm_up': 200,
@@ -240,10 +241,10 @@ def main(train_config=None):
     exp = Experiment(env=env,
                      dir_path=path,
                      train=True,
-                     log_info=args.log_info,
-                     log_info_interval=args.log_info_interval,
-                     save_agent=args.save_agent,
-                     save_agent_interval=args.save_agent_interval
+                     log_info=flags.log_info,
+                     log_info_interval=flags.log_info_interval,
+                     save_agent=flags.save_agent,
+                     save_agent_interval=flags.save_agent_interval
                     )
 
     # Store parameters.
@@ -265,7 +266,7 @@ def main(train_config=None):
     print('Running experiment...')
 
     info_dict = exp.run(
-        int(args.time / args.step)
+        int(flags.time / flags.step)
     )
 
     # Save train log.
