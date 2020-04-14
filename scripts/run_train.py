@@ -9,8 +9,8 @@ from models.train import main
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
-SCRIPTS_PATH = \
-    f'{ILURL_HOME}/scripts/'
+CONFIG_PATH = \
+    f'{ILURL_HOME}/config/'
 
 LOCK = mp.Lock()
 
@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     # Read script arguments from run.config file.
     run_config = configparser.ConfigParser()
-    run_config.read(os.path.join(SCRIPTS_PATH, 'run.config'))
+    run_config.read(os.path.join(CONFIG_PATH, 'run.config'))
 
     num_processors = int(run_config.get('run_args', 'num_processors'))
     num_runs = int(run_config.get('run_args', 'num_runs'))
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     # Read train.py arguments from train.config file.
     train_config = configparser.ConfigParser()
-    train_config.read(os.path.join(SCRIPTS_PATH, 'train.config'))
+    train_config.read(os.path.join(CONFIG_PATH, 'train.config'))
 
     with tempfile.TemporaryDirectory() as tmp_dir:
 

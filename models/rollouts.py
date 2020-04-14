@@ -205,6 +205,7 @@ def concat(evaluations):
 
 if __name__ == '__main__':
     args = get_arguments()
+    print(args)
     batch_dir = args.batch_dir
     x = 'w' if args.switch else 'l'
     cycles = args.cycles
