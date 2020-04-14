@@ -18,6 +18,7 @@ import os
 from glob import glob
 import json
 import argparse
+from copy import deepcopy
 
 
 from flow.core.params import SumoParams, EnvParams
@@ -50,6 +51,9 @@ def get_arguments():
                         default=100, nargs='?',
                         help='Number of cycles for a single rollout of a Q-table.')
 
+    parser.add_argument('--emission', '-e', dest='emission', type=str2bool,
+                        default=False, nargs='?',
+                        help='Enabled will perform saves')
 
     parser.add_argument('--limit', '-l', dest='limit',
                         type=int, default=500, nargs='?',
@@ -88,7 +92,7 @@ def str2bool(v):
 
 
 def evaluate(env_params, sim_params, programs,
-             agent, network, horizon, ex_id, qtb):
+             agent, network, horizon, ex_id, roll_id, qtb):
     """Evaluate
 
     Params:
@@ -121,6 +125,17 @@ def evaluate(env_params, sim_params, programs,
         evaluation metrics for experiment
 
     """
+    if sim_params.emission_path:
+        dir_path = sim_params.emission_path
+        # old emission pattern: network.name-emission.xml
+        # new emission pattern: network.name.ex_id-emission.xml
+        network = deepcopy(network)
+        network.name = f'{network.name}.{roll_id}'
+        print(dir_path, network.name)
+    else:
+        dir_path = None
+
+
     env1 = TrafficLightEnv(
         env_params,
         sim_params,
@@ -134,7 +149,7 @@ def evaluate(env_params, sim_params, programs,
     env1.stop = True
     exp = Experiment(
         env1,
-        dir_path=None,
+        dir_path=dir_path,
         train=False,
     )
     result = exp.run(horizon)
@@ -216,6 +231,14 @@ if __name__ == '__main__':
         # TODO: test ground truth
         # Force render False
         params['sumo_args']['render'] = False
+        if args.emission:
+            params['sumo_args']['emission_path'] = batch_dir
+            print(params['sumo_args'])
+        else:
+            if 'emission_path' in params['sumo_args']:
+                del params['sumo_args']['emission_path']
+
+        # Force save xml
         exp_dir = os.path.dirname(rel_path)
 
         # get train data
@@ -264,7 +287,7 @@ if __name__ == '__main__':
         def fn(id_qtb):
             qid, qtb = id_qtb
             ret = evaluate(env_params, sim_params, programs,
-                           agent, network, horizon, ex_id, qtb)
+                           agent, network, horizon, ex_id, qid[-1], qtb)
             return (qid, ret)
 
         _qtbs = list(qtbs.items()) * num_rollouts
