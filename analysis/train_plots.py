@@ -12,7 +12,6 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
 import seaborn as sns
-
 plt.style.use('ggplot')
 
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -20,7 +19,7 @@ ILURL_HOME = os.environ['ILURL_HOME']
 EMISSION_PATH = \
     f'{ILURL_HOME}/data/emissions'
 
-
+# TODO: this is completely hardcoded but we need to find a way to join all runs in one folder.
 RUNS = ['/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.418139/',
         '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.419535/',
         '/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-1844511586799891.4183884/',
@@ -34,7 +33,12 @@ RUNS = ['/home/pedro/ILU/ILU-RL/data/experiments/20200413/intersection_20200413-
 FIGURE_X = 15.0
 FIGURE_Y = 7.0
 
-OUTPUT_FOLDER_PATH = '/home/pedro/ILU/ILU-RL/data/outputs/intersection_20200407-1921201586283680.3731925/'
+STD_CURVE_COLOR = (0.88,0.70,0.678)
+MEAN_CURVE_COLOR = (0.89,0.282,0.192)
+SMOOTHING_CURVE_COLOR = (0.33,0.33,0.33)
+
+# TODO: this is completely hardcoded but we need to find a way to join all runs in one folder.
+OUTPUT_FOLDER_PATH = '/home/pedro/ILU/ILU-RL/data/outputs/intersection_20200413-1844511586799891.418139/'
 
 if __name__ == "__main__":
 
@@ -87,11 +91,11 @@ if __name__ == "__main__":
     #Y_hat = savgol_filter(Y, 3001, 3)
     lowess = sm.nonparametric.lowess(Y, X, frac=0.10)
 
-    plt.plot(X,Y, label='Mean', c=(0.89,0.282,0.192))
-    plt.plot(X,lowess[:,1], color=(0.33,0.33,0.33), label='Smoothing')
+    plt.plot(X,Y, label='Mean', c=MEAN_CURVE_COLOR)
+    plt.plot(X,lowess[:,1], c=SMOOTHING_CURVE_COLOR, label='Smoothing')
 
     if rewards.shape[0] > 1:
-        plt.fill_between(X, Y-Y_std, Y+Y_std, color=(0.88,0.70,0.678), label='Std')
+        plt.fill_between(X, Y-Y_std, Y+Y_std, color=STD_CURVE_COLOR, label='Std')
 
     plt.xlabel('Cycle')
     plt.ylabel('Reward')
@@ -116,11 +120,11 @@ if __name__ == "__main__":
 
     lowess = sm.nonparametric.lowess(Y, X, frac=0.10)
 
-    plt.plot(X,Y, label='Mean', c=(0.89,0.282,0.192))
-    plt.plot(X,lowess[:,1], color=(0.33,0.33,0.33), label='Smoothing')
+    plt.plot(X,Y, label='Mean', c=MEAN_CURVE_COLOR)
+    plt.plot(X,lowess[:,1], c=SMOOTHING_CURVE_COLOR, label='Smoothing')
 
     if vehicles.shape[0] > 1:
-        plt.fill_between(X, Y-Y_std, Y+Y_std, color=(0.88,0.70,0.678), label='Std')
+        plt.fill_between(X, Y-Y_std, Y+Y_std, color=STD_CURVE_COLOR, label='Std')
 
     plt.xlabel('Cycle')
     plt.ylabel('#Vehicles')
@@ -145,11 +149,11 @@ if __name__ == "__main__":
 
     lowess = sm.nonparametric.lowess(Y, X, frac=0.10)
 
-    plt.plot(X,Y, label='Mean', c=(0.89,0.282,0.192))
-    plt.plot(X,lowess[:,1], color=(0.33,0.33,0.33), label='Smoothing')
+    plt.plot(X,Y, label='Mean', c=MEAN_CURVE_COLOR)
+    plt.plot(X,lowess[:,1], c=SMOOTHING_CURVE_COLOR, label='Smoothing')
 
     if velocities.shape[0] > 1:
-        plt.fill_between(X, Y-Y_std, Y+Y_std, color=(0.88,0.70,0.678), label='Std')
+        plt.fill_between(X, Y-Y_std, Y+Y_std, color=STD_CURVE_COLOR, label='Std')
 
     plt.xlabel('Cycle')
     plt.ylabel('Velocity')
