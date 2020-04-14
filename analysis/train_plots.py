@@ -89,7 +89,9 @@ if __name__ == "__main__":
 
     plt.plot(X,Y, label='Mean', c=(0.89,0.282,0.192))
     plt.plot(X,lowess[:,1], color=(0.33,0.33,0.33), label='Smoothing')
-    plt.fill_between(X, Y-Y_std, Y+Y_std, color=(0.88,0.70,0.678), label='Std')
+
+    if rewards.shape[0] > 1:
+        plt.fill_between(X, Y-Y_std, Y+Y_std, color=(0.88,0.70,0.678), label='Std')
 
     plt.xlabel('Cycle')
     plt.ylabel('Reward')
@@ -116,7 +118,9 @@ if __name__ == "__main__":
 
     plt.plot(X,Y, label='Mean', c=(0.89,0.282,0.192))
     plt.plot(X,lowess[:,1], color=(0.33,0.33,0.33), label='Smoothing')
-    plt.fill_between(X, Y-Y_std, Y+Y_std, color=(0.88,0.70,0.678), label='Std')
+
+    if vehicles.shape[0] > 1:
+        plt.fill_between(X, Y-Y_std, Y+Y_std, color=(0.88,0.70,0.678), label='Std')
 
     plt.xlabel('Cycle')
     plt.ylabel('#Vehicles')
@@ -143,7 +147,9 @@ if __name__ == "__main__":
 
     plt.plot(X,Y, label='Mean', c=(0.89,0.282,0.192))
     plt.plot(X,lowess[:,1], color=(0.33,0.33,0.33), label='Smoothing')
-    plt.fill_between(X, Y-Y_std, Y+Y_std, color=(0.88,0.70,0.678), label='Std')
+
+    if velocities.shape[0] > 1:
+        plt.fill_between(X, Y-Y_std, Y+Y_std, color=(0.88,0.70,0.678), label='Std')
 
     plt.xlabel('Cycle')
     plt.ylabel('Velocity')
