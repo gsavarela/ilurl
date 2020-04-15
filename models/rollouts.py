@@ -319,7 +319,7 @@ if __name__ == '__main__':
     info['limit'] = limit
     info['skip'] = skip
     info['processed_at'] = timestamp
-    file_path = f'{batch_dir}{filename}.{x}.eval.info.json'
+    file_path = f'{batch_dir}/{filename}.{x}.eval.info.json'
 
     with open(file_path, 'w') as f:
         json.dump(info, f)
