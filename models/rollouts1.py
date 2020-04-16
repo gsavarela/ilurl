@@ -179,7 +179,7 @@ def evaluate(env_params, sim_params, programs,
     result['discount'] = agent.ql_params.gamma
     if sim_params.seed:
         result['seed'] = [sim_params.seed]
-    result['rollout'] = rollout_number
+    result['rollouts'] = [roll_id]
     return result
 
 
@@ -357,9 +357,9 @@ def roll(config_file_path=None):
     # info = concat([ret])
 
     # keys = list(qtbs.keys())
-    # timestamp = datetime.now().strftime('%Y%m%d%H%M%S.%f')
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S.%f')
     # filename = f'{network.network_id}_{timestamp}'
-    # info['horizon'] = horizon
+    info['horizon'] = horizon
     # info['rollouts'] = [k[1] for k in keys]
     # info['num_rollouts'] = num_rollouts
     # info['limit'] = limit
