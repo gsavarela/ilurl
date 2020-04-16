@@ -7,7 +7,7 @@ import multiprocessing as mp
 from ilurl.utils.context_managers import PipeGuard
 
 
-def chronological(fnc):
+def benchmarked(fnc):
     """Times execution of fnc, storing on folder if path exists
 
         Parameters:

@@ -9,7 +9,7 @@ import multiprocessing as mp
 import time
 
 from models.train import main as train
-from ilurl.utils.decorators import processable
+from ilurl.utils.decorators import processable, benchmarked
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
@@ -17,6 +17,11 @@ CONFIG_PATH = \
     f'{ILURL_HOME}/config/'
 
 LOCK = mp.Lock()
+
+@benchmarked
+def benchmarked_train(*args, **kwargs):
+    return train(*args, **kwargs)
+
 
 def delay_train(*args, **kwargs):
     """delays execution by 1 sec.
@@ -37,7 +42,7 @@ def delay_train(*args, **kwargs):
         time.sleep(1)
     finally:
         LOCK.release()
-    return train(*args, **kwargs)
+    return benchmarked_train(*args, **kwargs)
 
 
 def train_batch():
@@ -127,6 +132,6 @@ def train_job():
 
 if __name__ == '__main__':
     # enable this in order to have a nice textual ouput
-    train_batch()
-    # train_job()
+    # train_batch()
+    train_job()
 
