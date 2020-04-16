@@ -9,7 +9,7 @@ import multiprocessing as mp
 import time
 
 from models.train import main as train
-from ilurl.utils.decorators import processable
+from ilurl.utils.decorators import processable, delayable
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
@@ -18,13 +18,10 @@ CONFIG_PATH = \
 
 LOCK = mp.Lock()
 
-def delay_run(*args):
-    LOCK.acquire()
-    try:
-        time.sleep(1)
-    finally:
-        LOCK.release()
-    return train(*args)
+@delayable(LOCK)
+def delay_train(*args, **kwargs):
+    return train(*args, **kwargs)
+
 
 def train_batch():
     # Read script arguments from run.config file.
@@ -83,7 +80,7 @@ def train_batch():
         # rvs: directories' names holding experiment data
         if num_processors > 1:
             pool = mp.Pool(num_processors)
-            rvs = pool.map(delay_run, [[cfg] for cfg in train_configs])
+            rvs = pool.map(delay_train, [[cfg] for cfg in train_configs])
             pool.close()
         else:
             rvs = []
