@@ -3,7 +3,7 @@ import os
 
 
 class PipeGuard(object):
-    """PipeGuards supresses stdout in order to prevent text outputs to interfere
+    """PipeGuard supresses stdout in order to prevent text outputs
     """
     def __enter__(self):
         self._stdout = sys.stdout
@@ -12,4 +12,3 @@ class PipeGuard(object):
     def __exit__(self, *args, **kwargs):
         sys.stdout.close()
         sys.stdout = self._stdout
-
