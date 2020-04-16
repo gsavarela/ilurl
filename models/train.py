@@ -187,6 +187,7 @@ def main(train_config=None):
     additional_params.update(ADDITIONAL_ENV_PARAMS)
     additional_params['target_velocity'] = 1.0 if normalize else 20
     additional_params['cycle_time'] = cycle_time
+    additional_params['tl_type'] = 'controlled'
     env_args = {
         'evaluate': True,
         'additional_params': additional_params

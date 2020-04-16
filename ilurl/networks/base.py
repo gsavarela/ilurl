@@ -112,7 +112,7 @@ class Network(flownet.Network):
                  demand_type='lane',
                  insertion_probability=0.1,
                  initial_config=None,
-                 traffic_lights=None):
+                 tls=None):
 
 
         """Builds a new network from inflows -- the resulting
@@ -146,26 +146,27 @@ class Network(flownet.Network):
             net_params = NetParams(inflows,
                                    template=get_path(network_id, 'net'))
 
-        if traffic_lights is None:
-            # Converts a static program into a reinforcement learning
-            # program.
+        # static program (required for rl)
+        tls_logic = TrafficLightParams(baseline=False)
+        if tls is None:
             programs = get_logic(network_id)
             if programs:
-                traffic_lights = TrafficLightParams(baseline=False)
                 for prog in programs:
-                    prog_id = prog.pop('id')
+                    node_id = prog.pop('id')
                     prog['tls_type'] = prog.pop('type')
                     prog['programID'] = int(prog.pop('programID')) + 1
-                    traffic_lights.add(prog_id, **prog)
-            else:
-                traffic_lights = TrafficLightParams(baseline=False)
+                    tls_logic.add(node_id, **prog)
+        else:
+            phases = tls.pop('phases')
+            for tls_id, tls_args in tls.items():
+                tls_logic.add(tls_id, phases=phases, **tls_args)
 
         super(Network, self).__init__(
                  network_id,
                  vehicles,
                  net_params,
                  initial_config=initial_config,
-                 traffic_lights=traffic_lights
+                 traffic_lights=tls_logic
         )
 
         self.nodes = self.specify_nodes(net_params)
@@ -423,7 +424,7 @@ class Network(flownet.Network):
         cfg = self.traffic_lights.get_properties()
 
         def fn(x):
-            return x['type'] == 'static' and x['programID'] == 1
+            return x['type'] in ('static', 'actuated') and x['programID'] == 1
 
         return {
             tid: [p['state'] for p in cfg[tid]['phases'] if fn(cfg[tid])]

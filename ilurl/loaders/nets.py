@@ -213,7 +213,7 @@ def get_tls_custom(network_id, baseline=False):
     with open(tls_config_file, 'r') as f:
         cfgs = json.load(f)
 
-    # cfgs = cfgs['actuated'] if baseline else cfgs['rl']
+    cfgs = cfgs['actuated'] if baseline else cfgs['rl']
     if 'cycle_time' not in cfgs:
         raise KeyError(f'Missing `cycle_time` key in tls_config.json')
     else:

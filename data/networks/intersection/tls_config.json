@@ -1,4 +1,35 @@
 {
-    "cycle_time": 90,
-    "247123161": {"0": [24, 30, 84, 90], "1": [54, 60, 84, 90]}
+    "rl": {
+        "cycle_time": 90,
+        "247123161": {"0": [24, 30, 84, 90], "1": [54, 60, 84, 90]}
+    },
+    "actuated": {
+        "cycle_time": 90,
+        "phases": [{
+            "duration": "31",      
+            "minDur": "8",
+            "maxDur": "45",
+            "state": "GGrrrGGrrr"
+        }, {
+            "duration": "6",
+            "minDur": "3",
+            "maxDur": "6",
+            "state": "yyrrryyrrr"
+        }, {
+            "duration": "31",
+            "minDur": "8",
+            "maxDur": "45",
+            "state": "rrGGGrrGGG"
+        }, {
+            "duration": "6",
+            "minDur": "3",
+            "maxDur": "6",
+            "state": "rryyyrryyy"
+        }],
+        "247123161": {
+            "programID": 1,
+            "tls_type": "actuated",
+            "showDetectors": true
+        }
+    }
 }
