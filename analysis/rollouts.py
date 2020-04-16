@@ -13,7 +13,7 @@ import argparse
 from os.path import dirname, basename
 import json
 from glob import glob
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 # third-party libs
 import matplotlib.pyplot as plt
@@ -63,39 +63,42 @@ if __name__ == '__main__':
         if max_rollouts == -1:
             max_rollouts = num_rollouts
 
-        roll_returns = defaultdict(list)
+        returns = defaultdict(list)
         # consolidate experiments' rewards
         for idx, ex_id in enumerate(ex_ids):
             roll_idxs = choice(num_rollouts, size=max_rollouts, replace=False)
 
             # iterate for each experiment extracting the paths
             # while also discounting than
-            for roll_id, rewards in db['rewards'][idx].items():
+            for rid, rewards in db['rewards'][idx].items():
                 # _rewards (cycles, num_rollouts)
                 # select paths
                 rewards = np.concatenate(rewards, axis=1)
                 rewards = rewards[:, roll_idxs]
                 gain = lfilter([1], discount, x=rewards, axis=0)
-                roll_returns[int(roll_id)] += [gain[:, 0]]
+                returns[int(rid)] += [gain[:, 0]]
 
+        returns = OrderedDict({
+            k: returns[k] for k in sorted(returns.keys())
+        })
         y = {}
         y_error = {}
         legends = []
-        # This loop agreggates for each cycle # == roll_id
+        # This loop agreggates for each cycle # == rid
         # The resulting paths
-        for roll_id, returns in roll_returns.items():
-            returns = sorted(np.concatenate(returns))
-            y[roll_id] = np.mean(returns)
-            y_error[roll_id] = ss.t.ppf(0.95, len(returns)) * np.std(returns)
-            legends.append(f'Q[{roll_id}]')
+        for rid, ret in returns.items():
+            ret = sorted(np.concatenate(ret))
+            y[rid] = np.mean(ret)
+            y_error[rid] = ss.t.ppf(0.95, len(ret)) * np.std(ret)
+            legends.append(f'Q[{rid}]')
 
         # Must savefig.
         fig, ax = plt.subplots()
         plt.xlabel(f'Q-tables[train_cycles]')
         plt.ylabel('Reward')
         i = 0
-        for roll_id, yy in y.items():
-            plt.errorbar([str(roll_id)], yy, yerr=y_error[roll_id], fmt='-o')
+        for rid, yy in y.items():
+            plt.errorbar([str(rid)], yy, yerr=y_error[rid], fmt='-o')
             i += 1
         title = \
             f'cycles:{num_cycles},R:{max_rollouts}, T:{num_trials}'
