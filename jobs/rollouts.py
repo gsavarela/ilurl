@@ -11,21 +11,12 @@ from collections import defaultdict
 
 import configparser
 
-from models.rollouts1 import roll
+from models.rollouts import roll
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
 CONFIG_PATH = Path(f'{ILURL_HOME}/config/')
 
-# LOCK = mp.Lock()
-
-# def delay_run(*args):
-#     LOCK.acquire()
-#     try:
-#         time.sleep(1)
-#     finally:
-#         LOCK.release()
-#     return main(*args)
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -141,7 +132,7 @@ if __name__ == '__main__':
 
         print(f'''
         \tArguments (jobs.rollouts.py):
-        \t---------------------------
+        \t----------------------------
         \tNumber of runs: {num_runs}
         \tNumber of processors: {num_processors}
         \tTrain seeds: {train_seeds}
@@ -152,7 +143,7 @@ if __name__ == '__main__':
         with tempfile.TemporaryDirectory() as f:
 
             tmp_path = Path(f)
-            # Create a config file for each train.py
+            # Create a config file for each rollout
             # with the respective seed. These config
             # files are stored in a temporary directory.
             rollouts_cfg_paths = []
@@ -169,17 +160,8 @@ if __name__ == '__main__':
                 rollouts_cfg_paths.append(str(cfg_path))
                 with cfg_path.open('w') as fw:
                     rollouts_config.write(fw)
-                # tmp_cfg_file = open(cfg_path, "w")
-
-                # rollout_config.write(tmp_cfg_file)
-                # tmp_cfg_file.close()
 
                 
-            # pool = mp.Pool(num_processors)
-            # rvs = pool.map(roll, [[cfg] for cfg in rollout_configs])
-            # pool.close()
-            # Run.
-            # TODO: option without pooling not working. why?
             # rvs: directories' names holding experiment data
             if num_processors > 1:
                 pool = mp.Pool(num_processors)
@@ -214,21 +196,5 @@ if __name__ == '__main__':
         target_path = batch_path / f'{batch_path.parts[-1]}.l.eval.info.json'
         with target_path.open('w') as fj:
             json.dump(res, fj)
-        # this should be json files in need of concatenation
 
-        # Create a directory and move newly created files
-        # paths = [Path(f) for f in rvs]
-        # commons = [p.parent for p in paths]
-        # if len(set(commons)) > 1:
-        #     raise ValueError(f'Directories {set(commons)} must have the same root')
-        # dirpath = commons[0]
-        # timestamp = datetime.now().strftime('%Y%m%d%H%M%S.%f')
-        # batchpath = dirpath / timestamp
-        # if not batchpath.exists():
-        #     batchpath.mkdir()
-
-        # # Move files
-        # for src in paths:
-        #     dst = batchpath / src.parts[-1]
-        #     src.replace(dst)
     sys.stdout.write(str(target_path))
