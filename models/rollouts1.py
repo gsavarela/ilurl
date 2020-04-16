@@ -18,11 +18,14 @@ import os
 from pathlib import Path
 from glob import glob
 import json
+import re
+import random
+
 # import argparse
 import configargparse
 from copy import deepcopy
-
 import dill
+import numpy as np
 
 from flow.core.params import SumoParams, EnvParams
 from ilurl.core.params import QLParams
@@ -37,6 +40,15 @@ from ilurl.loaders.nets import get_tls_custom
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
+Q_FINDER_PROG = re.compile(r'Q.1-(\d+)')
+
+def search_Q(x):
+    found = Q_FINDER_PROG.search(x)
+    if found is None:
+        raise ValueError('Q-table rollout number not found')
+    res, = found.groups()
+    return int(res)
+
 def get_arguments(config_file_path):
     if config_file_path is None:
         config_file_path = []
@@ -44,19 +56,13 @@ def get_arguments(config_file_path):
     parser = configargparse.ArgumentParser(
         default_config_files=config_file_path,
         description="""
-            This script runs `r` rollouts for `s` Q-tables from a batch of
-            experiments. It receives as argument the batch directory in which
-            all sub-directories are experiments with train and parameters.
+            This script performs a single rollout from a Q table
         """
     )
 
-    parser.add_argument('--rollout-dir', '-b', dest='rollout_dir',
+    parser.add_argument('--rollout-path', '-q', dest='rollout_path',
                         type=str, nargs='?',
-                        help='''A directory holding Q.1-xxx.pickle files''')
-
-    parser.add_argument('--rollout-number', '-n', dest='rollout_number', type=int,
-                        default=0, nargs='?',
-                        help='Number of the rollout table')
+                        help='''The path Q.1-xxx.pickle files''')
 
     parser.add_argument('--cycles', '-c', dest='cycles', type=int,
                         default=100, nargs='?',
@@ -66,6 +72,11 @@ def get_arguments(config_file_path):
                         default=False, nargs='?',
                         help='Enabled will perform saves')
 
+    parser.add('--rollout-seed', '-d', dest='seed', type=int,
+                        default=None, nargs='?',
+                        help='''Sets seed value for both rl agent and Sumo.
+                               `None` for rl agent defaults to RandomState() 
+                               `None` for Sumo defaults to a fixed but arbitrary seed''')
     # parser.add_argument('--limit', '-l', dest='limit',
     #                     type=int, default=500, nargs='?',
     #                     help='Use only Q-tables generated until `-l` cycle')
@@ -74,9 +85,9 @@ def get_arguments(config_file_path):
     #                     type=int, default=1, nargs='?',
     #                     help='Number of synchronous num_processors')
 
-    # parser.add_argument('--num-rollouts', '-r', dest='num_rollouts',
-    #                     type=int, default=1, nargs='?',
-    #                     help='''Number of repetitions for each table''')
+    parser.add_argument('--num-rollouts', '-r', dest='num_rollouts',
+                        type=int, default=1, nargs='?',
+                        help='''Number of repetitions for each table''')
 
     # parser.add_argument('--sample', '-s', dest='skip',
     #                     type=int, default=500, nargs='?',
@@ -166,60 +177,69 @@ def evaluate(env_params, sim_params, programs,
     result = exp.run(horizon)
     result['id'] = ex_id
     result['discount'] = agent.ql_params.gamma
+    if sim_params.seed:
+        result['seed'] = [sim_params.seed]
+    result['rollout'] = rollout_number
     return result
 
 
-def concat(evaluations):
-    """Receives an experiments' json and merges it's contents
-
-    Params:
-    -------
-        * evaluations: list
-        list of rollout evaluations
-
-    Returns:
-    --------
-        * result: dict
-        where `id` key certifies that experiments are the same
-              `list` params are united
-              `numeric` params are appended
-
-    """
-    result = defaultdict(list)
-    for id_qtb in evaluations:
-        qid, qtb = id_qtb
-        exid = qtb.pop('id')
-        # can either be a rollout from the prev
-        # exid or a new experiment
-        if exid not in result['id']:
-            result['id'].append(exid)
-
-        ex_idx = result['id'].index(exid)
-        for k, v in qtb.items():
-            append = isinstance(v, list) or isinstance(v, dict)
-            # check if integer fields match
-            # such as cycle, save_step, etc
-            if not append:
-                if k in result:
-                    if result[k] != v:
-                        raise ValueError(
-                            f'key:\t{k}\t{result[k]} and {v} should match'
-                        )
-                else:
-                    result[k] = v
-            else:
-                if ex_idx == len(result[k]):
-                    result[k].append(defaultdict(list))
-                result[k][ex_idx][qid[1]].append(v)
-    return result
+# def concat(evaluations):
+#     """Receives an experiments' json and merges it's contents
+# 
+#     Params:
+#     -------
+#         * evaluations: list
+#         list of rollout evaluations
+# 
+#     Returns:
+#     --------
+#         * result: dict
+#         where `id` key certifies that experiments are the same
+#               `list` params are united
+#               `numeric` params are appended
+# 
+#     """
+#     result = defaultdict(list)
+#     for id_qtb in evaluations:
+#         qid, qtb = id_qtb
+#         exid = qtb.pop('id')
+#         # can either be a rollout from the prev
+#         # exid or a new experiment
+#         if exid not in result['id']:
+#             result['id'].append(exid)
+# 
+#         ex_idx = result['id'].index(exid)
+#         for k, v in qtb.items():
+#             append = isinstance(v, list) or isinstance(v, dict)
+#             # check if integer fields match
+#             # such as cycle, save_step, etc
+#             if not append:
+#                 if k in result:
+#                     if result[k] != v:
+#                         raise ValueError(
+#                             f'key:\t{k}\t{result[k]} and {v} should match'
+#                         )
+#                 else:
+#                     result[k] = v
+#             else:
+#                 if ex_idx == len(result[k]):
+#                     result[k].append(defaultdict(list))
+#                 result[k][ex_idx][qid[1]].append(v)
+#     return result
 
 
 def roll(config_file_path=None):
     args = get_arguments(config_file_path)
-    rollout_path = Path(args.rollout_dir)
-    rollout_number = args.rollout_number
+    rollout_path = Path(args.rollout_path)
+
+    # rollout_number = args.rollout_number
     x = 'w' if args.switch else 'l'
     cycles = args.cycles
+    with rollout_path.open('rb') as f:
+        qtb = dill.load(f)
+    if qtb is None:
+        raise ValueError('Q is None')
+    rollout_number = search_Q(str(rollout_path))
     # num_processors = args.num_processors
     # num_rollouts = args.num_rollouts
     # skip = args.skip
@@ -236,7 +256,7 @@ def roll(config_file_path=None):
     # a mapping from experiments to q-tables
     # qtb2path = {}
     params = None
-    for params_path in rollout_path.glob(pattern):
+    for params_path in rollout_path.parent.glob(pattern):
         # rel_path = os.path.relpath(path)
         with params_path.open('r') as f:
             params = json.load(f)
@@ -253,33 +273,29 @@ def roll(config_file_path=None):
         if 'emission_path' in params['sumo_args']:
             del params['sumo_args']['emission_path']
 
+    if args.seed:
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        params['sumo_args']['seed'] = args.seed
         # Force save xml
         # exp_dir = os.path.dirname(rel_path)
 
 
-    data = None
-    pattern = '*.train.json'
-    for train_path in rollout_path.glob(pattern):
-        # get train data
-        with train_path.open('r') as f:
-            data = json.load(f)
-        break   # There should be only one match
-    if data is None:
-        raise ValueError('data is None')
+    # data = None
+    # pattern = '*.train.json'
+    # for train_path in rollout_path.parent.glob(pattern):
+    #     # get train data
+    #     with train_path.open('r') as f:
+    #         data = json.load(f)
+    #     break   # There should be only one match
+    # if data is None:
+    #     raise ValueError('data is None')
 
     # build Q-tables pattern
     # pattern = f'{exp_dir}/*.Q.*'
     # qtb2path.update(
     #     parse_all(glob(pattern))
     # )
-    pattern = f'*.Q.1-{rollout_number}.pickle'
-    qtb = None
-    for q_path in rollout_path.glob(pattern):
-        with q_path.open('rb') as f:
-            qtb = dill.load(f)
-        break   # There should be only one match
-    if qtb is None:
-        raise ValueError('Q is None')
     # remove paths
     # qtb2path = filter_tables(qtb2path, skip, limit)
     # sort experiments by instances and cycles
@@ -300,7 +316,7 @@ def roll(config_file_path=None):
     #for exid, qtbs in qtb2obj.items():
     # ex_id = '_'.join(exid[:-1])
     # Load cycle time and TLS programs.
-    ex_id = rollout_path.parts[-1]
+    ex_id = rollout_path.parts[-2]
     network = Network(**params['network_args'])
     cycle_time, programs = get_tls_custom(network.network_id)
     ql_params = QLParams(**params['ql_args'])
