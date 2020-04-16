@@ -95,141 +95,140 @@ class PipeGuard(object):
         sys.stdout = self._stdout
 
 if __name__ == '__main__':
-    # with PipeGuard():
-    # Read script arguments from run.config file.
-    args = get_arguments()
-    # clear command line arguments after parsing
-    batch_path = Path(args.batch_dir)
-    # get all tables
-    pattern = '**/*Q*.pickle'
-    rollout_paths = [rp for rp in batch_path.glob(pattern)]
+    with PipeGuard():
+        # Read script arguments from run.config file.
+        args = get_arguments()
+        # clear command line arguments after parsing
+        batch_path = Path(args.batch_dir)
+        # get all tables
+        pattern = '**/*Q*.pickle'
+        rollout_paths = [rp for rp in batch_path.glob(pattern)]
 
-    run_config = configparser.ConfigParser()
-    run_config.read(str(CONFIG_PATH / 'run.config'))
+        run_config = configparser.ConfigParser()
+        run_config.read(str(CONFIG_PATH / 'run.config'))
 
-    num_processors = int(run_config.get('run_args', 'num_processors'))
-    num_runs = int(run_config.get('run_args', 'num_runs'))
-    train_seeds = json.loads(run_config.get("run_args", "train_seeds"))
+        num_processors = int(run_config.get('run_args', 'num_processors'))
+        num_runs = int(run_config.get('run_args', 'num_runs'))
+        train_seeds = json.loads(run_config.get("run_args", "train_seeds"))
 
-    if len(train_seeds) != num_runs:
-        raise configparser.Error('Number of seeds in run.config `train_seeds`'
-                        'must match the number of runs (`num_runs`) argument.')
+        if len(train_seeds) != num_runs:
+            raise configparser.Error('Number of seeds in run.config `train_seeds`'
+                            'must match the number of runs (`num_runs`) argument.')
 
-    # Assess total number of processors.
-    processors_total = mp.cpu_count()
-    print(f'Total number of processors available: {processors_total}\n')
+        # Assess total number of processors.
+        processors_total = mp.cpu_count()
+        print(f'Total number of processors available: {processors_total}\n')
 
-    # Adjust number of processors.
-    if num_processors > processors_total:
-        num_processors = processors_total
-        print(f'Number of processors downgraded to {num_processors}\n')
+        # Adjust number of processors.
+        if num_processors > processors_total:
+            num_processors = processors_total
+            print(f'Number of processors downgraded to {num_processors}\n')
 
-    # Read train.py arguments from train.config file.
-    rollouts_config = configparser.ConfigParser()
-    rollouts_config.read(str(CONFIG_PATH / 'rollouts.config'))
-    num_rollouts = int(rollouts_config.get('rollouts_args', 'num-rollouts'))
-
-
-    # number of processes vs layouts
-    # seeds must be different from training
-    custom_configs = []
-    for rn, rp in enumerate(rollout_paths):
-        base_seed = max(train_seeds) + num_rollouts * rn
-        for rr in range(num_rollouts):
-            seed = base_seed + rr + 1
-            custom_configs.append((str(rp), seed))
-
-    print(f'''
-    \tArguments (jobs.rollouts.py):
-    \t---------------------------
-    \tNumber of runs: {num_runs}
-    \tNumber of processors: {num_processors}
-    \tTrain seeds: {train_seeds}
-    \tNum. rollout files: {len(rollout_paths)}
-    \tNum. rollout repetitions: {num_rollouts}
-    \tNum. rollout total: {len(rollout_paths) * num_rollouts}\n\n''')
-
-    with tempfile.TemporaryDirectory() as f:
-
-        tmp_path = Path(f)
-        # Create a config file for each train.py
-        # with the respective seed. These config
-        # files are stored in a temporary directory.
-        rollouts_cfg_paths = []
-        cfg_key = "rollouts_args"
-        for cfg in custom_configs:
-            rollout_path, seed = cfg
-
-            # Setup custom rollout settings
-            rollouts_config.set(cfg_key, "rollout-path", str(rollout_path))
-            rollouts_config.set(cfg_key, "rollout-seed", str(seed))
-            
-            # Write temporary train config file.
-            cfg_path = tmp_path / f'rollouts-{seed}.config'
-            rollouts_cfg_paths.append(str(cfg_path))
-            with cfg_path.open('w') as fw:
-                rollouts_config.write(fw)
-            # tmp_cfg_file = open(cfg_path, "w")
-
-            # rollout_config.write(tmp_cfg_file)
-            # tmp_cfg_file.close()
-
-            
-        # pool = mp.Pool(num_processors)
-        # rvs = pool.map(roll, [[cfg] for cfg in rollout_configs])
-        # pool.close()
-        # Run.
-        # TODO: option without pooling not working. why?
-        # rvs: directories' names holding experiment data
-        if num_processors > 1:
-            pool = mp.Pool(num_processors)
-            rvs = pool.map(roll, [[cfg] for cfg in rollouts_cfg_paths])
-            pool.close()
-        else:
-            rvs = []
-            for cfg in rollouts_cfg_paths:
-                rvs.append(roll([cfg]))
-
-      # cfg = rollouts_cfg_paths[0]
-      # t = Thread(target=roll(cfg))
-      # t.start()
-      #   import json
-      #   for i, data in enumerate(rvs):
-      #       json_path = batch_path / f'{i}.json'
-      #       with json_path.open('w') as fj:
-      #           json.dump(data, fj)
+        # Read train.py arguments from train.config file.
+        rollouts_config = configparser.ConfigParser()
+        rollouts_config.read(str(CONFIG_PATH / 'rollouts.config'))
+        num_rollouts = int(rollouts_config.get('rollouts_args', 'num-rollouts'))
 
 
-      #   pdb.set_trace()
-    # rvs = []
-    # for i in range(2):
-    #     json_path = batch_path / f'{i}.json'
+        # number of processes vs layouts
+        # seeds must be different from training
+        custom_configs = []
+        for rn, rp in enumerate(rollout_paths):
+            base_seed = max(train_seeds) + num_rollouts * rn
+            for rr in range(num_rollouts):
+                seed = base_seed + rr + 1
+                custom_configs.append((str(rp), seed))
 
-    #     with json_path.open('r') as fj:
-    #         data = json.load(fj)
-    #     rvs.append(data)
+        print(f'''
+        \tArguments (jobs.rollouts.py):
+        \t---------------------------
+        \tNumber of runs: {num_runs}
+        \tNumber of processors: {num_processors}
+        \tTrain seeds: {train_seeds}
+        \tNum. rollout files: {len(rollout_paths)}
+        \tNum. rollout repetitions: {num_rollouts}
+        \tNum. rollout total: {len(rollout_paths) * num_rollouts}\n\n''')
 
-    res = concat(rvs)
-    res['num_rollouts'] = num_rollouts
-    target_path = batch_path / f'{batch_path.parts[-1]}.l.eval.info.json'
-    with target_path.open('w') as fj:
-        json.dump(res, fj)
-    print(str(target_path))
-    # this should be json files in need of concatenation
+        with tempfile.TemporaryDirectory() as f:
 
-    # Create a directory and move newly created files
-    # paths = [Path(f) for f in rvs]
-    # commons = [p.parent for p in paths]
-    # if len(set(commons)) > 1:
-    #     raise ValueError(f'Directories {set(commons)} must have the same root')
-    # dirpath = commons[0]
-    # timestamp = datetime.now().strftime('%Y%m%d%H%M%S.%f')
-    # batchpath = dirpath / timestamp
-    # if not batchpath.exists():
-    #     batchpath.mkdir()
+            tmp_path = Path(f)
+            # Create a config file for each train.py
+            # with the respective seed. These config
+            # files are stored in a temporary directory.
+            rollouts_cfg_paths = []
+            cfg_key = "rollouts_args"
+            for cfg in custom_configs:
+                rollout_path, seed = cfg
 
-    # # Move files
-    # for src in paths:
-    #     dst = batchpath / src.parts[-1]
-    #     src.replace(dst)
-    # sys.stdout.write(str(batchpath))
+                # Setup custom rollout settings
+                rollouts_config.set(cfg_key, "rollout-path", str(rollout_path))
+                rollouts_config.set(cfg_key, "rollout-seed", str(seed))
+                
+                # Write temporary train config file.
+                cfg_path = tmp_path / f'rollouts-{seed}.config'
+                rollouts_cfg_paths.append(str(cfg_path))
+                with cfg_path.open('w') as fw:
+                    rollouts_config.write(fw)
+                # tmp_cfg_file = open(cfg_path, "w")
+
+                # rollout_config.write(tmp_cfg_file)
+                # tmp_cfg_file.close()
+
+                
+            # pool = mp.Pool(num_processors)
+            # rvs = pool.map(roll, [[cfg] for cfg in rollout_configs])
+            # pool.close()
+            # Run.
+            # TODO: option without pooling not working. why?
+            # rvs: directories' names holding experiment data
+            if num_processors > 1:
+                pool = mp.Pool(num_processors)
+                rvs = pool.map(roll, [[cfg] for cfg in rollouts_cfg_paths])
+                pool.close()
+            else:
+                rvs = []
+                for cfg in rollouts_cfg_paths:
+                    rvs.append(roll([cfg]))
+
+          # cfg = rollouts_cfg_paths[0]
+          # t = Thread(target=roll(cfg))
+          # t.start()
+          #   import json
+          #   for i, data in enumerate(rvs):
+          #       json_path = batch_path / f'{i}.json'
+          #       with json_path.open('w') as fj:
+          #           json.dump(data, fj)
+
+
+          #   pdb.set_trace()
+        # rvs = []
+        # for i in range(2):
+        #     json_path = batch_path / f'{i}.json'
+
+        #     with json_path.open('r') as fj:
+        #         data = json.load(fj)
+        #     rvs.append(data)
+
+        res = concat(rvs)
+        res['num_rollouts'] = num_rollouts
+        target_path = batch_path / f'{batch_path.parts[-1]}.l.eval.info.json'
+        with target_path.open('w') as fj:
+            json.dump(res, fj)
+        # this should be json files in need of concatenation
+
+        # Create a directory and move newly created files
+        # paths = [Path(f) for f in rvs]
+        # commons = [p.parent for p in paths]
+        # if len(set(commons)) > 1:
+        #     raise ValueError(f'Directories {set(commons)} must have the same root')
+        # dirpath = commons[0]
+        # timestamp = datetime.now().strftime('%Y%m%d%H%M%S.%f')
+        # batchpath = dirpath / timestamp
+        # if not batchpath.exists():
+        #     batchpath.mkdir()
+
+        # # Move files
+        # for src in paths:
+        #     dst = batchpath / src.parts[-1]
+        #     src.replace(dst)
+    sys.stdout.write(str(target_path))
