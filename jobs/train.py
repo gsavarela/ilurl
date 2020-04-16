@@ -9,7 +9,7 @@ import multiprocessing as mp
 import time
 
 from models.train import main as train
-from ilurl.utils.decorators import processable, delayable
+from ilurl.utils.decorators import processable, benchmarked
 
 ILURL_HOME = os.environ['ILURL_HOME']
 
@@ -18,9 +18,31 @@ CONFIG_PATH = \
 
 LOCK = mp.Lock()
 
-@delayable(LOCK)
-def delay_train(*args, **kwargs):
+@benchmarked
+def benchmarked_train(*args, **kwargs):
     return train(*args, **kwargs)
+
+
+def delay_train(*args, **kwargs):
+    """delays execution by 1 sec.
+
+        Parameters:
+        -----------
+        * fnc: function
+            An anonymous function decorated by the user
+
+        Returns:
+        -------
+        * fnc : function
+            An anonymous function to be executed 1 sec. after
+            calling
+    """
+    LOCK.acquire()
+    try:
+        time.sleep(1)
+    finally:
+        LOCK.release()
+    return benchmarked_train(*args, **kwargs)
 
 
 def train_batch():
@@ -85,7 +107,7 @@ def train_batch():
         else:
             rvs = []
             for cfg in train_configs:
-                rvs.append(main(cfg))
+                rvs.append(delay_train([cfg]))
         # Create a directory and move newly created files
         paths = [Path(f) for f in rvs]
         commons = [p.parent for p in paths]
