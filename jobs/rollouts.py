@@ -11,6 +11,7 @@ from collections import defaultdict
 
 import configparser
 
+from ilurl.utils.decorators import processable
 from models.rollouts import roll
 
 ILURL_HOME = os.environ['ILURL_HOME']
@@ -76,125 +77,105 @@ def concat(evaluations):
                 result[k][ex_idx][qid].append(v)
     return result
 
-class PipeGuard(object):
-    def __enter__(self):
-        self._stdout = sys.stdout
-        sys.stdout = open(os.devnull, 'w')
 
-    def __exit__(self, *args, **kwargs):
-        sys.stdout.close()
-        sys.stdout = self._stdout
+def rollout_batch():
+    # Read script arguments from run.config file.
+    args = get_arguments()
+    # clear command line arguments after parsing
+    batch_path = Path(args.batch_dir)
+    # get all tables
+    pattern = '**/*Q*.pickle'
+    rollout_paths = [rp for rp in batch_path.glob(pattern)]
 
-if __name__ == '__main__':
-    with PipeGuard():
-        # Read script arguments from run.config file.
-        args = get_arguments()
-        # clear command line arguments after parsing
-        batch_path = Path(args.batch_dir)
-        # get all tables
-        pattern = '**/*Q*.pickle'
-        rollout_paths = [rp for rp in batch_path.glob(pattern)]
+    run_config = configparser.ConfigParser()
+    run_config.read(str(CONFIG_PATH / 'run.config'))
 
-        run_config = configparser.ConfigParser()
-        run_config.read(str(CONFIG_PATH / 'run.config'))
+    num_processors = int(run_config.get('run_args', 'num_processors'))
+    num_runs = int(run_config.get('run_args', 'num_runs'))
+    train_seeds = json.loads(run_config.get("run_args", "train_seeds"))
 
-        num_processors = int(run_config.get('run_args', 'num_processors'))
-        num_runs = int(run_config.get('run_args', 'num_runs'))
-        train_seeds = json.loads(run_config.get("run_args", "train_seeds"))
+    if len(train_seeds) != num_runs:
+        raise configparser.Error('Number of seeds in run.config `train_seeds`'
+                        'must match the number of runs (`num_runs`) argument.')
 
-        if len(train_seeds) != num_runs:
-            raise configparser.Error('Number of seeds in run.config `train_seeds`'
-                            'must match the number of runs (`num_runs`) argument.')
+    # Assess total number of processors.
+    processors_total = mp.cpu_count()
+    print(f'Total number of processors available: {processors_total}\n')
 
-        # Assess total number of processors.
-        processors_total = mp.cpu_count()
-        print(f'Total number of processors available: {processors_total}\n')
+    # Adjust number of processors.
+    if num_processors > processors_total:
+        num_processors = processors_total
+        print(f'Number of processors downgraded to {num_processors}\n')
 
-        # Adjust number of processors.
-        if num_processors > processors_total:
-            num_processors = processors_total
-            print(f'Number of processors downgraded to {num_processors}\n')
-
-        # Read train.py arguments from train.config file.
-        rollouts_config = configparser.ConfigParser()
-        rollouts_config.read(str(CONFIG_PATH / 'rollouts.config'))
-        num_rollouts = int(rollouts_config.get('rollouts_args', 'num-rollouts'))
+    # Read train.py arguments from train.config file.
+    rollouts_config = configparser.ConfigParser()
+    rollouts_config.read(str(CONFIG_PATH / 'rollouts.config'))
+    num_rollouts = int(rollouts_config.get('rollouts_args', 'num-rollouts'))
 
 
-        # number of processes vs layouts
-        # seeds must be different from training
-        custom_configs = []
-        for rn, rp in enumerate(rollout_paths):
-            base_seed = max(train_seeds) + num_rollouts * rn
-            for rr in range(num_rollouts):
-                seed = base_seed + rr + 1
-                custom_configs.append((str(rp), seed))
+    # number of processes vs layouts
+    # seeds must be different from training
+    custom_configs = []
+    for rn, rp in enumerate(rollout_paths):
+        base_seed = max(train_seeds) + num_rollouts * rn
+        for rr in range(num_rollouts):
+            seed = base_seed + rr + 1
+            custom_configs.append((str(rp), seed))
 
-        print(f'''
-        \tArguments (jobs.rollouts.py):
-        \t----------------------------
-        \tNumber of runs: {num_runs}
-        \tNumber of processors: {num_processors}
-        \tTrain seeds: {train_seeds}
-        \tNum. rollout files: {len(rollout_paths)}
-        \tNum. rollout repetitions: {num_rollouts}
-        \tNum. rollout total: {len(rollout_paths) * num_rollouts}\n\n''')
+    print(f'''
+    \tArguments (jobs.rollouts.py):
+    \t----------------------------
+    \tNumber of runs: {num_runs}
+    \tNumber of processors: {num_processors}
+    \tTrain seeds: {train_seeds}
+    \tNum. rollout files: {len(rollout_paths)}
+    \tNum. rollout repetitions: {num_rollouts}
+    \tNum. rollout total: {len(rollout_paths) * num_rollouts}\n\n''')
 
-        with tempfile.TemporaryDirectory() as f:
+    with tempfile.TemporaryDirectory() as f:
 
-            tmp_path = Path(f)
-            # Create a config file for each rollout
-            # with the respective seed. These config
-            # files are stored in a temporary directory.
-            rollouts_cfg_paths = []
-            cfg_key = "rollouts_args"
-            for cfg in custom_configs:
-                rollout_path, seed = cfg
+        tmp_path = Path(f)
+        # Create a config file for each rollout
+        # with the respective seed. These config
+        # files are stored in a temporary directory.
+        rollouts_cfg_paths = []
+        cfg_key = "rollouts_args"
+        for cfg in custom_configs:
+            rollout_path, seed = cfg
 
-                # Setup custom rollout settings
-                rollouts_config.set(cfg_key, "rollout-path", str(rollout_path))
-                rollouts_config.set(cfg_key, "rollout-seed", str(seed))
-                
-                # Write temporary train config file.
-                cfg_path = tmp_path / f'rollouts-{seed}.config'
-                rollouts_cfg_paths.append(str(cfg_path))
-                with cfg_path.open('w') as fw:
-                    rollouts_config.write(fw)
+            # Setup custom rollout settings
+            rollouts_config.set(cfg_key, "rollout-path", str(rollout_path))
+            rollouts_config.set(cfg_key, "rollout-seed", str(seed))
+            
+            # Write temporary train config file.
+            cfg_path = tmp_path / f'rollouts-{seed}.config'
+            rollouts_cfg_paths.append(str(cfg_path))
+            with cfg_path.open('w') as fw:
+                rollouts_config.write(fw)
 
-                
-            # rvs: directories' names holding experiment data
-            if num_processors > 1:
-                pool = mp.Pool(num_processors)
-                rvs = pool.map(roll, [[cfg] for cfg in rollouts_cfg_paths])
-                pool.close()
-            else:
-                rvs = []
-                for cfg in rollouts_cfg_paths:
-                    rvs.append(roll([cfg]))
+            
+        # rvs: directories' names holding experiment data
+        if num_processors > 1:
+            pool = mp.Pool(num_processors)
+            rvs = pool.map(roll, [[cfg] for cfg in rollouts_cfg_paths])
+            pool.close()
+        else:
+            rvs = []
+            for cfg in rollouts_cfg_paths:
+                rvs.append(roll([cfg]))
 
-          # cfg = rollouts_cfg_paths[0]
-          # t = Thread(target=roll(cfg))
-          # t.start()
-          #   import json
-          #   for i, data in enumerate(rvs):
-          #       json_path = batch_path / f'{i}.json'
-          #       with json_path.open('w') as fj:
-          #           json.dump(data, fj)
-
-
-          #   pdb.set_trace()
-        # rvs = []
-        # for i in range(2):
-        #     json_path = batch_path / f'{i}.json'
-
-        #     with json_path.open('r') as fj:
-        #         data = json.load(fj)
-        #     rvs.append(data)
-
-        res = concat(rvs)
-        res['num_rollouts'] = num_rollouts
-        target_path = batch_path / f'{batch_path.parts[-1]}.l.eval.info.json'
-        with target_path.open('w') as fj:
-            json.dump(res, fj)
+    res = concat(rvs)
+    res['num_rollouts'] = num_rollouts
+    target_path = batch_path / f'{batch_path.parts[-1]}.l.eval.info.json'
+    with target_path.open('w') as fj:
+        json.dump(res, fj)
 
     sys.stdout.write(str(target_path))
+    return str(target_path)
+
+@processable
+def rollout_job():
+    return rollout_batch()
+
+if __name__ == '__main__':
+    rollout_job()
