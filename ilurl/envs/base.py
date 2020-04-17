@@ -84,8 +84,14 @@ class TrafficLightEnv(AccelEnv, Serializer):
                                               network,
                                               simulator=simulator)
 
+
+        # TODO: Allow for mixed networks with actuated, controlled and static
+        # traffic light configurations
+        self.tl_type = env_params.additional_params.get('tl_type')
+
+        self.discrete = env_params.additional_params.get("discrete", False)
         # Whether TLS timings are static or controlled by agent.
-        self.static = static
+        self.static = (self.tl_type == 'static')
 
         # Cycle time.
         self.cycle_time = env_params.additional_params['cycle_time']
@@ -99,25 +105,21 @@ class TrafficLightEnv(AccelEnv, Serializer):
         # Time-steps simulation horizon.
         self.steps = env_params.horizon
 
-        # TODO: Allow for mixed networks with actuated, controlled and static
-        # traffic light configurations
-        self.tl_type = env_params.additional_params.get('tl_type')
-        if self.tl_type != "actuated":
-            self._reset()
+        # if self.tl_type != "actuated":
+        self._reset()
 
-        self.discrete = env_params.additional_params.get("discrete", False)
 
         # RL agent.
         self.agent = agent
         self.reward_calculator = RewardCalculator(env_params,
-                                                self.agent.ql_params)
+                                                  self.agent.ql_params)
 
         self.actions_log = {}
         self.states_log = {}
 
     @property
     def stop(self):
-        pass        
+        pass
 
     @stop.setter
     def stop(self, stop):
@@ -362,37 +364,42 @@ class TrafficLightEnv(AccelEnv, Serializer):
         # Update observation space.
         self.update_observation_space()
 
-        if self.duration == 0:
-            # New cycle.
+        if self.tl_type != 'actuated':
+            if self.duration == 0:
+                # New cycle.
 
-            # Get the number of the current cycle.
-            cycle_number = \
-                int(self.step_counter / (self.cycle_time / self.sim_step))
+                # Get the number of the current cycle.
+                cycle_number = \
+                    int(self.step_counter / (self.cycle_time / self.sim_step))
 
-            # Get current state.
-            state = self.get_state()
+                # Get current state.
+                state = self.get_state()
 
-            # Select new action.
-            if rl_actions is None:
-                rl_action = self.rl_actions(state)
-            else:
-                rl_action = rl_actions
+                # Select new action.
+                if rl_actions is None:
+                    rl_action = self.rl_actions(state)
+                else:
+                    rl_action = rl_actions
 
-            self.actions_log[cycle_number] = rl_action
-            self.states_log[cycle_number] = state
+                self.actions_log[cycle_number] = rl_action
+                self.states_log[cycle_number] = state
 
-            if self.step_counter > 1: # and not self.stop:
-                # RL-agent update.
-                reward = self.compute_reward(None)
-                prev_state = self.states_log[cycle_number - 1]
-                prev_action = self.actions_log[cycle_number - 1]
-                self.agent.update(prev_state, prev_action, reward, state)
+                if self.step_counter > 1: # and not self.stop:
+                    # RL-agent update.
+                    reward = self.compute_reward(None)
+                    prev_state = self.states_log[cycle_number - 1]
+                    prev_action = self.actions_log[cycle_number - 1]
+                    self.agent.update(prev_state, prev_action, reward, state)
                 
             self.memo_rewards = {}
             self.memo_observation_space = {}
 
-        # Update traffic lights' control signals.
-        self._apply_cl_actions(self.cl_actions(static=self.static))
+            # Update traffic lights' control signals.
+            self._apply_cl_actions(self.cl_actions(static=self.static))
+        else:
+            if self.duration == 0:
+                self.memo_rewards = {}
+                self.memo_observation_space = {}
 
         # Update timer.
         self.duration = \
@@ -471,9 +478,10 @@ class TrafficLightEnv(AccelEnv, Serializer):
         self.state_indicator = {}
         for node_id in self.tls_ids:
             num_phases = len(self.tls_phases[node_id])
-            self.state_indicator[node_id] = 0
-            s0 = self.tls_states[node_id][0]
-            self.k.traffic_light.set_state(node_id=node_id, state=s0)
+            if self.tl_type != 'actuated':
+                self.state_indicator[node_id] = 0
+                s0 = self.tls_states[node_id][0]
+                self.k.traffic_light.set_state(node_id=node_id, state=s0)
 
             self.incoming[node_id] = {p: {} for p in range(num_phases)}
 

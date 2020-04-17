@@ -11,6 +11,7 @@ __author__ = 'Guilherme Varela'
 __date__ = '2020-03-05'
 import argparse
 from os.path import dirname, basename
+from pathlib import Path
 import json
 from glob import glob
 from collections import defaultdict, OrderedDict
@@ -30,7 +31,7 @@ def get_arguments():
         """
     )
 
-    parser.add_argument('batch_eval_path', type=str, nargs='?',
+    parser.add_argument('batch_path', type=str, nargs='?',
                          help='Path to an `eval.info.json` file in json format')
 
     parser.add_argument('--max_rollouts', '-r', dest='max_rollouts',
@@ -42,14 +43,20 @@ def get_arguments():
 
 if __name__ == '__main__':
         args = get_arguments()
-        batch_eval_path = args.batch_eval_path
+        batch_path = Path(args.batch_path)
         max_rollouts = args.max_rollouts
 
-        batch_eval_dir = dirname(batch_eval_path)
-        filename = basename(batch_eval_path). \
-            replace('.l.eval.info.json', '')
+        suffix = '.l.eval.info.json' 
+        if batch_path.is_file():
+            file_path = batch_path
+            batch_path = batch_path.parent
+        else:
+            pattern = f'*{suffix}'
+            file_path = list(batch_path.glob(pattern))[0]
+
+        filename = file_path.name.replace(suffix, '')
         rewards = []
-        with open(batch_eval_path, 'r') as f:
+        with file_path.open('r') as f:
             db = json.load(f)
 
         cycle = db['cycle']
@@ -84,6 +91,7 @@ if __name__ == '__main__':
         y = {}
         y_error = {}
         legends = []
+        figure_path = batch_path / 'rollouts.png'
         # This loop agreggates for each cycle # == rid
         # The resulting paths
         for rid, ret in returns.items():
@@ -106,5 +114,5 @@ if __name__ == '__main__':
             f'{filename}\n(95% CI, {title})'
         ax.set_xticklabels(legends)
         plt.title(title)
-        plt.savefig(f'{batch_eval_dir}/rollouts.png')
+        plt.savefig(figure_path.as_posix())
         plt.show()
