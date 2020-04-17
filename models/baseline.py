@@ -1,156 +1,278 @@
-"""Provides baseline for networks"""
+"""Provides baseline for networks
+
+    References:
+    ==========
+    * seed:
+    https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.RandomState.html#numpy.random.RandomState
+    http://sumo.sourceforge.net/userdoc/Simulation/Randomness.html
+"""
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-08'
-
-import os
 import json
-import argparse
-import math
-import time
+import os
 
-from flow.core.params import SumoParams, EnvParams
+import numpy as np
+import random
+import configparser
+import configargparse
 
-from flow.envs.loop.loop_accel import ADDITIONAL_ENV_PARAMS
-from ilurl.envs.base import TrafficLightQLEnv
+
+from flow.core.params import EnvParams, SumoParams
+from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 from ilurl.core.experiment import Experiment
-
-from ilurl.networks.base import Network, get_edges, get_routes
-
-from ilurl.envs.base import TrafficLightQLEnv, QL_PARAMS
-from ilurl.envs.base import ADDITIONAL_TLS_PARAMS
 from ilurl.core.params import QLParams
 
-# TODO: Generalize for any parameter
+import ilurl.core.ql.dpq as ql
+from ilurl.envs.base import TrafficLightEnv
+from ilurl.networks.base import Network
+# TODO: move this inside networks
+from ilurl.loaders.nets import get_tls_custom
+
 ILURL_HOME = os.environ['ILURL_HOME']
 
 EMISSION_PATH = \
     f'{ILURL_HOME}/data/emissions/'
 
+CONFIG_PATH = \
+    f'{ILURL_HOME}/config/'
 
-def get_arguments():
-    parser = argparse.ArgumentParser(
+def get_arguments(config_file):
+
+    if config_file is None:
+        config_file = []
+
+    flags = configargparse.ArgParser(
+        default_config_files=config_file,
         description="""
             This script runs a traffic light simulation based on
-            custom environment with with presets saved on data/networks
+            custom environment with presets saved on data/networks
         """
     )
 
-    # TODO: validate against existing networks
-    parser.add_argument('network', type=str, nargs='?',
-                        help='Network to be simulated')
+    flags.add('--network', '-n', type=str, nargs='?', dest='network',
+              default='intersection',
+              help='Network to be simulated')
 
+    flags.add('--experiment-time', '-t', dest='time', type=int,
+              default=90000, nargs='?',
+              help='Simulation\'s real world time in seconds')
 
-    parser.add_argument('--experiment-time', '-t', dest='time', type=int,
-                        default=360, nargs='?', help='Simulation\'s real world time in seconds')
+    flags.add('--experiment-log', '-l', dest='log_info',
+              type=str2bool, default=False, nargs='?',
+              help='''Whether to save experiment-related data in a JSON file
+                      thoughout training (allowing to live track training)''')
 
+    flags.add('--experiment-log-interval', dest='log_info_interval',
+              type=int, default=200, nargs='?',
+              help='''[ONLY APPLIES IF --experiment-log is TRUE]
+              Log into json file interval (in agent update steps)''')
 
-    parser.add_argument('--experiment-iterations', '-i', dest='num_iterations', type=int,
-                        default=1, nargs='?', help='Number of times to repeat the experiment')
+    flags.add('--experiment-seed', '-d', dest='seed', type=int,
+              default=None, nargs='?',
+              help='''Sets seed value for both rl agent and Sumo.
+                     `None` for rl agent defaults to RandomState()
+                     `None` for Sumo defaults to a fixed but arbitrary seed''')
 
-    parser.add_argument('--sumo-render', '-r', dest='render', type=str2bool,
-                        default=False, nargs='?', help='Renders the simulation')
+    flags.add('--sumo-render', '-r', dest='render', type=str2bool,
+              default=False, nargs='?',
+              help='Renders the simulation')
 
-    parser.add_argument('--sumo-print', '-p',
-                        dest='print', type=str2bool, default=False, nargs='?',
-                        help='Prints warning from simulation')
-    
-    parser.add_argument('--sumo-step', '-s',
-                        dest='step', type=float, default=0.1, nargs='?',
-                        help='Simulation\'s step size which is a fraction from horizon')
+    flags.add('--sumo-step', '-s',
+              dest='step', type=float, default=1, nargs='?',
+              help='Simulation\'s step size which is a fraction from horizon')
 
-    parser.add_argument('--sumo-emission', '-e',
-                        dest='emission', type=str2bool, default=False, nargs='?',
-                       help='Saves emission data from simulation on /data/emissions')
+    flags.add('--sumo-emission', '-e',
+              dest='emission', type=str2bool, default=False, nargs='?',
+              help='Saves emission data from simulation on /data/emissions')
 
+    flags.add('--sumo-tls-type', '-y',
+              dest='tls_type', type=str, choices=('actuated', 'static'),
+              default='actuated', nargs='?',
+              help='Saves emission data from simulation on /data/emissions')
 
-    parser.add_argument('--inflow-switch', '-W', dest='switch',
-                        type=str2bool, default=False, nargs='?',
-                        help='''Assign higher probability of spawning a vehicle every other hour on opposite sides''')
+    flags.add('--inflows-switch', '-W', dest='switch',
+              type=str2bool, default=False, nargs='?',
+              help='''Assign higher probability of spawning a vehicle
+                   every other hour on opposite sides''')
 
+    flags.add('--env-normalize', dest='normalize',
+              type=str2bool, default=True, nargs='?',
+              help='''If true will normalize grid and target''')
 
-    parser.add_argument('--inflow-static', '-T', dest='static',
-                        type=str2bool, default=False, nargs='?',
-                        help='''If true will use a fixed dataset with trips.''')
-
-
-    return parser.parse_args()
+    return flags.parse_args()
 
 
 def str2bool(v):
     if isinstance(v, bool):
-       return v
+        return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
+        raise configargparse.ArgumentTypeError('Boolean value expected.')
 
-if __name__ == '__main__':
-    args = get_arguments()
-    
+def print_arguments(args):
+
+    print('Arguments (baseline.py):')
+    print('\tExperiment network: {0}'.format(args.network))
+    print('\tExperiment time: {0}'.format(args.time))
+    print('\tExperiment seed: {0}'.format(args.seed))
+    print('\tExperiment log info: {0}'.format(args.log_info))
+    print('\tExperiment log info interval: {0}'.format(args.log_info_interval))
+
+    print('\tSUMO render: {0}'.format(args.render))
+    print('\tSUMO emission: {0}'.format(args.emission))
+    print('\tSUMO step: {0}'.format(args.step))
+    print('\tSUMO tl_type: {0}'.format(args.tls_type))
+
+    print('\tInflows switch: {0}\n'.format(args.switch))
+
+    print('\tNormalize state-space (speeds): {0}\n'.format(args.normalize))
+
+
+def main(baseline_config=None):
+
+    flags = get_arguments(baseline_config)
+    print_arguments(flags)
+
+    inflows_type = 'switch' if flags.switch else 'lane'
+    network_args = {
+        'network_id': flags.network,
+        'horizon': flags.time,
+        'demand_type': inflows_type,
+        'insertion_probability': 0.1,
+    }
+    network = Network(**network_args)
+    normalize = flags.normalize
+
+    # Create directory to store data.
+    path = f'{EMISSION_PATH}{network.name}/'
+    if not os.path.isdir(path):
+        os.mkdir(path)
+    print('Experiment: {0}\n'.format(path))
+
+
     sumo_args = {
-        'render': args.render,
-        'print_warnings': args.print,
-        'sim_step': args.step,
+        'render': flags.render,
+        'print_warnings': False,
+        'sim_step': flags.step,
         'restart_instance': True
     }
-    if args.emission:
-        sumo_args['emission_path'] = EMISSION_PATH
 
+    # Setup seeds.
+    if flags.seed is not None:
+        random.seed(flags.seed)
+        np.random.seed(flags.seed)
+        sumo_args['seed'] = flags.seed
+
+    if flags.emission:
+        sumo_args['emission_path'] = path
     sim_params = SumoParams(**sumo_args)
+
+    # Load cycle time and TLS programs.
+    cycle_time, programs = get_tls_custom(flags.network)
 
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
-    additional_params.update(ADDITIONAL_TLS_PARAMS)
-    additional_params['long_cycle_time'] = 45
-    additional_params['short_cycle_time'] = 45
-    env_params = EnvParams(evaluate=True,
-                           additional_params=additional_params)
+    additional_params['target_velocity'] = 1.0 if normalize else 20
+    additional_params['cycle_time'] = cycle_time
+    additional_params['tl_type'] = flags.tls_type
+    env_args = {
+        'evaluate': True,
+        'additional_params': additional_params
+    }
+    env_params = EnvParams(**env_args)
 
-    # inflows = make_inflows(args.network, args.time) if args.switch else None
-    inflows_type = 'switch' if args.switch else 'lane'
-    network = Network(
-        network_id=args.network,
-        horizon=args.time,
-        inflows_type=inflows_type
-    )
+    # # Agent.
+    phases_per_tls = [len(network.tls_phases[t]) for t in network.tls_ids]
+    agent_id = 'DPQ' if len(network.tls_ids) == 1 else 'MAIQ'
 
+    # Assumes all agents have the same number of actions.
+    num_actions = len(programs[network.tls_ids[0]])
 
-    ql_params = QLParams(epsilon=0.10, alpha=0.05,
-                         states=('speed', 'count'),
-                         rewards={'type': 'weighted_average',
-                                  'costs': None},
-                         num_traffic_lights=1, c=10,
-                         choice_type='ucb')
+    category_counts = [5, 10, 15, 20, 25, 30]
+    if normalize:
+        category_speeds = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+    else:
+        category_speeds = [2, 3, 4, 5, 6, 7]
 
-    env = TrafficLightQLEnv(
+    ql_args = {
+                'agent_id': agent_id,
+                'epsilon': 0.10,
+                'alpha': 0.50,
+                'gamma': 0.90,
+                'states': ('speed', 'count'),
+                'rewards': {'type': 'target_velocity',
+                         'costs': None},
+                'phases_per_traffic_light': phases_per_tls,
+                'num_actions': num_actions,
+                'choice_type': 'eps-greedy',
+                'category_counts': category_counts,
+                'category_speeds': category_speeds,
+                'normalize': normalize,
+                'replay_buffer': False,
+                'replay_buffer_size': 500,
+                'replay_buffer_batch_size': 64,
+                'replay_buffer_warm_up': 200,
+    }
+    ql_params = QLParams(**ql_args)
+
+    cls_agent = getattr(ql, ql_params.agent_id)
+    QL_agent = cls_agent(ql_params)
+
+    env = TrafficLightEnv(
         env_params=env_params,
         sim_params=sim_params,
-        ql_params=ql_params,
-        network=network
+        agent=QL_agent,
+        network=network,
+        TLS_programs=programs
     )
-    env.stop = True # prevents any learning
-    exp = Experiment(env=env)
 
-    start = time.time()
-    info_dict = exp.run(args.num_iterations, int(args.time / args.step))
-    # save info dict
-    # save pickle environment
-    # TODO: save with running parameters
-    # general process information
-    # learned???
-    Q = env.dpq.Q
-    print(f'Sum of Q {sum([v for s in Q for a, v in Q[s].items()])}')
-    x = 'l' if inflows_type == 'lane' else 'w'
+    env.stop = True
+    exp = Experiment(
+        env=env,
+        dir_path=path,
+        train=True,
+        log_info=flags.log_info,
+        log_info_interval=flags.log_info_interval,
+        save_agent=False,
+        save_agent_interval=False
+    )
+
+    # Store parameters.
+    parameters = {}
+    parameters['network_args'] = network_args
+    parameters['sumo_args'] = sumo_args
+    parameters['env_args'] = env_args
+    parameters['ql_args'] = ql_args
+    parameters['programs'] = programs
+
     filename = \
-        f"{env.network.name}.{args.time}.{x}.info.json"
+            f"{env.network.name}.params.json"
 
-    info_path = os.path.join(EMISSION_PATH, filename)
-    with open(info_path, 'w') as fj:
-        json.dump(info_dict, fj)
+    params_path = os.path.join(path, filename)
+    with open(params_path, 'w') as f:
+        json.dump(parameters, f)
 
-    if hasattr(env, 'dump'):
-        env.dump(EMISSION_PATH)
+    # Run experiment.
+    print('Running experiment...')
 
-    print(f'Elapsed time {time.time() - start}')
+    info_dict = exp.run(
+        int(flags.time / flags.step)
+    )
+
+    # Save train log.
+    filename = \
+            f"{env.network.name}.{args.tls_type}.json"
+
+    info_path = os.path.join(path, filename)
+    with open(info_path, 'w') as f:
+        json.dump(info_dict, f)
+
+    return path
+
+if __name__ == '__main__':
+    baseline_config = configparser.ConfigParser()
+    baseline_config.read(os.path.join(CONFIG_PATH, 'baseline.config'))
+    main(baseline_config)

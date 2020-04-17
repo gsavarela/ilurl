@@ -84,8 +84,14 @@ class TrafficLightEnv(AccelEnv, Serializer):
                                               network,
                                               simulator=simulator)
 
+
+        # TODO: Allow for mixed networks with actuated, controlled and static
+        # traffic light configurations
+        self.tl_type = env_params.additional_params.get('tl_type')
+
+        self.discrete = env_params.additional_params.get("discrete", False)
         # Whether TLS timings are static or controlled by agent.
-        self.static = static
+        self.static = (self.tl_type == 'static')
 
         # Cycle time.
         self.cycle_time = env_params.additional_params['cycle_time']
@@ -99,25 +105,21 @@ class TrafficLightEnv(AccelEnv, Serializer):
         # Time-steps simulation horizon.
         self.steps = env_params.horizon
 
-        # TODO: Allow for mixed networks with actuated, controlled and static
-        # traffic light configurations
-        self.tl_type = env_params.additional_params.get('tl_type')
-        if self.tl_type != "actuated":
-            self._reset()
+        # if self.tl_type != "actuated":
+        self._reset()
 
-        self.discrete = env_params.additional_params.get("discrete", False)
 
         # RL agent.
         self.agent = agent
         self.reward_calculator = RewardCalculator(env_params,
-                                                self.agent.ql_params)
+                                                  self.agent.ql_params)
 
         self.actions_log = {}
         self.states_log = {}
 
     @property
     def stop(self):
-        pass        
+        pass
 
     @stop.setter
     def stop(self, stop):
