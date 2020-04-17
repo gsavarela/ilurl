@@ -57,8 +57,6 @@ class RewardCalculator(object):
         elif self.type in ('target_velocity',):
             # get this target velocity from environment
             speeds, counts = self.split(observation_space)
-            if sum(counts) <= 0.0:
-                return 0
 
             # generalize for n agents
             rewards = []
