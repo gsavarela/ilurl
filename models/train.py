@@ -8,20 +8,19 @@
 """
 __author__ = 'Guilherme Varela'
 __date__ = '2020-01-08'
-
-import configargparse
 import json
 from  os import environ
 from pathlib import Path
 
 import numpy as np
 import random
+import configargparse
+import configparser
 
 from flow.core.params import EnvParams, SumoParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
 from ilurl.core.experiment import Experiment
 from ilurl.core.params import QLParams
-# from ilurl.core.ql.dpq import DPQ, MAIQ
 
 import ilurl.core.ql.dpq as ql
 from ilurl.envs.base import TrafficLightEnv
