@@ -15,16 +15,18 @@ from pathlib import Path
 import numpy as np
 import random
 import configargparse
+from configargparse import ArgumentTypeError
 import configparser
 
 from flow.core.params import EnvParams, SumoParams
 from flow.envs.ring.accel import ADDITIONAL_ENV_PARAMS
+
 from ilurl.core.experiment import Experiment
 from ilurl.core.params import QLParams
-
 import ilurl.core.ql.dpq as ql
 from ilurl.envs.base import TrafficLightEnv
 from ilurl.networks.base import Network
+
 # TODO: move this inside networks
 from ilurl.loaders.nets import get_tls_custom
 
@@ -111,7 +113,7 @@ def get_arguments(config_file):
     return flags.parse_args()
 
 
-def str2bool(v):
+def str2bool(v, exception=None):
     if isinstance(v, bool):
         return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -119,8 +121,7 @@ def str2bool(v):
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
-        raise configargparse.ArgumentTypeError('Boolean value expected.')
-
+        raise ArgumentTypeError('boolean value expected')
 def print_arguments(args):
 
     print('Arguments (train.py):')
@@ -249,7 +250,7 @@ def main(train_config=None):
 
     exp = Experiment(
             env=env,
-            dir_path=str(experiment_path),
+            dir_path=experiment_path.as_posix(),
             train=True,
             log_info=flags.log_info,
             log_info_interval=flags.log_info_interval,

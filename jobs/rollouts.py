@@ -1,7 +1,7 @@
 from pathlib import Path
 from datetime import datetime
 import sys
-import os
+from os import environ
 import json
 import tempfile
 import argparse
@@ -14,7 +14,7 @@ import configparser
 from ilurl.utils.decorators import processable
 from models.rollouts import roll
 
-ILURL_HOME = os.environ['ILURL_HOME']
+ILURL_HOME = environ['ILURL_HOME']
 
 CONFIG_PATH = Path(f'{ILURL_HOME}/config/')
 
@@ -78,15 +78,23 @@ def concat(evaluations):
     return result
 
 
-def rollout_batch():
+def rollout_batch(test=False):
     # Read script arguments from run.config file.
     args = get_arguments()
     # clear command line arguments after parsing
     batch_path = Path(args.batch_dir)
-    # get all tables
-    pattern = '**/*Q*.pickle'
-    rollout_paths = [rp for rp in batch_path.glob(pattern)]
+    pattern = '*Q*.pickle'
+    # for test this should get only the last pickle
+    rollout_paths = [rp for rp in batch_path.rglob(pattern)]
 
+    if test:
+        # filter x path using latest create time
+        def fn(x):
+            return x.stat().st_ctime
+        # selects only the latest rollouts
+        parent_paths = [rp for rp in batch_path.iterdir() if rp.is_dir()]
+        rollout_paths = [max([rp for rp in pp.glob(pattern)], key=fn)
+                         for pp in parent_paths]
     run_config = configparser.ConfigParser()
     run_config.read(str(CONFIG_PATH / 'run.config'))
 
@@ -112,18 +120,42 @@ def rollout_batch():
     rollouts_config.read(str(CONFIG_PATH / 'rollouts.config'))
     num_rollouts = int(rollouts_config.get('rollouts_args', 'num-rollouts'))
 
+    if test:
+        # merges test and rollouts
+        test_config = configparser.ConfigParser()
+        test_config.read(str(CONFIG_PATH / 'test.config'))
+        num_rollouts = 1
 
-    # number of processes vs layouts
-    # seeds must be different from training
-    custom_configs = []
-    for rn, rp in enumerate(rollout_paths):
-        base_seed = max(train_seeds) + num_rollouts * rn
-        for rr in range(num_rollouts):
-            seed = base_seed + rr + 1
-            custom_configs.append((str(rp), seed))
+        cycles = test_config.get('test_args', 'cycles')
+        emission = test_config.get('test_args', 'emission')
+        switch = test_config.get('test_args', 'switch')
+        seed_delta = int(test_config.get('test_args', 'seed_delta'))
+
+        # overwrite defaults
+        rollouts_config.set('rollouts_args', 'cycles', cycles)
+        rollouts_config.set('rollouts_args', 'emission', emission)
+        rollouts_config.set('rollouts_args', 'switch', switch)
+        rollouts_config.set('rollouts_args', 'num-rollouts', repr(num_rollouts))
+
+        # alocates the S seeds among M rollouts
+        custom_configs = []
+        base_seed = max(train_seeds)
+        for rn, rp in enumerate(rollout_paths):
+            custom_configs.append((str(rp), base_seed + rn + seed_delta))
+        token = 'test'
+    else:
+        # number of processes vs layouts
+        # seeds must be different from training
+        custom_configs = []
+        for rn, rp in enumerate(rollout_paths):
+            base_seed = max(train_seeds) + num_rollouts * rn
+            for rr in range(num_rollouts):
+                seed = base_seed + rr + 1
+                custom_configs.append((str(rp), seed))
+        token = 'rollouts'
 
     print(f'''
-    \tArguments (jobs.rollouts.py):
+    \tArguments (jobs.{token}.py):
     \t----------------------------
     \tNumber of runs: {num_runs}
     \tNumber of processors: {num_processors}
@@ -153,7 +185,6 @@ def rollout_batch():
             with cfg_path.open('w') as fw:
                 rollouts_config.write(fw)
 
-            
         # rvs: directories' names holding experiment data
         if num_processors > 1:
             pool = mp.Pool(num_processors)
@@ -166,7 +197,9 @@ def rollout_batch():
 
     res = concat(rvs)
     res['num_rollouts'] = num_rollouts
-    target_path = batch_path / f'{batch_path.parts[-1]}.l.eval.info.json'
+    filepart = 'test' if test else 'eval'
+    filename = f'{batch_path.parts[-1]}.l.{filepart}.info.json'
+    target_path = batch_path / filename
     with target_path.open('w') as fj:
         json.dump(res, fj)
 
@@ -174,8 +207,8 @@ def rollout_batch():
     return str(target_path)
 
 @processable
-def rollout_job():
-    return rollout_batch()
+def rollout_job(test=False):
+    return rollout_batch(test=test)
 
 if __name__ == '__main__':
     rollout_job()
