@@ -202,7 +202,11 @@ class Experiment:
                 observation_spaces.append(
                     list(self.env.get_observation_space()))
 
-                rewards.append([round(r, 4) for r in reward])
+                try:
+                    rewards.append([round(r, 4) for r in reward])
+                except Exception:
+                    import pdb
+                    pdb.set_trace()
 
                 vehs.append(np.nanmean(veh_i).round(4))
                 vels.append(np.nanmean(vel_i).round(4))

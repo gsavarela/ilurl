@@ -203,8 +203,8 @@ def rollout_batch(test=False):
     with target_path.open('w') as fj:
         json.dump(res, fj)
 
-    sys.stdout.write(str(target_path))
-    return str(target_path)
+    sys.stdout.write(str(batch_path))
+    return str(batch_path)
 
 @processable
 def rollout_job(test=False):
