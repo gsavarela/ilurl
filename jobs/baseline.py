@@ -21,6 +21,7 @@ import configparser
 
 from models.train import main as baseline
 from ilurl.utils.decorators import processable, benchmarked
+from ilurl.utils import str2bool
 
 ILURL_PATH = Path(environ['ILURL_HOME'])
 
@@ -105,9 +106,24 @@ def baseline_batch():
     baseline_config.read(str(baseline_path))
     
     # Setup sumo-tls-type
-    baseline_config.set("train_args", "sumo-tls-type", flags.tls_type)
-    with tempfile.TemporaryDirectory() as tmp_dir:
+    baseline_config.set('train_args', 'sumo-tls-type', flags.tls_type)
+    baseline_config.set('train_args', 'experiment-save-agent', str(False))
 
+    # Override train configurations with test's
+    test_config = configparser.ConfigParser()
+    test_path = CONFIG_PATH / 'test.config'
+    test_config.read(test_path.as_posix())
+
+    # is there another way
+    horizon = int(test_config.get('test_args', 'cycles')) * 90
+    emission = str2bool(test_config.get('test_args', 'emission'))
+    switch = str2bool(test_config.get('test_args', 'switch'))
+    seed_delta = int(test_config.get('test_args', 'seed_delta'))
+
+    baseline_config.set('train_args', 'experiment-time', str(horizon))
+    baseline_config.set('train_args', 'inflows-switch', str(switch))
+    baseline_config.set('train_args', 'sumo-emission', str(emission))
+    with tempfile.TemporaryDirectory() as tmp_dir:
         # Create a config file for each train.py
         # with the respective seed. These config
         # files are stored in a temporary directory.
@@ -119,7 +135,7 @@ def baseline_batch():
             baseline_configs.append(cfg_path)
 
             # Setup train seed.
-            baseline_config.set("train_args", "experiment-seed", str(seed))
+            baseline_config.set("train_args", "experiment-seed", str(seed + seed_delta))
             
             # Write temporary train config file.
             with cfg_path.open('w') as ft:
