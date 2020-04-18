@@ -108,6 +108,7 @@ def train_batch():
             rvs = []
             for cfg in train_configs:
                 rvs.append(delay_train([cfg]))
+
         # Create a directory and move newly created files
         paths = [Path(f) for f in rvs]
         commons = [p.parent for p in paths]
@@ -123,6 +124,7 @@ def train_batch():
         for src in paths:
             dst = batchpath / src.parts[-1]
             src.replace(dst)
+
     sys.stdout.write(str(batchpath))
     return str(batchpath)
 
@@ -131,7 +133,6 @@ def train_job():
     return train_batch()
 
 if __name__ == '__main__':
-    # enable this in order to have a nice textual ouput
-    # train_batch()
+    # train_batch() # enable this in order to have a nice textual ouput
     train_job()
 

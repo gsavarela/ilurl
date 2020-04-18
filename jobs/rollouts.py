@@ -78,11 +78,16 @@ def concat(evaluations):
     return result
 
 
-def rollout_batch(test=False):
-    # Read script arguments from run.config file.
-    args = get_arguments()
-    # clear command line arguments after parsing
-    batch_path = Path(args.batch_dir)
+def rollout_batch(test=False, batch_dir=None):
+
+    if not batch_dir:
+        # Read script arguments.
+        args = get_arguments()
+        # clear command line arguments after parsing
+        batch_path = Path(args.batch_dir)
+    else:
+        batch_path = Path(batch_dir)
+
     pattern = '*Q*.pickle'
     # for test this should get only the last pickle
     rollout_paths = [rp for rp in batch_path.rglob(pattern)]

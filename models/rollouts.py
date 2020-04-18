@@ -93,7 +93,7 @@ def str2bool(v):
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
-        raise configparser.ArgumentTypeError('Boolean value expected.')
+        raise configargparse.ArgumentTypeError('Boolean value expected.')
 
 
 def evaluate(env_params, sim_params, programs,

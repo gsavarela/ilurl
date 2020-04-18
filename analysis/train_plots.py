@@ -60,21 +60,23 @@ def get_arguments():
     return parser.parse_args()
 
 
-def main():
+def main(experiment_root_folder=None):
 
     print('RUNNING analysis/train_plots.py')
 
-    args = get_arguments()
+    if not experiment_root_folder:
+        args = get_arguments()
+        experiment_root_folder = args.experiment_root_folder
 
     print('Input files:')
     # Get all *.train.json files from experiment root folder.
     train_files = []
-    for path in Path(args.experiment_root_folder).rglob('*.train.json'):
+    for path in Path(experiment_root_folder).rglob('*.train.json'):
         train_files.append(str(path))
         print('\t{0}'.format(str(path)))
 
     # Prepare output folder.
-    output_folder_path = os.path.join(args.experiment_root_folder, 'plots')
+    output_folder_path = os.path.join(experiment_root_folder, 'plots')
     print('Output folder: {0}'.format(output_folder_path))
     if not os.path.exists(output_folder_path):
         os.makedirs(output_folder_path)
@@ -188,6 +190,8 @@ def main():
     plt.legend(loc=4)
 
     file_name = '{0}/train_velocities.pdf'.format(output_folder_path)
+    plt.savefig(file_name)
+    file_name = '{0}/train_velocities.png'.format(output_folder_path)
     plt.savefig(file_name)
     
     plt.close()
