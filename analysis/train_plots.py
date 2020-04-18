@@ -131,6 +131,8 @@ def main(experiment_root_folder=None):
 
     file_name = '{0}/train_rewards.pdf'.format(output_folder_path)
     plt.savefig(file_name)
+    file_name = '{0}/train_rewards.png'.format(output_folder_path)
+    plt.savefig(file_name)
     
     plt.close()
 
@@ -160,6 +162,8 @@ def main(experiment_root_folder=None):
     plt.legend(loc=4)
 
     file_name = '{0}/train_vehicles.pdf'.format(output_folder_path)
+    plt.savefig(file_name)
+    file_name = '{0}/train_vehicles.png'.format(output_folder_path)
     plt.savefig(file_name)
     
     plt.close()
