@@ -22,12 +22,11 @@ CONFIG_PATH = Path(f'{ILURL_HOME}/config/')
 def get_arguments():
     parser = argparse.ArgumentParser(
         description="""
-            This scripts runs recursevely every experiment on path. It must receve a batch path.
+            This scripts runs recursively every experiment on path. It must receive a batch path.
         """
     )
     parser.add_argument('batch_dir', type=str, nargs='?',
                         help='''A directory which it\'s subdirectories are experiments''')
-
 
     parsed = parser.parse_args()
     sys.argv = [sys.argv[0]]
@@ -83,7 +82,7 @@ def rollout_batch(test=False, batch_dir=None):
     if not batch_dir:
         # Read script arguments.
         args = get_arguments()
-        # clear command line arguments after parsing
+        # Clear command line arguments after parsing.
         batch_path = Path(args.batch_dir)
     else:
         batch_path = Path(batch_dir)
@@ -93,13 +92,30 @@ def rollout_batch(test=False, batch_dir=None):
     rollout_paths = [rp for rp in batch_path.rglob(pattern)]
 
     if test:
-        # filter x path using latest create time
+        
         def fn(x):
-            return x.stat().st_ctime
-        # selects only the latest rollouts
-        parent_paths = [rp for rp in batch_path.iterdir() if rp.is_dir()]
-        rollout_paths = [max([rp for rp in pp.glob(pattern)], key=fn)
-                         for pp in parent_paths]
+            # filter x path using latest create time
+            #return x.stat().st_ctime
+            
+            # filter using Q-table number.
+            q_number = int(x.suffixes[-2].split('-')[1])
+            return q_number
+
+        # Get number of last Q-table.
+        max_Q = max(rollout_paths, key=fn)
+        max_Q = max_Q.suffixes[-2]
+
+        # Select only the latest Q-tables.
+        rollout_paths = []
+        max_q_pattern = '*.Q{0}.pickle'.format(max_Q)
+        for path in Path(batch_path).rglob(max_q_pattern):
+            rollout_paths.append(str(path))
+
+        print('jobs/rollouts.py (test mode): using Q-tables'
+                ' number {0}'.format(max_Q.split('-')[1]))
+
+    #print(rollout_paths)
+
     run_config = configparser.ConfigParser()
     run_config.read(str(CONFIG_PATH / 'run.config'))
 
@@ -217,3 +233,4 @@ def rollout_job(test=False):
 
 if __name__ == '__main__':
     rollout_job()
+    # rollout_batch() # use this line for textual output.
