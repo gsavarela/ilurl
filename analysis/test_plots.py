@@ -46,7 +46,7 @@ def str2bool(v):
 
 def print_arguments(args):
 
-    print('Arguments:')
+    print('Arguments (analysis/test_plots.py):')
     print('\tExperiment root folder: {0}\n'.format(args.experiment_root_folder))
 
 
@@ -170,15 +170,17 @@ def get_throughput(df_emission):
 
 def main(experiment_root_folder=None):
 
+    print('\nRUNNING analysis/test_plots.py\n')
+
     if not experiment_root_folder:
         args = get_arguments()
         print_arguments(args)
         experiment_root_folder = args.experiment_root_folder
 
     # Prepare output folder.
-    output_folder_path = '{0}/plots/'.format(experiment_root_folder)
-    if not os.path.exists(output_folder_path):
-        os.makedirs(output_folder_path)
+    output_folder_path = os.path.join(experiment_root_folder, 'plots/test')
+    print('Output folder: {0}'.format(output_folder_path))
+    os.makedirs(output_folder_path, exist_ok=True)
 
     # Get cycle length from parameters (*.params.json) file.
     params = None
@@ -199,8 +201,8 @@ def main(experiment_root_folder=None):
     throughputs = []
 
     for csv_file in csv_files:
-        
-        print('CSV file: {0}'.format(csv_file))
+
+        print('Processing CSV file: {0}'.format(csv_file))
         
         # Load CSV data.
         df_csv = get_emissions(csv_file)

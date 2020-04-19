@@ -62,24 +62,23 @@ def get_arguments():
 
 def main(experiment_root_folder=None):
 
-    print('RUNNING analysis/train_plots.py')
+    print('\nRUNNING analysis/train_plots.py\n')
 
     if not experiment_root_folder:
         args = get_arguments()
         experiment_root_folder = args.experiment_root_folder
 
-    print('Input files:')
+    print('\tInput files:')
     # Get all *.train.json files from experiment root folder.
     train_files = []
     for path in Path(experiment_root_folder).rglob('*.train.json'):
         train_files.append(str(path))
-        print('\t{0}'.format(str(path)))
+        print('\t\t{0}'.format(str(path)))
 
     # Prepare output folder.
-    output_folder_path = os.path.join(experiment_root_folder, 'plots')
-    print('Output folder: {0}'.format(output_folder_path))
-    if not os.path.exists(output_folder_path):
-        os.makedirs(output_folder_path)
+    output_folder_path = os.path.join(experiment_root_folder, 'plots/train')
+    print('\tOutput folder: {0}'.format(output_folder_path))
+    os.makedirs(output_folder_path, exist_ok=True)
 
     rewards = []
     vehicles = []

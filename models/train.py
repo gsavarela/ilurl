@@ -122,9 +122,10 @@ def str2bool(v, exception=None):
         return False
     else:
         raise ArgumentTypeError('boolean value expected')
+
 def print_arguments(args):
 
-    print('Arguments (train.py):')
+    print('\nArguments (models/train.py):')
     print('\tExperiment network: {0}'.format(args.network))
     print('\tExperiment time: {0}'.format(args.time))
     print('\tExperiment seed: {0}'.format(args.seed))
@@ -162,7 +163,7 @@ def main(train_config=None):
     experiment_path = EMISSION_PATH / network.name
     if not experiment_path.exists():
         experiment_path.mkdir()
-    print(f'Experiment: {str(experiment_path)}\n')
+    print(f'Experiment: {str(experiment_path)}')
 
 
     sumo_args = {
@@ -273,16 +274,13 @@ def main(train_config=None):
     with params_path.open('w') as f:
         json.dump(parameters, f)
 
-    # Run experiment.
-    print('Running experiment...')
-
     info_dict = exp.run(
         int(flags.time / flags.step)
     )
 
     # Save train log.
     filename = \
-            f"{env.network.name}.{flags.tls_type}.json"
+            f"{env.network.name}.train.json"
 
     result_path = experiment_path / filename
     with result_path.open('w') as f:

@@ -79,6 +79,8 @@ def concat(evaluations):
 
 def rollout_batch(test=False, batch_dir=None):
 
+    print('\nRUNNING jobs/rollouts.py\n')
+
     if not batch_dir:
         # Read script arguments.
         args = get_arguments()
@@ -110,8 +112,6 @@ def rollout_batch(test=False, batch_dir=None):
 
         print('jobs/rollouts.py (test mode): using Q-tables'
                 ' number {0}'.format(max_Q.split('-')[1]))
-
-    #print(rollout_paths)
 
     run_config = configparser.ConfigParser()
     run_config.read(str(CONFIG_PATH / 'run.config'))

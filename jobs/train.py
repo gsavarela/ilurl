@@ -46,6 +46,9 @@ def delay_train(*args, **kwargs):
 
 
 def train_batch():
+
+    print('\nRUNNING jobs/train.py\n')
+
     # Read script arguments from run.config file.
     run_config = configparser.ConfigParser()
     run_config.read(os.path.join(CONFIG_PATH, 'run.config'))

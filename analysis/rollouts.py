@@ -33,9 +33,7 @@ plt.style.use('ggplot')
 FIGURE_X = 15.0
 FIGURE_Y = 7.0
 
-STD_CURVE_COLOR = (0.88,0.70,0.678)
 MEAN_CURVE_COLOR = (0.184,0.545,0.745)
-SMOOTHING_CURVE_COLOR = (0.33,0.33,0.33)
 
 
 def get_arguments():
@@ -58,6 +56,8 @@ def get_arguments():
 
 def main(batch_path=None):
 
+    print('\nRUNNING analysis/rollouts.py\n')
+
     if not batch_path:
         args = get_arguments()
         batch_path = Path(args.batch_path)
@@ -76,10 +76,9 @@ def main(batch_path=None):
         file_path = list(batch_path.glob(pattern))[0]
 
     # Prepare output folder.
-    output_folder_path = os.path.join(batch_path, 'plots')
-    print('Output folder: {0}'.format(output_folder_path))
-    if not os.path.exists(output_folder_path):
-        os.makedirs(output_folder_path)
+    output_folder_path = os.path.join(batch_path, 'plots/rollouts')
+    print('\tOutput folder: {0}'.format(output_folder_path))
+    os.makedirs(output_folder_path, exist_ok=True)
 
     filename = file_path.name.replace(suffix, '')
     rewards = []
