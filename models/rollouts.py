@@ -170,7 +170,7 @@ def roll(config_file_path=None):
     rollout_path = Path(args.rollout_path)
 
     # rollout_number = args.rollout_number
-    x = 'w' if args.switch else 'l'
+    # x = 'w' if args.switch else 'l'
     cycles = args.cycles
     with rollout_path.open('rb') as f:
         qtb = dill.load(f)
@@ -190,7 +190,9 @@ def roll(config_file_path=None):
     # TODO: test ground truth
     params['sumo_args']['render'] = False
     if args.emission:
-        params['sumo_args']['emission_path'] = batch_dir
+        rollout_path = Path(rollout_path)
+        rollout_path = rollout_path.parents[0]
+        params['sumo_args']['emission_path'] = rollout_path
     else:
         if 'emission_path' in params['sumo_args']:
             del params['sumo_args']['emission_path']

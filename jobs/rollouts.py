@@ -94,10 +94,7 @@ def rollout_batch(test=False, batch_dir=None):
     if test:
         
         def fn(x):
-            # filter x path using latest create time
-            #return x.stat().st_ctime
-            
-            # filter using Q-table number.
+            # Filter using Q-table number.
             q_number = int(x.suffixes[-2].split('-')[1])
             return q_number
 
