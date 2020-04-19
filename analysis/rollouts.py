@@ -35,6 +35,7 @@ FIGURE_Y = 7.0
 
 MEAN_CURVE_COLOR = (0.184,0.545,0.745)
 
+ROLLOUT_WARM_UP_PERIOD = 20
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -112,9 +113,11 @@ def main(batch_path=None):
             # Select subset.
             rewards = rewards[:, roll_idxs]
 
-            rewards = np.flip(rewards, axis=0)
+            # Remove samples from warm-up period.
+            rewards = rewards[ROLLOUT_WARM_UP_PERIOD:,:]
 
             # Discount obtained rewards.
+            rewards = np.flip(rewards, axis=0)
             gain = lfilter([1], discount, x=rewards, axis=0)
 
             # Concatenate.
