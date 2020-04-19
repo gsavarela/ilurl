@@ -97,30 +97,40 @@ def main(batch_path=None):
         max_rollouts = num_rollouts
 
     returns = defaultdict(list)
-    # consolidate experiments' rewards
+
+    # Iterate for each experiment.
     for idx, ex_id in enumerate(ex_ids):
         roll_idxs = choice(num_rollouts, size=max_rollouts, replace=False)
 
-        # iterate for each experiment extracting the paths
-        # while also discounting than
+        # Iterate for each Q table.
         for rid, rewards in db['rewards'][idx].items():
-            # _rewards (cycles, num_rollouts)
-            # select paths
+
             rewards = np.concatenate(rewards, axis=1)
+
+            # rewards shape: (cycles, num_rollouts)
+
+            # Select subset.
             rewards = rewards[:, roll_idxs]
+
+            rewards = np.flip(rewards, axis=0)
+
+            # Discount obtained rewards.
             gain = lfilter([1], discount, x=rewards, axis=0)
-            returns[int(rid)] += [gain[:, 0]]
+
+            # Concatenate.
+            returns[int(rid)].append(gain[-1, :])
 
     returns = OrderedDict({
         k: returns[k] for k in sorted(returns.keys())
     })
+
     y = {}
     y_error = {}
     legends = []
     # This loop agreggates for each cycle # == rid
     # The resulting paths
     for rid, ret in returns.items():
-        ret = sorted(np.concatenate(ret))
+        ret = np.concatenate(ret)
         y[rid] = np.mean(ret)
         y_error[rid] = ss.t.ppf(0.95, df=len(ret)-1) * (np.std(ret) / np.sqrt(len(ret)))
         legends.append(f'Q[{rid}]')
