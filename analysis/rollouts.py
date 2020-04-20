@@ -33,6 +33,8 @@ plt.style.use('ggplot')
 FIGURE_X = 15.0
 FIGURE_Y = 7.0
 
+RED_COLOR = (0.886, 0.29, 0.20)
+
 MEAN_CURVE_COLOR = (0.184,0.545,0.745)
 
 GRAY_COLOR = (0.37,0.37,0.37)
@@ -58,6 +60,27 @@ def get_arguments():
                                 rollout. If -1 use as many as possible.''')
 
     return parser.parse_args()
+
+def calculate_CI_bootstrap(x_hat, samples, num_resamples=20000):
+    """
+        Calculates 95 % interval using bootstrap.
+
+        REF: https://ocw.mit.edu/courses/mathematics/
+            18-05-introduction-to-probability-and-statistics-spring-2014/
+            readings/MIT18_05S14_Reading24.pdf
+
+    """
+    resampled = np.random.choice(samples,
+                                size=(len(samples), num_resamples),
+                                replace=True)
+
+    means = np.mean(resampled, axis=0)
+
+    diffs = means - x_hat
+
+    bounds = (x_hat - np.percentile(diffs, 5), x_hat - np.percentile(diffs, 95))
+
+    return bounds
 
 def main(batch_path=None):
 
@@ -131,16 +154,27 @@ def main(batch_path=None):
         k: returns[k] for k in sorted(returns.keys())
     })
 
-    y = {}
-    y_error = {}
-    legends = []
-    # This loop agreggates for each cycle # == rid
-    # The resulting paths
+    y = []
+    CI_tstudent = []
+    CI_bootstrap = []
+
+    # This loop agreggates for each Q-table.
     for rid, ret in returns.items():
         ret = np.concatenate(ret)
-        y[rid] = np.mean(ret)
-        y_error[rid] = ss.t.ppf(0.95, df=len(ret)-1) * (np.std(ret) / np.sqrt(len(ret)))
-        legends.append(f'Q[{rid}]')
+        mean_ret = np.mean(ret)
+
+        y.append(mean_ret)
+
+        # Calculate 95% confidence interval (bootstrap).
+        CI_bootstrap.append(calculate_CI_bootstrap(mean_ret, ret))
+
+        # Calculate 95% confidence interval (t-student)
+        CI_tstudent.append(ss.t.ppf(0.95, df=len(ret)-1) * (np.std(ret) / np.sqrt(len(ret))))
+
+    # Extra processing for matplotlib.
+    CI_bootstrap = np.array(CI_bootstrap).T
+    CI_bootstrap = np.flip(CI_bootstrap, axis=0)
+    error_bars_lengths = np.abs(np.subtract(CI_bootstrap,y))
 
     """
         Error bar plot.
@@ -148,13 +182,10 @@ def main(batch_path=None):
     fig = plt.figure()
     fig.set_size_inches(FIGURE_X, FIGURE_Y)
             
-    plt.plot(list(y.keys()),list(y.values()), label='Mean', c=MEAN_CURVE_COLOR)
+    plt.plot(list(returns.keys()), y, label='Mean', c=MEAN_CURVE_COLOR)
 
-    plt.errorbar(list(y.keys()), list(y.values()), yerr=list(y_error.values()),
+    plt.errorbar(list(returns.keys()), y, yerr=error_bars_lengths,
                     c=MEAN_CURVE_COLOR, label='95% confidence interval', capsize=3)
-
-    # for rid, yy in y.items():
-    #     plt.errorbar([str(rid)], yy, yerr=y_error[rid], fmt='-o')
 
     title = \
         f'Rollout num cycles: {num_cycles}, R: {max_rollouts}, T: {num_trials}'
@@ -162,11 +193,9 @@ def main(batch_path=None):
         f'{filename}\n({title})'
     plt.title(title)
 
-    #plt.xlabel(f'Q-tables[train_cycles]')
     plt.xlabel(f'Train cycle')
-    plt.ylabel('Average discounted return')
+    plt.ylabel('Discounted return')
     plt.xticks()
-    #plt.set_xticklabels(legends)
 
     plt.legend(loc=4)
 
@@ -180,16 +209,17 @@ def main(batch_path=None):
     fig.set_size_inches(FIGURE_X, FIGURE_Y)
 
     data = []
-    means = []
     for _, ret in returns.items():
         data.append(np.concatenate(ret))
-        means.append(np.mean(np.concatenate(ret)))
 
-    plt.errorbar(list(y.keys()), list(y.values()), yerr=list(y_error.values()),
-                    label='95% confidence interval', capsize=3)
-
-    violin_parts = plt.violinplot(data, positions=list(y.keys()),
+    violin_parts = plt.violinplot(data, positions=list(returns.keys()),
                                     showextrema=True, widths=150)
+
+    plt.plot(list(returns.keys()), y, label='Mean', c=RED_COLOR)
+
+    plt.errorbar(list(returns.keys()), y, yerr=error_bars_lengths,
+                    label='95% confidence interval', capsize=3,
+                    color=RED_COLOR)
     
     # Make all the violin statistics marks red:
     for partname in ('cbars','cmins','cmaxes'):
@@ -207,13 +237,13 @@ def main(batch_path=None):
     plt.title(title)
 
     plt.xlabel(f'Train cycle')
-    plt.ylabel('Average discounted return')
+    plt.ylabel('Discounted return')
     plt.xticks()
 
     plt.legend(loc=4)
     
     plt.savefig(f'{output_folder_path}/rollouts_violin_plot.png')
-    plt.savefig(f'{output_folder_path}/rollouts_violin_plot.pdf') 
+    plt.savefig(f'{output_folder_path}/rollouts_violin_plot.pdf')
 
 if __name__ == '__main__':
     main()
