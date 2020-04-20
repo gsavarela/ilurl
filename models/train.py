@@ -180,7 +180,7 @@ def main(train_config=None):
         sumo_args['seed'] = flags.seed
 
     if flags.emission:
-        sumo_args['emission_path'] = experiment_path
+        sumo_args['emission_path'] = experiment_path.as_posix()
     sim_params = SumoParams(**sumo_args)
 
     # Load cycle time and TLS programs.
