@@ -35,6 +35,10 @@ FIGURE_Y = 7.0
 
 MEAN_CURVE_COLOR = (0.184,0.545,0.745)
 
+GRAY_COLOR = (0.37,0.37,0.37)
+GRAY_COLOR_2 = (0.43,0.43,0.43)
+
+
 ROLLOUT_WARM_UP_PERIOD = 20
 
 def get_arguments():
@@ -138,6 +142,9 @@ def main(batch_path=None):
         y_error[rid] = ss.t.ppf(0.95, df=len(ret)-1) * (np.std(ret) / np.sqrt(len(ret)))
         legends.append(f'Q[{rid}]')
 
+    """
+        Error bar plot.
+    """
     fig = plt.figure()
     fig.set_size_inches(FIGURE_X, FIGURE_Y)
             
@@ -165,6 +172,48 @@ def main(batch_path=None):
 
     plt.savefig(f'{output_folder_path}/rollouts.png')
     plt.savefig(f'{output_folder_path}/rollouts.pdf')
+
+    """
+        Violin plot.
+    """
+    fig = plt.figure()
+    fig.set_size_inches(FIGURE_X, FIGURE_Y)
+
+    data = []
+    means = []
+    for _, ret in returns.items():
+        data.append(np.concatenate(ret))
+        means.append(np.mean(np.concatenate(ret)))
+
+    plt.errorbar(list(y.keys()), list(y.values()), yerr=list(y_error.values()),
+                    label='95% confidence interval', capsize=3)
+
+    violin_parts = plt.violinplot(data, positions=list(y.keys()),
+                                    showextrema=True, widths=150)
+    
+    # Make all the violin statistics marks red:
+    for partname in ('cbars','cmins','cmaxes'):
+        vp = violin_parts[partname]
+        vp.set_edgecolor(GRAY_COLOR_2)
+
+    for pc in violin_parts['bodies']:
+        pc.set_facecolor(GRAY_COLOR)
+        pc.set_edgecolor(GRAY_COLOR)
+
+    title = \
+        f'Rollout num cycles: {num_cycles}, R: {max_rollouts}, T: {num_trials}'
+    title = \
+        f'{filename}\n({title})'
+    plt.title(title)
+
+    plt.xlabel(f'Train cycle')
+    plt.ylabel('Average discounted return')
+    plt.xticks()
+
+    plt.legend(loc=4)
+    
+    plt.savefig(f'{output_folder_path}/rollouts_violin_plot.png')
+    plt.savefig(f'{output_folder_path}/rollouts_violin_plot.pdf') 
 
 if __name__ == '__main__':
     main()
