@@ -79,6 +79,9 @@ def train_batch():
     train_config = configparser.ConfigParser()
     train_config.read(os.path.join(CONFIG_PATH, 'train.config'))
 
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S.%f')
+    print(f'Experiment timestamp: {timestamp}')
+
     with tempfile.TemporaryDirectory() as tmp_dir:
 
         # Create a config file for each train.py
@@ -118,7 +121,6 @@ def train_batch():
         if len(set(commons)) > 1:
             raise ValueError(f'Directories {set(commons)} must have the same root')
         dirpath = commons[0]
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S.%f')
         batchpath = dirpath / timestamp
         if not batchpath.exists():
             batchpath.mkdir()
