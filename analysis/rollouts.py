@@ -30,8 +30,8 @@ import seaborn as sns
 plt.style.use('ggplot')
 
 
-FIGURE_X = 15.0
-FIGURE_Y = 7.0
+FIGURE_X = 6.0
+FIGURE_Y = 4.0
 
 RED_COLOR = (0.886, 0.29, 0.20)
 
@@ -199,8 +199,8 @@ def main(batch_path=None):
 
     plt.legend(loc=4)
 
-    plt.savefig(f'{output_folder_path}/rollouts.png')
-    plt.savefig(f'{output_folder_path}/rollouts.pdf')
+    plt.savefig(f'{output_folder_path}/rollouts.png', bbox_inches='tight', pad_inches=0)
+    plt.savefig(f'{output_folder_path}/rollouts.pdf', bbox_inches='tight', pad_inches=0)
 
     """
         Violin plot.
@@ -242,8 +242,8 @@ def main(batch_path=None):
 
     plt.legend(loc=4)
     
-    plt.savefig(f'{output_folder_path}/rollouts_violin_plot.png')
-    plt.savefig(f'{output_folder_path}/rollouts_violin_plot.pdf')
+    plt.savefig(f'{output_folder_path}/rollouts_violin_plot.png', bbox_inches='tight', pad_inches=0)
+    plt.savefig(f'{output_folder_path}/rollouts_violin_plot.pdf', bbox_inches='tight', pad_inches=0)
 
 if __name__ == '__main__':
     main()

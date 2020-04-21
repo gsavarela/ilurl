@@ -20,8 +20,8 @@ EMISSION_PATH = \
 
 EXCLUDE_EMISSION = ['CO', 'CO2', 'HC', 'NOx', 'PMx', 'angle', 'eclass', 'electricity', 'fuel', 'noise']
 
-FIGURE_X = 15.0
-FIGURE_Y = 7.0
+FIGURE_X = 6.0
+FIGURE_Y = 4.0
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -240,8 +240,8 @@ def main(experiment_root_folder=None):
     plt.xlabel('Waiting time (s)')
     plt.ylabel('Density')
     plt.title('Waiting time')
-    plt.savefig('{0}/test_waiting_time_hist.pdf'.format(output_folder_path))
-    plt.savefig('{0}/test_waiting_time_hist.png'.format(output_folder_path))
+    plt.savefig('{0}/test_waiting_time_hist.pdf'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
+    plt.savefig('{0}/test_waiting_time_hist.png'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
     plt.close()
 
     # Describe travel time.
@@ -261,8 +261,8 @@ def main(experiment_root_folder=None):
     plt.xlabel('Travel time (s)')
     plt.ylabel('Density')
     plt.title('Travel time')
-    plt.savefig('{0}/test_travel_time_hist.pdf'.format(output_folder_path))
-    plt.savefig('{0}/test_travel_time_hist.png'.format(output_folder_path))
+    plt.savefig('{0}/test_travel_time_hist.pdf'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
+    plt.savefig('{0}/test_travel_time_hist.png'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
     plt.close()
 
     # Describe vehicles' speed.
@@ -282,8 +282,8 @@ def main(experiment_root_folder=None):
     plt.xlabel('Average Speed (m/s)')
     plt.ylabel('Density')
     plt.title('Vehicles\' speed')
-    plt.savefig('{0}/test_speeds_hist.pdf'.format(output_folder_path))
-    plt.savefig('{0}/test_speeds_hist.png'.format(output_folder_path))
+    plt.savefig('{0}/test_speeds_hist.pdf'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
+    plt.savefig('{0}/test_speeds_hist.png'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
     plt.close()
 
     # Aggregate results per cycle.
@@ -300,8 +300,8 @@ def main(experiment_root_folder=None):
     plt.xlabel('Cycle')
     plt.ylabel('Average waiting time (s)')
     plt.title('Waiting time')
-    plt.savefig('{0}/test_waiting_time.pdf'.format(output_folder_path))
-    plt.savefig('{0}/test_waiting_time.png'.format(output_folder_path))
+    plt.savefig('{0}/test_waiting_time.pdf'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
+    plt.savefig('{0}/test_waiting_time.png'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
     plt.close()
 
     fig = plt.figure()
@@ -314,8 +314,8 @@ def main(experiment_root_folder=None):
     plt.xlabel('Cycle')
     plt.ylabel('Average travel time (s)')
     plt.title('Travel time')
-    plt.savefig('{0}/test_travel_time.pdf'.format(output_folder_path))
-    plt.savefig('{0}/test_travel_time.png'.format(output_folder_path))
+    plt.savefig('{0}/test_travel_time.pdf'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
+    plt.savefig('{0}/test_travel_time.png'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
     plt.close()
 
     """
@@ -338,8 +338,8 @@ def main(experiment_root_folder=None):
     plt.ylabel('#cars')
     plt.title('Throughput')
 
-    plt.savefig('{0}/test_throughput.pdf'.format(output_folder_path))
-    plt.savefig('{0}/test_throughput.png'.format(output_folder_path))
+    plt.savefig('{0}/test_throughput.pdf'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
+    plt.savefig('{0}/test_throughput.png'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
 
     plt.close()
 
@@ -368,7 +368,8 @@ def main(experiment_root_folder=None):
     plt.ylabel('Average # of vehicles')
     plt.title('Number of vehicles')
 
-    plt.savefig('{0}/#vehicles.pdf'.format(output_folder_path))
+    plt.savefig('{0}/#vehicles.pdf'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
+    plt.savefig('{0}/#vehicles.png'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
     
     plt.close() """
 
@@ -387,7 +388,8 @@ def main(experiment_root_folder=None):
     plt.ylabel('Average velocities')
     plt.title('Vehicles\' velocities')
 
-    plt.savefig('{0}/velocities.pdf'.format(output_folder_path))
+    plt.savefig('{0}/velocities.pdf'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
+    plt.savefig('{0}/velocities.png'.format(output_folder_path), bbox_inches='tight', pad_inches=0)
 
     plt.close() """
 

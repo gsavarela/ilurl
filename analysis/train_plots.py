@@ -27,8 +27,8 @@ import seaborn as sns
 plt.style.use('ggplot')
 
 
-FIGURE_X = 15.0
-FIGURE_Y = 7.0
+FIGURE_X = 6.0
+FIGURE_Y = 4.0
 
 STD_CURVE_COLOR = (0.88,0.70,0.678)
 MEAN_CURVE_COLOR = (0.89,0.282,0.192)
@@ -123,15 +123,15 @@ def main(experiment_root_folder=None):
     if rewards.shape[0] > 1:
         plt.fill_between(X, Y-Y_std, Y+Y_std, color=STD_CURVE_COLOR, label='Std')
 
-    plt.xlabel('Cycle')
+    plt.xlabel('Train cycle')
     plt.ylabel('Reward')
-    plt.title('Rewards (N_train = {0})'.format(len(train_files)))
+    plt.title('Train rewards ({0} runs)'.format(len(train_files)))
     plt.legend(loc=4)
 
     file_name = '{0}/train_rewards.pdf'.format(output_folder_path)
-    plt.savefig(file_name)
+    plt.savefig(file_name, bbox_inches='tight', pad_inches=0)
     file_name = '{0}/train_rewards.png'.format(output_folder_path)
-    plt.savefig(file_name)
+    plt.savefig(file_name, bbox_inches='tight', pad_inches=0)
     
     plt.close()
 
@@ -155,15 +155,15 @@ def main(experiment_root_folder=None):
     if vehicles.shape[0] > 1:
         plt.fill_between(X, Y-Y_std, Y+Y_std, color=STD_CURVE_COLOR, label='Std')
 
-    plt.xlabel('Cycle')
-    plt.ylabel('#Vehicles')
-    plt.title('Number of vehicles (N_train = {0})'.format(len(train_files)))
+    plt.xlabel('Train cycle')
+    plt.ylabel('Train: #Vehicles')
+    plt.title('Number of vehicles ({0} runs)'.format(len(train_files)))
     plt.legend(loc=4)
 
     file_name = '{0}/train_vehicles.pdf'.format(output_folder_path)
-    plt.savefig(file_name)
+    plt.savefig(file_name, bbox_inches='tight', pad_inches=0)
     file_name = '{0}/train_vehicles.png'.format(output_folder_path)
-    plt.savefig(file_name)
+    plt.savefig(file_name, bbox_inches='tight', pad_inches=0)
     
     plt.close()
 
@@ -187,15 +187,15 @@ def main(experiment_root_folder=None):
     if velocities.shape[0] > 1:
         plt.fill_between(X, Y-Y_std, Y+Y_std, color=STD_CURVE_COLOR, label='Std')
 
-    plt.xlabel('Cycle')
+    plt.xlabel('Train cycle')
     plt.ylabel('Velocity')
-    plt.title('Velocity of the vehicles (N_train = {0})'.format(len(train_files)))
+    plt.title('Train: Velocity of the vehicles ({0} runs)'.format(len(train_files)))
     plt.legend(loc=4)
 
     file_name = '{0}/train_velocities.pdf'.format(output_folder_path)
-    plt.savefig(file_name)
+    plt.savefig(file_name, bbox_inches='tight', pad_inches=0)
     file_name = '{0}/train_velocities.png'.format(output_folder_path)
-    plt.savefig(file_name)
+    plt.savefig(file_name, bbox_inches='tight', pad_inches=0)
     
     plt.close()
 
