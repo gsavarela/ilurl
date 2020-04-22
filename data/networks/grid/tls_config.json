@@ -11,22 +11,22 @@
 			"duration": "31",      
 			"minDur": "8",
 			"maxDur": "45",
-			"state": "GGrrrGGrrr"
+			"state": "rrrGGGrrrGGG"
 			}, {
 			"duration": "6",
 			"minDur": "3",
 			"maxDur": "6",
-			"state": "yyrrryyrrr"
+			"state": "rrryyyrrryyy"
 			}, {
 			"duration": "31",
 			"minDur": "8",
 			"maxDur": "45",
-			"state": "rrGGGrrGGG"
+			"state": "GGGrrrGGGrrr"
 			}, {
 			"duration": "6",
 			"minDur": "3",
 			"maxDur": "6",
-			"state": "rryyyrryyy"
+			"state": "yyyrrryyyrrr"
 		}],
 		"247123161": {
 			"programID": 1,
@@ -38,7 +38,7 @@
 			"tls_type": "actuated",
 			"showDetectors": true
 		},
-		"247123464": {
+		"247123468": {
 			"programID": 1,
 			"tls_type": "actuated",
 			"showDetectors": true

@@ -152,12 +152,20 @@ def main(train_config=None):
     print_arguments(flags)
 
     inflows_type = 'switch' if flags.switch else 'lane'
+
+    # Load cycle time and TLS programs.
+    baseline = flags.tls_type != 'controlled'
+    cycle_time, programs = get_tls_custom(flags.network, baseline=baseline)
+
     network_args = {
         'network_id': flags.network,
         'horizon': flags.time,
         'demand_type': inflows_type,
         'insertion_probability': 0.1,
     }
+    if flags.tls_type == 'actuated':
+        network_args['tls'] = programs
+
     network = Network(**network_args)
     normalize = flags.normalize
 
@@ -185,9 +193,6 @@ def main(train_config=None):
         sumo_args['emission_path'] = experiment_path.as_posix()
     sim_params = SumoParams(**sumo_args)
 
-    # Load cycle time and TLS programs.
-    baseline = flags.tls_type != 'controlled'
-    cycle_time, programs = get_tls_custom(flags.network, baseline=baseline)
 
     additional_params = {}
     additional_params.update(ADDITIONAL_ENV_PARAMS)
