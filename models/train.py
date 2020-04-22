@@ -141,6 +141,8 @@ def print_arguments(args):
 
     print('\tInflows switch: {0}\n'.format(args.switch))
 
+    print('\tReplay buffer: {0}\n'.format(args.replay_buffer))
+
     print('\tNormalize state-space (speeds): {0}\n'.format(args.normalize))
 
 
@@ -225,7 +227,7 @@ def main(train_config=None):
                 'category_counts': category_counts,
                 'category_speeds': category_speeds,
                 'normalize': normalize,
-                'replay_buffer': False,
+                'replay_buffer': flags.replay_buffer,
                 'replay_buffer_size': 500,
                 'replay_buffer_batch_size': 64,
                 'replay_buffer_warm_up': 200,
