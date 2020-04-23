@@ -61,7 +61,7 @@ def get_arguments():
 
     # TODO: validate against existing networks
     parser.add_argument('tls_type', type=str, nargs='?',
-                        choices=('actuated', 'static'),  
+                        choices=('actuated', 'static', 'random'),  
                          help='Deterministic control type')
     flags = parser.parse_args()
     # BEWARE: clears all command line arguments

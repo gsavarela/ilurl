@@ -97,7 +97,7 @@ def get_arguments(config_file):
               help='Saves emission data from simulation on /data/emissions')
 
     flags.add('--sumo-tls-type', '-y',
-              dest='tls_type', type=str, choices=('actuated', 'controlled', 'static'),
+              dest='tls_type', type=str, choices=('actuated', 'controlled', 'static', 'random'),
               default='controlled', nargs='?',
               help='Saves emission data from simulation on /data/emissions')
 
@@ -154,7 +154,7 @@ def main(train_config=None):
     inflows_type = 'switch' if flags.switch else 'lane'
 
     # Load cycle time and TLS programs.
-    baseline = flags.tls_type != 'controlled'
+    baseline = flags.tls_type == 'actuated'
     cycle_time, programs = get_tls_custom(flags.network, baseline=baseline)
 
     network_args = {

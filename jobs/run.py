@@ -55,7 +55,11 @@ if __name__ == '__main__':
     for xml_path in Path(experiment_root_path).rglob('*.xml'):
         csv_path = str(xml_path).replace('xml', 'csv')
         args = [str(xml_path), '-o', csv_path]
-        xml2csv(args)
+        try:
+            xml2csv(args)
+            Path(xml_path).unlink()
+        except Exception:
+            raise
 
     # 8) Create plots with metrics plots for final agent.
     test_plots(experiment_root_path)
