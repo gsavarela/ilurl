@@ -7,23 +7,19 @@
         "cycle_time": 90,
         "phases": [{
             "duration": "31",      
-            "minDur": "8",
-            "maxDur": "45",
+            "minDur": "24",
+            "maxDur": "54",
             "state": "GGrrrGGrrr"
         }, {
             "duration": "6",
-            "minDur": "3",
-            "maxDur": "6",
             "state": "yyrrryyrrr"
         }, {
             "duration": "31",
-            "minDur": "8",
-            "maxDur": "45",
+            "minDur": "24",
+            "maxDur": "54",
             "state": "rrGGGrrGGG"
         }, {
             "duration": "6",
-            "minDur": "3",
-            "maxDur": "6",
             "state": "rryyyrryyy"
         }],
         "247123161": {
