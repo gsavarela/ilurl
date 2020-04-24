@@ -157,9 +157,8 @@ class Network(flownet.Network):
                     prog['programID'] = int(prog.pop('programID')) + 1
                     tls_logic.add(node_id, **prog)
         else:
-            phases = tls.pop('phases')
             for tls_id, tls_args in tls.items():
-                tls_logic.add(tls_id, phases=phases, **tls_args)
+                tls_logic.add(tls_id, **tls_args)
 
         super(Network, self).__init__(
                  network_id,

@@ -7,37 +7,71 @@
 	},
 	"actuated": {
 		"cycle_time": 90,
-		"phases": [{
-			"duration": "31",      
-			"minDur": "24",
-			"maxDur": "54",
-			"state": "rrrGGGrrrGGG"
-			}, {
-			"duration": "6",
-			"state": "rrryyyrrryyy"
-			}, {
-			"duration": "31",
-			"minDur": "24",
-			"maxDur": "54",
-			"state": "GGGrrrGGGrrr"
-			}, {
-			"duration": "6",
-			"state": "yyyrrryyyrrr"
-		}],
 		"247123161": {
 			"programID": 1,
 			"tls_type": "actuated",
-			"showDetectors": true
+			"showDetectors": true,
+			"phases": [{
+				"duration": "31",      
+				"minDur": "24",
+				"maxDur": "54",
+				"state": "rrrGGGrrrGGG"
+				}, {
+				"duration": "6",
+				"state": "rrryyyrrryyy"
+				}, {
+				"duration": "31",
+				"minDur": "24",
+				"maxDur": "54",
+				"state": "GGGrrrGGGrrr"
+				}, {
+				"duration": "6",
+				"state": "yyyrrryyyrrr"
+			}]
 		},
 		"247123464": {
 			"programID": 1,
 			"tls_type": "actuated",
-			"showDetectors": true
+			"showDetectors": true,
+			"phases": [{
+				"duration": "31",      
+				"minDur": "24",
+				"maxDur": "54",
+				"state": "GGGrrrrrGG"
+				}, {
+				"duration": "6",
+				"state": "yyyrrrrryy"
+				}, {
+				"duration": "31",
+				"minDur": "24",
+				"maxDur": "54",
+				"state": "rrrGGGGGrr"
+				}, {
+				"duration": "6",
+				"state": "rrryyyyyrr"
+			}]
 		},
 		"247123468": {
 			"programID": 1,
 			"tls_type": "actuated",
-			"showDetectors": true
+			"showDetectors": true,
+			"phases": [{
+				"duration": "31",      
+				"minDur": "24",
+				"maxDur": "54",
+				"state": "rrrrrGGGGG"
+				}, {
+				"duration": "6",
+				"state": "rrrrryyyyy"
+				}, {
+				"duration": "31",
+				"minDur": "24",
+				"maxDur": "54",
+				"state": "GGGGGrrrrr"
+				}, {
+				"duration": "6",
+				"state": "yyyyyrrrrr"
+			}]
 		}
 	}
 }
