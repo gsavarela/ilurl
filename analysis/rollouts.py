@@ -133,7 +133,8 @@ def main(batch_path=None):
         # Iterate for each Q table.
         for rid, rewards in db['rewards'][idx].items():
 
-            rewards = np.concatenate(rewards, axis=1)
+            rewards = [[sum(r) for r in rollout] for rollout in rewards]
+            rewards = np.array(rewards).T
 
             # rewards shape: (cycles, num_rollouts)
 
@@ -213,12 +214,12 @@ def main(batch_path=None):
         data.append(np.concatenate(ret))
 
     violin_parts = plt.violinplot(data, positions=list(returns.keys()),
-                                    showextrema=True, widths=150)
+                                    showextrema=True, widths=200)
 
-    plt.plot(list(returns.keys()), y, label='Mean', c=RED_COLOR)
+    mean_line = plt.plot(list(returns.keys()), y, label='Mean', c=RED_COLOR)
 
-    plt.errorbar(list(returns.keys()), y, yerr=error_bars_lengths,
-                    label='95% confidence interval', capsize=3,
+    error_bar = plt.errorbar(list(returns.keys()), y, yerr=error_bars_lengths,
+                    label='95% confidence interval', capsize=5,
                     color=RED_COLOR)
     
     # Make all the violin statistics marks red:
@@ -240,7 +241,9 @@ def main(batch_path=None):
     plt.ylabel('Discounted return')
     plt.xticks()
 
-    plt.legend(loc=4)
+    lns = [matplotlib.lines.Line2D([0], [0], color=RED_COLOR), error_bar, violin_parts["cbars"]]
+    labs = ['Mean', '95% confidence interval','Distribution']
+    plt.legend(lns, labs, loc=4)
     
     plt.savefig(f'{output_folder_path}/rollouts_violin_plot.png', bbox_inches='tight', pad_inches=0)
     plt.savefig(f'{output_folder_path}/rollouts_violin_plot.pdf', bbox_inches='tight', pad_inches=0)

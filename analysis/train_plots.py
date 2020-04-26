@@ -93,7 +93,7 @@ def main(experiment_root_folder=None):
 
         # Rewards per time-step.
         r = json_data['rewards']
-        r = [a[0] for a in r]
+        r = [sum(a) for a in r]
         rewards.append(r)
 
         # Number of vehicles per time-step.
