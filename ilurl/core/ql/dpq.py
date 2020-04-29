@@ -127,6 +127,8 @@ class DPQ(object, metaclass=MetaAgentQ):
 
     def update(self, s, a, r, s1):
 
+        if isinstance(r, list) or isinstance(r, np.ndarray):
+            raise ValueError
         # Track the visited states.
         if sum(self.state_action_counter[s].values()) == 0:
             self.visited_states.append(s)
@@ -136,7 +138,7 @@ class DPQ(object, metaclass=MetaAgentQ):
         if not self.stop:
 
             if self.replay_buffer:
-                self.memory.add(s,a,r,s1,0.0)
+                self.memory.add(s, a, r, s1, 0.0)
 
             # Update (state, action) counter.
             self.state_action_counter[s][a] += 1
@@ -147,10 +149,6 @@ class DPQ(object, metaclass=MetaAgentQ):
             Q_old = self.Q[s][a]
 
             # Q-learning update.
-            try:
-                r = sum(r)
-            except TypeError:
-                pass
             dpq_update(self.gamma, lr, self.Q, s, a, r, s1)
 
             # Calculate Q-tables distance.
@@ -168,10 +166,6 @@ class DPQ(object, metaclass=MetaAgentQ):
                     s1 = tuple(samples[3][sample])
 
                     # Q-learning update.
-                    try:
-                        r = sum(r)
-                    except TypeError:
-                        pass
                     dpq_update(self.gamma, lr, self.Q, s, a, r, s1)
 
             self.updates_counter += 1
