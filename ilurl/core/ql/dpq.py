@@ -127,8 +127,6 @@ class DPQ(object, metaclass=MetaAgentQ):
 
     def update(self, s, a, r, s1):
 
-        if isinstance(r, list) or isinstance(r, np.ndarray):
-            raise ValueError
         # Track the visited states.
         if sum(self.state_action_counter[s].values()) == 0:
             self.visited_states.append(s)
