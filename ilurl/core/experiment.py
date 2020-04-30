@@ -10,14 +10,16 @@
    * extend outputs to costumized reward functions
    * fix bug of averaging speeds when no cars are on the simulation
    """
+from pathlib import Path
 import warnings
 import datetime
 import json
 import logging
-import os
+from os import environ
 import tempfile
 import time
 from collections import defaultdict
+from threading import Thread
 
 from tqdm import tqdm
 
@@ -28,10 +30,9 @@ from flow.core.util import emission_to_csv
 warnings.filterwarnings('ignore')
 
 # TODO: Generalize for any parameter
-ILURL_HOME = os.environ['ILURL_HOME']
+ILURL_PATH = Path(environ['ILURL_HOME'])
 
-EMISSION_PATH = \
-    f'{ILURL_HOME}/data/emissions/'
+EMISSION_PATH = ILURL_PATH / 'data/emissions/'
 
 class Experiment:
     """
@@ -109,7 +110,7 @@ class Experiment:
 
         self.env = env
         self.train = train
-        self.dir_path = dir_path
+        self.dir_path = Path(dir_path) if dir_path is not None else None
         # fails gracifully if an environment with no cycle time
         # is provided
         self.cycle = getattr(env, 'cycle_time', None)
@@ -128,7 +129,8 @@ class Experiment:
     def run(
             self,
             num_steps,
-            rl_actions=None
+            rl_actions=None,
+            stop_on_teleports=False
     ):
         """
         Run the given scenario for a set number of runs and steps per run.
@@ -140,11 +142,26 @@ class Experiment:
         rl_actions : method, optional
             maps states to actions to be performed by the RL agents (if
             there are any)
+        stop_on_teleport : boolean
+            if true will break execution on teleport which occur on:
+            * OSM scenarios with faulty connections
+            * collisions
+            * timeouts a vehicle is unable to move for 
+            -time-to-teleport seconds (default 300) which is caused by
+            wrong lane, yield or jam
 
         Returns
         -------
         info_dict : dict
             contains returns, average speed per step (last run)
+
+        References
+        ---------
+
+
+        https://sourceforge.net/p/sumo/mailman/message/33244698/
+        http://sumo.sourceforge.net/userdoc/Simulation/Output.html
+        http://sumo.sourceforge.net/userdoc/Simulation/Why_Vehicles_are_teleporting.html
         """
         if rl_actions is None:
 
@@ -168,7 +185,7 @@ class Experiment:
 
         state = self.env.reset()
 
-        for j in tqdm(range(num_steps)):                
+        for _ in tqdm(range(num_steps)):                
 
             state, reward, done, _ = self.env.step(rl_actions(state))
 
@@ -184,7 +201,12 @@ class Experiment:
 
                 observation_spaces.append(
                     list(self.env.get_observation_space()))
-                rewards.append(round(reward, 4))
+
+                try:
+                    rewards.append([round(r, 4) for r in reward])
+                except Exception:
+                    import pdb
+                    pdb.set_trace()
 
                 vehs.append(np.nanmean(veh_i).round(4))
                 vels.append(np.nanmean(vel_i).round(4))
@@ -196,8 +218,7 @@ class Experiment:
                 if self.log_info and \
                     (agent_updates_counter % self.log_info_interval == 0):
 
-                    filename = \
-                        f"{self.dir_path}{self.env.network.name}.train.json"
+                    file_path = self.dir_path / f"{self.env.network.name}.train.json"
 
                     info_dict["rewards"] = rewards
                     info_dict["velocities"] = vels
@@ -209,19 +230,22 @@ class Experiment:
                     info_dict["visited_states"] = getattr(self.env.agent, 'visited_states', None)
                     info_dict["Q_distances"] = getattr(self.env.agent, 'Q_distances', None)
 
-                    with open(filename, 'w') as fj:
-                        json.dump(info_dict, fj)
+                    with file_path.open('w') as fj:
+                        t = Thread(target=json.dump(info_dict, fj))
+                        t.start()
 
-            if done:
+            if done and stop_on_teleports:
                 break
 
             if self.save_agent and self._is_save_q_table_step(agent_updates_counter):
                 filename = \
                     f'{self.env.network.name}.Q.1-{agent_updates_counter}.pickle'
-
-                self.env.dump(self.dir_path,
-                                filename,
-                                attr_name='Q')
+                
+                t = Thread(
+                    target=self.env.dump(self.dir_path.as_posix(),
+                                         filename, attr_name='Q')
+                )
+                t.start()
 
         info_dict["rewards"] = rewards
         info_dict["velocities"] = vels

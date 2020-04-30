@@ -20,11 +20,13 @@ class RewardCalculator(object):
             else:
                 # target mean velocity
                 self.target_velocity = \
-                env_params.additional_params['target_velocity']
+                    env_params.additional_params['target_velocity']
         self.costs = ql_params.rewards.costs
         self.categorize = lambda x: ql_params.categorize_space(x)
         self.split = lambda x: ql_params.split_space(x)
         self.labels = ql_params.states_labels
+        self.phases_per_traffic_light = \
+            ql_params.phases_per_traffic_light
 
     def calculate(self, observation_space):
         if self.type in ('fix', ):
@@ -39,28 +41,50 @@ class RewardCalculator(object):
                 K = sum(counts)
                 if K == 0.0:
                     return 0.0
-                return sum([s * c for s, c in zip(speeds, counts)]) / K
+
+            # generalize for n agents
+            rewards = []
+            i = 0
+            for num_phases in self.phases_per_traffic_light:
+                ind = slice(i, i + num_phases)
+
+                reward = \
+                    sum([s * c for s, c in zip(speeds[ind], counts[ind])]) / K
+                rewards.append(reward)
+                i += num_phases * len(self.labels)
+                return rewards
 
         elif self.type in ('target_velocity',):
             # get this target velocity from environment
             speeds, counts = self.split(observation_space)
-            if sum(counts) <= 0.0:
-                return 0
 
-            max_cost = np.array([self.target_velocity] * len(speeds))
-            return -np.maximum(max_cost - speeds, 0).dot(counts)
+            # generalize for n agents
+            rewards = []
+            i = 0
+            for num_phases in self.phases_per_traffic_light:
+                ind = slice(i, i + num_phases)
+                max_cost = \
+                    np.array([self.target_velocity] * num_phases)
+
+                reward = \
+                    -np.maximum(max_cost - speeds[ind], 0).dot(counts[ind])
+                rewards.append(reward)
+                i += num_phases
+
+            return rewards
 
         elif self.type in ('score', ):
+            raise NotImplementedError
             # scores some are either negative in case of queues
             # or positive in the case of flow or velocity
-            data = self.split(observation_space)
-            s = 0
-            for i, label in enumerate(self.labels):
-                if label in ('flow', 'speed',):
-                    s += sum(data[i])
-                if label in ('queue', ):
-                    s -= sum(data[i])
-            return s
+            # data = self.split(observation_space)
+            # s = 0
+            # for i, label in enumerate(self.labels):
+            #     if label in ('flow', 'speed',):
+            #         s += sum(data[i])
+            #     if label in ('queue', ):
+            #         s -= sum(data[i])
+            # return s
         else:
             raise NotImplementedError
 

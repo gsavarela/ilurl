@@ -1,13 +1,16 @@
 """Implementation of dynamic programming TD methods with function approximation"""
+from copy import deepcopy
 import numpy as np
 
-from ilurl.core.params import QLParams
+from ilurl.utils.meta import MetaAgentQ
+from ilurl.core.params import QLParams, Bounds
 from ilurl.core.ql.choice import choice_eps_greedy, choice_ucb
 from ilurl.core.ql.define import dpq_tls
 from ilurl.core.ql.update import dpq_update
 
+from ilurl.core.ql.replay_buffer import ReplayBuffer
 
-class DPQ(object):
+class DPQ(object, metaclass=MetaAgentQ):
 
     def __init__(self, ql_params):
         """
@@ -79,21 +82,30 @@ class DPQ(object):
                 for state, actions in self.Q.items()
             }
 
-    def rl_actions(self, s):
+        # Replay buffer.
+        self.replay_buffer = ql_params.replay_buffer
+        if self.replay_buffer:
+            self.batch_size = ql_params.replay_buffer_batch_size
+            self.warm_up = ql_params.replay_buffer_warm_up
+
+            self.memory = ReplayBuffer(ql_params.replay_buffer_size)
+
+        # Updates counter.
+        self.updates_counter = 0
+
+    def act(self, s):
         if self.stop:
             # Argmax greedy choice.
             actions, values = zip(*self.Q[s].items())
-            choosen, _ = choice_eps_greedy(actions, values, 0)
-            self.explored.append(False)
+            choosen, exp = choice_eps_greedy(actions, values, 0)
+            self.explored.append(exp)
         else:
             
             if self.choice_type in ('eps-greedy',):
                 actions, values = zip(*self.Q[s].items())
 
-                num_state_visits = 0
-                for action in self.state_action_counter[s].keys():
-                    num_state_visits += self.state_action_counter[s][action]
-                eps = 1 / np.power(1 + num_state_visits, 2/3)
+                num_state_visits = sum(self.state_action_counter[s].values())
+                eps = 1 / (1 + num_state_visits)
 
                 choosen, exp = choice_eps_greedy(actions, values, eps)
                 self.explored.append(exp)
@@ -115,13 +127,16 @@ class DPQ(object):
 
     def update(self, s, a, r, s1):
 
+        # Track the visited states.
+        if sum(self.state_action_counter[s].values()) == 0:
+            self.visited_states.append(s)
+        else:
+            self.visited_states.append(None)
+
         if not self.stop:
 
-            # Track the visited states.
-            if self.state_action_counter[s][a] == 0:
-                self.visited_states.append(s)
-            else:
-                self.visited_states.append(None)
+            if self.replay_buffer:
+                self.memory.add(s, a, r, s1, 0.0)
 
             # Update (state, action) counter.
             self.state_action_counter[s][a] += 1
@@ -138,6 +153,30 @@ class DPQ(object):
             dist = np.abs(Q_old - self.Q[s][a])
             self.Q_distances.append(dist)
 
+            if self.replay_buffer and self.updates_counter > self.warm_up:
+
+                samples = self.memory.sample(self.batch_size)
+
+                for sample in range(self.batch_size):
+                    s = tuple(samples[0][sample])
+                    a = (samples[1][sample][0],)
+                    r = samples[2][sample]
+                    s1 = tuple(samples[3][sample])
+
+                    # Q-learning update.
+                    dpq_update(self.gamma, lr, self.Q, s, a, r, s1)
+
+            self.updates_counter += 1
+                
+
+    @property
+    def Q(self):
+        return self._Q
+
+    @Q.setter
+    def Q(self, Q):
+        self._Q = Q
+
     @property
     def stop(self):
         """Stops exploring"""
@@ -146,3 +185,122 @@ class DPQ(object):
     @stop.setter
     def stop(self, stop):
         self._stop = stop
+
+
+class MAIQ(object, metaclass=MetaAgentQ):
+    """MAIQ is the individual combination of Q agents"""
+    
+    def __init__(self, ql_params):
+
+        QL_agents = []
+        state_slices = []
+        action_slices = []
+        num_variables = len(ql_params.states_labels)
+        states_depth = ql_params.states.depth
+        actions_depth = ql_params.actions.depth
+        
+        state_rank = 0
+        action_rank = 0
+        for num_phases in ql_params.phases_per_traffic_light:
+
+            ql_params_ = deepcopy(ql_params)
+            ql_params_.phases_per_traffic_light = [num_phases]
+            ql_params_.states = Bounds(num_phases * num_variables, states_depth)
+            ql_params_.actions = Bounds(1, actions_depth)
+            QL_agents.append(DPQ(ql_params_))
+
+            state_slice = slice(state_rank, state_rank + num_phases * num_variables)
+            state_slices.append(state_slice)
+
+            action_slice = slice(action_rank, action_rank + ql_params_.actions.rank)
+            action_slices.append(action_slice)
+
+            state_rank += num_phases * num_variables
+            action_rank += ql_params_.actions.rank
+
+        self._QL_agents = QL_agents
+        self._action = action_slices
+        self._state = state_slices
+        self.ql_params = ql_params
+
+    def act(self, state):
+        def si(x):
+            return self._individual_state(state, x)
+
+        choices = [
+            _QL_agent.act(si(i)) for i, _QL_agent in enumerate(self._QL_agents)
+        ]
+        choosen = tuple([ichoice for choice in choices for ichoice in choice])
+        return choosen
+
+    def _individual_state(self, state, i):
+        return state[self._state[i]]
+
+    def _individual_action(self, action, i):
+        return action[self._action[i]]
+
+    # decorator <mapping> might aliviate?
+    # generator <iteration> might aliviate?
+    # def _individual_act(self, state):
+    #     def si(x):
+    #         return self._individual_state(state, x)
+
+    #     return tuple([
+    #         self._QL_agents[i].act(si(i))
+    #         for i in range(self._QL_agents[i])])
+
+    def update(self, s, a, r, s1):
+
+            def si(x):
+                return self._individual_state(s, x)
+
+            def si1(x):
+                return self._individual_state(s1, x)
+
+            def ai(x):
+                return self._individual_action(a, x)
+
+            for i, QL_agent in enumerate(self._QL_agents):
+                QL_agent.update(si(i), ai(i), r[i], si1(i))
+
+    @property
+    def Q(self):
+        self._Q = {i: _QL_agent.Q
+                   for i, _QL_agent in enumerate(self._QL_agents)}
+
+        return self._Q
+
+    @Q.setter
+    def Q(self, Q):
+        for i, Qi in Q.items():
+              self._QL_agents[i].Q = Qi
+
+    @property
+    def explored(self):
+        self._explored = {i: _QL_agent.explored
+                   for i, _QL_agent in enumerate(self._QL_agents)}
+        return self._explored
+
+    @property
+    def visited_states(self):
+        self._visited_states = {i: _QL_agent.visited_states
+                   for i, _QL_agent in enumerate(self._QL_agents)}
+        return self._visited_states
+
+    @property
+    def Q_distances(self):
+        self._Q_distances = {i: _QL_agent.Q_distances
+                   for i, _QL_agent in enumerate(self._QL_agents)}
+        return self._Q_distances
+
+    @property
+    def stop(self):
+        """all or nothing stops"""
+        stops = [_QL_agent.stop for _QL_agent in self._QL_agents]
+        return all(stops)
+
+    @stop.setter
+    def stop(self, stop):
+        for _QL_agent in self._QL_agents:
+            _QL_agent.stop = stop
+        return stop

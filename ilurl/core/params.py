@@ -57,6 +57,7 @@ class QLParams:
 
     def __init__(
             self,
+            agent_id,
             epsilon=3e-2,
             alpha=5e-1,
             gamma=0.9,
@@ -71,8 +72,12 @@ class QLParams:
             num_actions=2,
             choice_type='eps-greedy',
             category_counts=[8.56, 13.00],
-            category_speeds=[2.28, 5.50]
-
+            category_speeds=[2.28, 5.50],
+            normalize=False,
+            replay_buffer=False,
+            replay_buffer_size=500,
+            replay_buffer_batch_size=64,
+            replay_buffer_warm_up=200,
     ):
         """Instantiate base traffic light.
 
@@ -89,6 +94,7 @@ class QLParams:
         * c: upper confidence bound (ucb) exploration constant.
         * rewards: namedtuple
                     see above
+
         * phases_per_traffic_light: list<int>
             number of phases per intersection
             
@@ -103,6 +109,15 @@ class QLParams:
                 Number of categories
 
         * num_actions: integer
+
+        * category_counts: list of floats
+                values to breakdown into classes;
+                if normalize then must be in (0, 1)
+
+        * category_speeds: list of floats
+                values to breakdown into classes:
+                if normalize then must be in (0, 1)
+
 
         REFERENCES:
         ----------
@@ -127,6 +142,7 @@ class QLParams:
             raise ValueError(
                 f'''Choice type should be in {CHOICE_TYPES} got {choice_type}'''
             )
+
 
         for attr, value in kwargs.items():
             if attr not in ('self', 'states', 'rewards'):
@@ -166,6 +182,11 @@ class QLParams:
                       must have a cost got {} {} '''.format(
                     self.state.depth, len(rewards['costs'])))
         self.set_rewards(rewards['type'], rewards['costs'])
+
+        if self.normalize:
+            if max(category_speeds) > 1:
+                raise ValueError('If `normalize` flag is set categories'
+                                    'must be between 0 and 1')
 
     def set_states(self, states_tuple):
         self.states_labels = states_tuple

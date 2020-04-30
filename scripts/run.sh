@@ -1,7 +1,2 @@
 #!/bin/bash
-$HOME/ilu/setup.sh
-source $HOME/venvs/ilurl/bin/activate
-python $HOME/ilu/experiments/smart_grid.py
-deactivate
-
-
+python jobs/train.py | xargs python jobs/rollouts.py | xargs python jobs/test.py | xargs python analysis/rollouts.py

@@ -36,7 +36,7 @@ try:
 except ImportError:
     haveLxml = False
 
-import xsd
+from ilurl.loaders import xsd
 
 
 class NestingHandler(xml.sax.handler.ContentHandler):

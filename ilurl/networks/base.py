@@ -11,14 +11,17 @@ from flow.core.params import InitialConfig, TrafficLightParams
 from flow.core.params import VehicleParams, SumoCarFollowingParams
 from flow.controllers.routing_controllers import GridRouter
 
-from flow.networks.base import Network as FlowNetwork
+import flow.networks.base as flownet
+# from flow.networks.base import Network as FlowNetwork
 
+from ilurl.utils.properties import lazy_property
 from ilurl.core.params import InFlows, NetParams
 from ilurl.loaders.nets import (get_routes, get_edges, get_path,
                                 get_logic, get_connections, get_nodes,
                                 get_types)
 
-class Network(FlowNetwork):
+
+class Network(flownet.Network):
     """This class leverages on specs created by SUMO"""
 
     @classmethod
@@ -70,7 +73,7 @@ class Network(FlowNetwork):
     def load(cls, network_id, route_path):
         """Attempts to load a new network from rou.xml and 
         vtypes.add.xml -- if it fails will call `make`
-        the resulting vehicle trips will be stochastic use 
+        the resulting vehicle trips will be stochastic use
         it for training
 
         Params:
@@ -109,7 +112,7 @@ class Network(FlowNetwork):
                  demand_type='lane',
                  insertion_probability=0.1,
                  initial_config=None,
-                 traffic_lights=None):
+                 tls=None):
 
 
         """Builds a new network from inflows -- the resulting
@@ -143,26 +146,26 @@ class Network(FlowNetwork):
             net_params = NetParams(inflows,
                                    template=get_path(network_id, 'net'))
 
-        if traffic_lights is None:
-            # Converts a static program into a reinforcement learning
-            # program.
+        # static program (required for rl)
+        tls_logic = TrafficLightParams(baseline=False)
+        if tls is None:
             programs = get_logic(network_id)
             if programs:
-                traffic_lights = TrafficLightParams(baseline=False)
                 for prog in programs:
-                    prog_id = prog.pop('id')
+                    node_id = prog.pop('id')
                     prog['tls_type'] = prog.pop('type')
                     prog['programID'] = int(prog.pop('programID')) + 1
-                    traffic_lights.add(prog_id, **prog)
-            else:
-                traffic_lights = TrafficLightParams(baseline=False)
+                    tls_logic.add(node_id, **prog)
+        else:
+            for tls_id, tls_args in tls.items():
+                tls_logic.add(tls_id, **tls_args)
 
         super(Network, self).__init__(
                  network_id,
                  vehicles,
                  net_params,
                  initial_config=initial_config,
-                 traffic_lights=traffic_lights
+                 traffic_lights=tls_logic
         )
 
         self.nodes = self.specify_nodes(net_params)
@@ -176,7 +179,9 @@ class Network(FlowNetwork):
 
 
     def specify_edges(self, net_params):
-        return get_edges(self.network_id)
+        return self._add_edges_capacity(
+            get_edges(self.network_id)
+        )
 
 
     def specify_connections(self, net_params):
@@ -224,8 +229,8 @@ class Network(FlowNetwork):
     def specify_types(self, net_params):
         return get_types(self.network_id)
 
-    @property
-    def approaches(self):
+    @lazy_property
+    def tls_approaches(self):
         """Returns the incoming approaches for a traffic light junction
 
         Params:
@@ -240,29 +245,26 @@ class Network(FlowNetwork):
         
         Usage:
         -----
-         > network.approaches
+         > network.tls_approaches
          > {'247123161': ['-238059324', '-238059328', '309265401', '383432312']}
+
         DEF:
         ---
-        A roadway meeting at an intersection is referred to as an approach. At any general intersection, there are two kinds of approaches: incoming approaches and outgoing approaches. An incoming approach is one on which cars can enter the intersection.
+        A roadway meeting at an intersection is referred to as an approach.
+        At any general intersection, there are two kinds of approaches:
+        incoming approaches and outgoing approaches.
+        An incoming approach is one on which cars can enter the intersection.
 
         REF:
         ---
             * Wei et al., 2019
             http://arxiv.org/abs/1904.08117
         """
-        
-        if not hasattr(self, '_cached_approaches'):
-            # define approaches
-            self._cached_approaches = {
-                nid: [e['id']
-                          for e in self.edges if e['to'] == nid]
-                for nid in self.tls_ids
-            }
-        return self._cached_approaches
+        return {nid: [e['id'] for e in self.edges if e['to'] == nid]
+                for nid in self.tls_ids}
 
-    @property
-    def phases(self):
+    @lazy_property
+    def tls_phases(self):
         """Returns a nodeid x sets of non conflicting movement patterns.
             The sets are index by integers and the moviment patterns are
             expressed as lists of approaches. We consider only incoming
@@ -276,13 +278,13 @@ class Network(FlowNetwork):
 
         Usage:
         -----
-        > network.states
+        > network.tls_states
         > {'gneJ2':
             ['GGGgrrrrGGGgrrrr', 'yyygrrrryyygrrrr', 'rrrGrrrrrrrGrrrr',
             'rrryrrrrrrryrrrr', 'rrrrGGGgrrrrGGGg', 'rrrryyygrrrryyyg',
             'rrrrrrrGrrrrrrrG', 'rrrrrrryrrrrrrry']}
 
-        > network.phases
+        > network.tls_phases
         > {'gneJ2':
             {0: {'components':
                     [('-gneE8', [0, 1, 2]), ('gneE12', [0, 1, 2])],
@@ -317,66 +319,92 @@ class Network(FlowNetwork):
         http://arxiv.org/abs/1904.08117
         """
 
-        # TODO: include duration
-        if not hasattr(self, '_cached_phases'):
-            self._cached_phases = {}
+        _phases = {}
+        def fn(x, n):
+            return x.get('tl') == n and 'linkIndex' in x
 
-            def fn(x, n):
-                return x.get('tl') == n and 'linkIndex' in x
-
-            for nid in self.tls_ids:
-                # green and yellow are considered to be one phase
-                self._cached_phases[nid] = {}
-                connections = [c for c in self.connections if fn(c, nid)]
-                states = self.states[nid]
-                links = {
-                    int(cn['linkIndex']):
-                        (cn['from'], int(cn['fromLane']))
-                    for cn in connections if 'linkIndex' in cn
+        for nid in self.tls_ids:
+            # green and yellow are considered to be one phase
+            _phases[nid] = {}
+            connections = [c for c in self.connections if fn(c, nid)]
+            states = self.tls_states[nid]
+            links = {
+                int(cn['linkIndex']):
+                    (cn['from'], int(cn['fromLane']))
+                for cn in connections if 'linkIndex' in cn
+            }
+            i = 0
+            components = {}
+            for state in states:
+                # components: linkIndex, 0-1, edge_id, lane
+                components = {
+                    (lnk,) + edge_lane
+                    for lnk, edge_lane in links.items()
+                    if state[lnk] in ('G','g')
                 }
-                i = 0
-                components = {}
-                for state in states:
-                    # components: linkIndex, 0-1, edge_id, lane
-                    components = {
-                        (lnk,) + edge_lane
-                        for lnk, edge_lane in links.items()
-                        if state[lnk] in ('G','g')
-                    }
-                    # adds components if they don't exist
-                    if components:
-                        found = False
-                        # sort by link, edge_id
-                        components = \
-                            sorted(components, key=op.itemgetter(0, 1))
+                # adds components if they don't exist
+                if components:
+                    found = False
+                    # sort by link, edge_id
+                    components = \
+                        sorted(components, key=op.itemgetter(0, 1))
 
-                        # groups lanes by edge_ids and states
-                        components = \
-                            [(k, list({l[-1] for l in g}))
-                             for k, g in groupby(components,
-                                                 key=op.itemgetter(1))]                         
-                        for j in range(0, i + 1):
-                            if j in self._cached_phases[nid]:
-                                # same edge_id and lanes
-                                _component =  \
-                                    self._cached_phases[nid][j]['components']
-                                found = \
-                                    components == _component
+                    # groups lanes by edge_ids and states
+                    components = \
+                        [(k, list({l[-1] for l in g}))
+                         for k, g in groupby(components, key=op.itemgetter(1))]
+                    for j in range(0, i + 1):
+                        if j in _phases[nid]:
+                            # same edge_id and lanes
+                            _component =  \
+                                _phases[nid][j]['components']
+                            found = \
+                                components == _component
 
-                                if found:
-                                    self._cached_phases[nid][j]['states'].append(state)
-                        if not found:
-                            self._cached_phases[nid][i] = \
-                                {'components': components,
-                                 'states': [state]}
-                            i += 1
-                    else:
-                        # states only `r` and `y`
-                        self._cached_phases[nid][i-1]['states'].append(state)
-        return self._cached_phases
+                            if found:
+                                _phases[nid][j]['states'].append(state)
+                    if not found:
+                        _phases[nid][i] = {
+                            'components': components,
+                            'states': [state]
+                        }
+                        i += 1
+                else:
+                    # states only `r` and `y`
+                    _phases[nid][i-1]['states'].append(state)
+        return _phases
 
-    @property
-    def states(self):
+    @lazy_property
+    def tls_max_capacity(self):
+        """Max speeds and counts that an intersection can handle
+
+        Returns:
+        -------
+            * max_capacity: dict<string, tuple<float, float>>
+                keys: tls_id
+                float: max. speeds (m/s) or counts (vehs)
+
+        Usage:
+        > network.tls_max_capacity
+        > {'247123161': {0:{(22.25, 40), 1: (7.96, 12)}
+
+        """
+        max_capacity = {}
+        for tls_id in self.tls_ids:
+            _max_capacity = {}
+            for phase, data in self.tls_phases[tls_id].items():
+                max_count, max_speed = 0, 0
+                for edge_id, lanes in data['components']:
+                    edge = [e for e in self.edges if e['id'] == edge_id][0]
+                    k = len(lanes) / edge['numLanes']
+                    max_count += edge['max_capacity'] * k
+                    max_speed = max(edge['max_speed'], max_speed)
+                _max_capacity[phase] = (max_speed, max_count)
+            max_capacity[tls_id] = _max_capacity
+        return max_capacity
+
+    @lazy_property
+    def tls_states(self):
         """states wrt to programID = 1 for traffic light nodes
 
         Returns:
@@ -385,28 +413,25 @@ class Network(FlowNetwork):
 
         Usage:
         ------
-        > network.states
+        > network.tls_states
         > {'247123161': ['GGrrrGGrrr', 'yyrrryyrrr', 'rrGGGrrGGG', 'rryyyrryyy']}O
 
         REF:
         ----
             http://sumo.sourceforge.net/userdoc/Simulation/Traffic_Lights.html
         """
-        if not hasattr(self, '_cached_states'):
-            configs = self.traffic_lights.get_properties()
+        cfg = self.traffic_lights.get_properties()
 
-            def fn(x):
-                return x['type'] == 'static' and x['programID'] == 1
+        def fn(x):
+            return x['type'] in ('static', 'actuated') and x['programID'] == 1
 
-            self._cached_states = {
-                 nid: [p['state']
-                       for p in configs[nid]['phases']
-                       if fn(configs[nid])]
-                 for nid in self.tls_ids}
-        return self._cached_states
+        return {
+            tid: [p['state'] for p in cfg[tid]['phases'] if fn(cfg[tid])]
+            for tid in self.tls_ids
+        }
 
-    @property
-    def durations(self):
+    @lazy_property
+    def tls_durations(self):
         """Gives the times or durations in seconds for each of the states
         on the default programID = 1
 
@@ -418,26 +443,24 @@ class Network(FlowNetwork):
 
         Usage:
         ------
-        > network.durations
+        > network.tls_durations
         > {'247123161': [39, 6, 39, 6]}
 
         REF:
         ----
             http://sumo.sourceforge.net/userdoc/Simulation/Traffic_Lights.html
         """
-        if not hasattr(self, '_cached_durations'):
-            configs = self.traffic_lights.get_properties()
+        cfg = self.traffic_lights.get_properties()
 
-            def fn(x):
-                return x['type'] == 'static' and x['programID'] == 1
+        def fn(x):
+            return x['type'] == 'static' and x['programID'] == 1
 
-            self._cached_durations = {
-                 nid: [int(p['duration']) for p in configs[nid]['phases']
-                       if fn(configs[nid])]
-                 for nid in self.tls_ids}
-        return self._cached_durations
+        return {
+            t: [int(p['duration']) for p in cfg[t]['phases'] if fn(cfg[t])]
+            for t in self.tls_ids
+        }
 
-    @property
+    @lazy_property
     def tls_ids(self):
         """List of nodes which are also traffic light signals
 
@@ -451,8 +474,46 @@ class Network(FlowNetwork):
         ['247123161']
 
         """
-        if not hasattr(self, '_cached_tls_ids'):
-            self.cached_tls_ids = \
-                [n['id'] for n in self.nodes if n['type'] == 'traffic_light']
-        return self.cached_tls_ids
-    
+        return [n['id'] for n in self.nodes if n['type'] == 'traffic_light']
+
+    def _add_edges_capacity(self, edges):
+        """Updates edges by providing capacity as the max density number of cars
+            per edge
+        
+        Limitations:
+        -----------
+        * It considers an average number vehicles over all vehicle_types
+        * If vehicle lenght is not provided converts it to lenght 5 default
+
+        Sumo:
+        -----
+        length 	float 	5.0 	The vehicle's netto-length (length) (in m)
+        minGap 	float 	2.5 	Empty space after leader [m]
+        maxSpeed 	float 	55.55 (200 km/h) for vehicles   The vehicle's maximum velocity (in m/s)
+
+        Use case:
+        --------
+         Determine the theoritical flow:
+         q (flow) [cars/h]  = D (density) [cars/km] x V (speed) [km/h]
+
+        References:
+        -----------
+        https://en.wikipedia.org/wiki/Fundamental_diagram_of_traffic_flow#Basic_statements
+        http://sumo.sourceforge.net/userdoc/Definition_of_Vehicles,_Vehicle_Types,_and_Routes.html#available_vtype_attributes
+        """
+        # Summarize over vehicle types
+        xs, vs = 0, 0
+        for i, veh_type in enumerate(self.vehicles.types):
+            # compute the average vehicle lenght
+            x = veh_type.get('minGap', 2.5) + veh_type.get('length', 5.0)
+            v = veh_type.get('maxSpeed', 55.55)
+            xs = (x + i * xs) / (i + 1)     # mean of lengths
+            vs = (v + i * vs) / (i + 1)     # mean of max_speeds
+
+        # Apply over edges
+        for edge in edges:
+            edge['max_capacity'] = (edge['length'] / xs) * edge['numLanes']
+            # max of mean speeds (max_speed is too conservative)
+            edge['max_speed'] = 0.5 * edge.get('speed', vs)
+            
+        return edges

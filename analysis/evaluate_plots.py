@@ -246,7 +246,10 @@ if __name__ == "__main__":
 
     # Describe waiting time.
     print('Waiting time:')
-    print(df_per_vehicle['waiting'].describe())
+    df_stats = df_per_vehicle['waiting'].describe()
+    df_stats.to_csv('{0}/waiting_time_stats.csv'.format(output_folder_path),
+                    float_format='%.3f')
+    print(df_stats)
     print('\n')
 
     fig = plt.figure()
@@ -263,7 +266,10 @@ if __name__ == "__main__":
 
     # Describe travel time.
     print('Travel time:')
-    print(df_per_vehicle['total'].describe())
+    df_stats = df_per_vehicle['total'].describe()
+    df_stats.to_csv('{0}/travel_time_stats.csv'.format(output_folder_path),
+                    float_format='%.3f')
+    print(df_stats)
     print('\n')
 
     fig = plt.figure()
@@ -280,7 +286,10 @@ if __name__ == "__main__":
 
     # Describe vehicles' speed.
     print('Speed:')
-    print(df_per_vehicle['speed'].describe())
+    df_stats = df_per_vehicle['speed'].describe()
+    df_stats.to_csv('{0}/speed_stats.csv'.format(output_folder_path),
+                    float_format='%.3f')
+    print(df_stats)
     print('\n')
 
     fig = plt.figure()
