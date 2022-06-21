@@ -39,7 +39,7 @@ MarkupSafe==1.1.1
 matplotlib==3.0.0
 more-itertools==7.2.0
 nose2==0.8.0
-numpy==1.14.0
+numpy==1.22.0
 numpydoc==0.9.1
 opencv-python==4.1.1.26
 packaging==19.2
